@@ -106,9 +106,10 @@ async function close(server) {
 async function createHttpsProxy(target) {
   assert.equal(new URL(target).hostname, '127.0.0.1');
   const port = new URL(target).port;
-  const requests = [];
+  const requests = [], responses = [];
   const server = createServer(tlsOptions(), (req, res) => {
-    requests.push({ method: req.method, url: req.url, headers: { ...req.headers } });
+    const observedRequest = { method: req.method, url: req.url, headers: { ...req.headers } };
+    requests.push(observedRequest);
     // Only the fixture's fixed internal listener is reachable. Never accept a
     // caller-controlled absolute URL as an upstream origin.
     if (!req.url.startsWith('/') || req.url.startsWith('//')) { res.writeHead(400).end(); return; }
@@ -116,12 +117,23 @@ async function createHttpsProxy(target) {
       ...req.headers, 'x-forwarded-proto': 'https', 'x-forwarded-host': req.headers.host,
     } }, upstream => {
       res.writeHead(upstream.statusCode, upstream.headers);
+      if (req.url === '/auth/logout') {
+        let size = 0, chunks = [];
+        upstream.on('data', chunk => {
+          size += chunk.length;
+          if (size <= 8192) chunks.push(chunk); else chunks = [];
+        });
+        upstream.on('end', () => responses.push({ request: observedRequest, status: upstream.statusCode,
+          bodyTooLarge: size > 8192, body: size > 8192 ? null : Buffer.concat(chunks).toString('utf8') }));
+      }
+      // Observation above neither replaces the body nor processes cookies.
+      // Chromium receives the untouched response and applies Set-Cookie itself.
       upstream.pipe(res);
     });
     forwarded.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end('Fixture upstream unavailable'); });
     req.pipe(forwarded);
   });
-  return { origin: await listen(server), requests, close: () => close(server) };
+  return { origin: await listen(server), requests, responses, close: () => close(server) };
 }
 
 async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {

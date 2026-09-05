@@ -401,21 +401,25 @@ test('Browser login: expired access tokens require a fresh login and never trigg
 
 test('Browser login: same-origin POST logout clears the browser session and performs OIDC logout without token URLs', async () => {
   const ctx = await context(), flow = await successfulLogin(ctx, 'A');
-  const [logout] = await Promise.all([
-    flow.page.waitForResponse(response => new URL(response.url()).pathname === '/auth/logout' && response.request().method() === 'POST'),
-    flow.page.getByRole('button', { name: 'Sign out', exact: true }).click(),
-  ]);
-  assert.equal(logout.status(), 200);
-  const result = await logout.json();
+  const responseIndex = webProxy.responses.length;
+  // Leave the browser request completely unintercepted. The HTTPS fixture
+  // observes bounded bytes while piping the original body/headers unchanged.
+  await flow.page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await flow.page.getByRole('link', { name: 'Sign in', exact: true }).waitFor();
+  const logout = webProxy.responses.slice(responseIndex).find(response => response.request.method === 'POST'
+    && response.request.url === '/auth/logout');
+  assert(logout, 'Expected to observe the actual browser logout response');
+  assert.equal(logout.status, 200);
+  assert.equal(logout.bodyTooLarge, false);
+  const result = JSON.parse(logout.body);
   assert.deepEqual(Object.keys(result), ['redirectTo']);
   const redirect = new URL(result.redirectTo);
   assert.equal(redirect.origin, new URL(issuer.issuer).origin);
   assert.equal(redirect.pathname, '/oidc/logout');
   assert.equal(redirect.searchParams.has('id_token_hint'), false);
-  const logoutHeaders = await logout.request().allHeaders();
+  const logoutHeaders = logout.request.headers;
   assert.equal(logoutHeaders.origin, webProxy.origin);
   assert.equal(logoutHeaders.referer, undefined);
-  await flow.page.getByRole('link', { name: 'Sign in', exact: true }).waitFor();
   assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
   assert.equal(sessionCookies(await ctx.cookies(webProxy.origin)).length, 0);
   assert(issuer.events.logout.length > 0);
