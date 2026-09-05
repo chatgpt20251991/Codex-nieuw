@@ -27,7 +27,7 @@ const storage = read('apps/api/src/common/storage/storage.service.ts');
 ok('S3 checksum supplied', storage.includes('ChecksumSHA256'));
 ok('stored object bytes can be hashed', storage.includes('hashObject') && storage.includes("createHash('sha256')"));
 const passport = read('apps/api/src/modules/passports/passports.controller.ts');
-ok('immutable hash chain', passport.includes('previousVersionHash:latest?.sha256'));
+ok('immutable hash chain', passport.replace(/\s/g, '').includes('previousVersionHash:latest?.sha256'));
 const projection = read('apps/api/src/modules/passports/passport-projection.ts');
 ok('public projection strips evidence IDs', passport.includes('projectPassport(canonical)') && projection.includes('fieldId: value.fieldId, name: value.name, value: value.value, unit: value.unit'));
 ok('public snapshot written separately', passport.includes('publicPassportSnapshot.create'));

@@ -120,6 +120,12 @@ See `codex/GATE_4_REPORT.md` for the version boundary and remaining production w
 
 ## Production gates before first real customer
 
+Gate 5 is currently a local, unverified integration change. It adds 14 lifecycle
+scenarios to the prior 34 integration tests, plus canonical-JSON unit tests.
+The command above now requires all 48 integration scenarios. The Gate 4 green
+result does not certify this changed revision. See `codex/GATE_5_REPORT.md` for
+execution status, migration/rollout requirements and lifecycle API changes.
+
 1. Run a full `npm install`, Prisma validation/migration generation and full compile in CI.
 2. Use separate migration and runtime PostgreSQL roles; runtime role must not own tables or have BYPASSRLS.
 3. Apply and integration-test the RLS policy pack.

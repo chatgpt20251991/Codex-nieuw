@@ -44,6 +44,10 @@ The next feature/integration work after these gates is Gate 5.
 - extraction claim stays `suggested` and can never make readiness “verified” by itself
 
 ## Gate 5 — End-to-end passport lifecycle
+Local implementation and 14 new scenarios are prepared; see GATE_5_REPORT.md.
+Integration execution is blocked by this session's test-service permissions.
+Finish verification and review before marking this gate green or starting Gate 6.
+
 - create org → model → item
 - fill mandatory values with verified evidence
 - validate → ready → publish

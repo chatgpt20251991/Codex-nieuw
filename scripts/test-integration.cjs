@@ -48,7 +48,7 @@ async function main() {
     // Re-applying the policy/grant pack must not fail or duplicate policies.
     await db.query(readFileSync(resolve(root, 'infra/postgres/001_rls.sql'), 'utf8'));
     await db.query(readFileSync(resolve(root, 'infra/postgres/002_runtime_grants.sql'), 'utf8'));
-    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs']);
+    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs', 'test/integration/passport-lifecycle.test.cjs']);
   } finally {
     if (db) await db.end();
     // Name is generated above; never accept a user-provided database deletion target.

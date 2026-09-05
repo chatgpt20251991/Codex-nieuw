@@ -9,6 +9,15 @@ TEST_REPORT.md and codex/GATE_4_REPORT.md for verification scope and remaining
 gates. The original generation notes below are historical.
 Next implementation work starts at Gate 5: the complete passport lifecycle.
 
+Gate 5 is prepared locally on `fix/gate-5-passport-lifecycle`, based on Gate 4
+commit `0bcfa4d`. PR #12 remains open: the GitHub connector rejected its merge
+with HTTP 403, and this session blocks the authenticated CLI's network access.
+Local test-service startup was also rejected by the execution approval policy.
+Read `codex/GATE_5_REPORT.md` before continuing. Gate 5 is NOT complete: the new
+migration and all 48 planned integration tests still need a permitted environment
+and a green remote CI run. Do not proceed to Gate 6 on the basis of unit/build
+results alone.
+
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
 

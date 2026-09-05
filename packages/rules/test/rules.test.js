@@ -12,6 +12,13 @@ test('UPI requires https',()=>assert.equal(r.crossFieldChecks({upi:'http://x'}).
 test('registry gate remains closed while semantic catalogue is unavailable',()=>assert.equal(r.registryGate({batterySemanticCatalogueAvailable:false,batteryRegistrationAvailable:false},0).allowed,false));
 test('registry chunks never exceed 100',()=>assert.deepEqual(r.chunkForRegistry(Array.from({length:205},(_,i)=>i)).map(x=>x.length),[100,100,5]));
 test('invalid direct state transition throws',()=>assert.throws(()=>r.transition('draft','registered')));
+test('revalidation and recycling preserve terminal lifecycle boundaries',()=>{
+  assert.equal(r.transition('ready','data_collection'),'data_collection');
+  assert.equal(r.transition('updated','ready'),'ready');
+  assert.equal(r.transition('updated','validation_failed'),'validation_failed');
+  const active=['draft','data_collection','validation_failed','ready','published','registry_pending','registered','updated'];
+  for(const state of active){assert.equal(r.transition(state,'recycled'),'recycled');assert.throws(()=>r.transition('recycled',state));assert.throws(()=>r.transition('superseded',state));}
+});
 test('public access is always permitted',()=>assert.equal(r.decideAccess({tier:'public'}).allowed,true));
 test('authority-only data is denied to ordinary operator',()=>assert.equal(r.decideAccess({tier:'authority_only',actorRole:'operator_admin'}).allowed,false));
 test('legitimate-interest data requires explicit grant in current conservative policy',()=>assert.equal(r.decideAccess({tier:'legitimate_interest_model',actorRole:'operator_user'}).allowed,false));

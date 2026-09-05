@@ -1,5 +1,26 @@
 # Verification record — 5 September 2026
 
+## Gate 5 local preparation — integration verification pending
+
+The Gate 5 branch is based on `0bcfa4d` (PR #12, still open). This revision passes
+Prisma schema validation, all workspace typechecks, 21 rule tests, four canonical
+JSON tests, and the 43 existing source checks locally. Nest/Next production builds
+also pass (13 generated pages). The new JavaScript tests also
+pass syntax checking. No dependency version changed.
+
+The 14 new lifecycle scenarios are wired into the mandatory integration command,
+bringing its planned total to 48. **These 48 tests have not run on this revision.**
+Starting PostgreSQL/MinIO was rejected by the execution approval policy
+(`sandbox_approval=false`); running the integration harness then failed with
+`ECONNREFUSED 127.0.0.1:55433` before migration or test execution. The migration's
+SQL behavior is therefore also unverified. There is no before/after integration
+failure count for Gate 5 and no Gate 5 remote CI result.
+
+The GitHub connector cannot merge PR #12 (HTTP 403); the authenticated CLI cannot
+reach GitHub from the restricted shell. These blockers do not justify dropping
+tests, weakening immutability or advancing to Gate 6. See `codex/GATE_5_REPORT.md`.
+The green Gate 4 record below applies only to its original revision.
+
 ## Gate 4 evidence follow-up
 
 PR #11 (Gate 3) is merged at `5546343`; its head revision passed GitHub Actions.
