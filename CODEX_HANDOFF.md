@@ -1,9 +1,11 @@
 # Codex Handoff — 5 September 2026
 
 ## Current engineering status
-Gate 1 and Gate 2 are locally verified. Read TEST_REPORT.md and codex/GATE_2_REPORT.md
-for exact scope and remaining gates. The original generation notes below are historical.
-Next implementation work starts at Gate 3.
+Gates 1 and 2 are verified locally and in GitHub Actions on `e9ee731`.
+Gate 3 now has 22 passing PostgreSQL/API integration tests (14 isolation plus 8
+disclosure scenarios). Read TEST_REPORT.md and codex/GATE_3_REPORT.md for exact
+scope and remaining gates. The original generation notes below are historical.
+Next implementation work starts at Gate 4: evidence integrity with MinIO.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
@@ -49,8 +51,8 @@ Do not interpret this as a failed architecture. Treat package install / generate
 Do not infer unpublished standard text from titles. Obtain/review the standards lawfully before implementing exact conformity profiles.
 
 ## Highest-priority engineering risks
-1. Prisma schema/migration validation has not run against installed Prisma 6 in this environment.
-2. RLS policies need integration testing using separate migration/runtime DB roles; table owners can defeat bad RLS testing assumptions.
+1. Prisma schema/migrations are verified in Gate 1/2; keep the clean-install CI gate required for changes.
+2. RLS isolation is verified with separate migration/runtime DB roles; retain the non-owner role in all future integration tests.
 3. OIDC claims mapping must be matched to the chosen identity provider.
 4. MinIO/S3 checksum header behaviour needs an end-to-end browser test.
 5. Evidence malware scanning is not yet implemented and is a production launch blocker.

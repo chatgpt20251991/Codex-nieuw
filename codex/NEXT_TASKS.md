@@ -2,8 +2,9 @@
 
 Work top-to-bottom. Commit after each green gate.
 
-Gate 1 is verified; see GATE_1_REPORT.md. Gate 2 results are recorded in GATE_2_REPORT.md.
-The next feature/integration work after these gates is Gate 3.
+Gates 1 and 2 are verified locally and in GitHub Actions; see their gate reports.
+Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md.
+The next feature/integration work after these gates is Gate 4.
 
 ## Gate 1 — Reproducible install/build
 - `npm install`

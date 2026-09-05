@@ -64,7 +64,7 @@ Creating future migrations with db:migrate also needs a separately configured di
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
 
-## Gate 2 integration tests
+## Gate 2 and Gate 3 integration tests
 
 ```bash
 docker compose -f docker-compose.integration.yml up -d --wait
@@ -85,6 +85,17 @@ The non-login `eubp_resolver` role owns the three minimal resolver functions and
 can SELECT only their public projection/token-context tables. It has no BYPASSRLS
 privilege and no access to canonical passport values or evidence. Every tenant-owned
 table, including relationship tables and authorisations, enforces RLS.
+
+The integration command also publishes a real 71-field passport and checks public
+and restricted disclosure. Public responses expose only public fields and public
+identity metadata. Capability responses add only the exact granted tier; field 50
+is never available through capability links. Internal IDs and provenance metadata
+are excluded. The lifecycle-status alias follows field 67's configured tier.
+
+Grants require a battery, an allowed tier and a finite expiry. Future, expired,
+revoked or malformed grants fail closed. Revoke a grant with authenticated
+`POST /v1/access-grants/:id/revoke`; tenant RLS and an atomic audit event apply.
+See `codex/GATE_3_REPORT.md` for test scope and legacy-snapshot rollout notes.
 
 ## Production gates before first real customer
 

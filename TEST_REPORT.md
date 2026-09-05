@@ -1,5 +1,23 @@
 # Verification record — 5 September 2026
 
+## Gate 3 review follow-up
+
+The baseline `e9ee731` also passed remote GitHub Actions, including production
+builds and all 14 PostgreSQL/API tests, in run 33982077710. This supersedes the
+historical remote-CI limitation below for that baseline.
+
+Gate 3 adds real publication/disclosure coverage. Before the fixes, 6/8 new
+scenarios failed; after the fixes, all 22 integration tests passed (14 existing
+plus 8 new), without skips. See `codex/GATE_3_REPORT.md` for findings, boundaries
+and legacy-snapshot behavior. Evidence upload E2E remains Gate 4.
+
+The Gate 3 revision also passed clean locked installation (433 packages), Prisma
+generation/schema validation, all four workspace typechecks, 20/20 rule tests,
+43/43 source checks, Nest/Next production builds (13 generated pages), and the
+Git diff check locally. No dependency versions changed in this revision.
+
+## Original Gate 1 / Gate 2 verification
+
 Gate 1 and Gate 2 have been executed locally against the supplied V2.1 source.
 
 | Check | Result |
