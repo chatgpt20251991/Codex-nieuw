@@ -11,7 +11,7 @@
     "build:packages": "npm run build --workspace @eubp/rules && npm run build --workspace @eubp/shared",
     "build": "npm run build:packages && npm run build --workspace @eubp/api && npm run build --workspace @eubp/web",
     "test": "npm run test --workspace @eubp/rules && node scripts/verify-v2.cjs && npm run test:api",
-    "test:api": "npm run build --workspace @eubp/api && node --test test/unit/*.test.cjs scripts/security/check-sarif.test.cjs",
+    "test:api": "npm run build --workspace @eubp/api && node --test test/unit/*.test.cjs scripts/security/*.test.cjs",
     "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
     "db:generate": "node --env-file-if-exists=.env node_modules/prisma/build/index.js generate --schema apps/api/prisma/schema.prisma",
     "db:migrate": "node --env-file-if-exists=.env node_modules/prisma/build/index.js migrate dev --schema apps/api/prisma/schema.prisma",

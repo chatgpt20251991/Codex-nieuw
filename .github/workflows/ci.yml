@@ -42,7 +42,7 @@ jobs:
       - name: Start isolated MinIO test fixture
         run: docker compose -f docker-compose.integration.yml up -d minio-integration
       - name: Start isolated ClamAV test fixture
-        run: docker compose -f docker-compose.malware-integration.yml up -d --wait --wait-timeout 180
+        run: docker compose -p eubp-clamav-integration -f docker-compose.malware-integration.yml up -d --wait --wait-timeout 180
       - name: Generate Prisma client
         run: npm run db:generate
       - name: Validate Prisma schema
@@ -59,7 +59,7 @@ jobs:
         run: npm run test:integration
       - name: Stop ClamAV test fixture
         if: always()
-        run: docker compose -f docker-compose.malware-integration.yml down
+        run: docker compose -p eubp-clamav-integration -f docker-compose.malware-integration.yml down
       - name: Stop MinIO test fixture
         if: always()
         run: docker compose -f docker-compose.integration.yml down

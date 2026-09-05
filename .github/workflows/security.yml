@@ -31,7 +31,8 @@ jobs:
           npm ls --all --json > security-results/dependency-tree.json
           node --version > security-results/tool-versions.txt
           npm --version >> security-results/tool-versions.txt
-          npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only --workspaces --include-workspace-root > security-results/sbom.cdx.json
+          npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only > security-results/sbom.cdx.json
+          node scripts/security/check-sbom.cjs security-results/sbom.cdx.json
       - name: Audit production and development dependencies
         run: npm audit --json --audit-level=high > security-results/npm-audit.json
       - name: Retain dependency evidence, including failed audit results
