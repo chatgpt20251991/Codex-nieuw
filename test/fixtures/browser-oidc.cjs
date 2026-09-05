@@ -9,7 +9,30 @@ const { once } = require('node:events');
 const { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require('node:fs');
 const { tmpdir, homedir } = require('node:os');
 const { join, resolve, relative, isAbsolute, basename } = require('node:path');
+const { gunzipSync, brotliDecompressSync, inflateSync } = require('node:zlib');
 const issuerHostname = 'eubp-oidc.example.invalid';
+const capturedBodyLimit = 8192;
+
+function decodeCapturedBody(bytes, contentEncoding = 'identity') {
+  if (bytes.length > capturedBodyLimit) return { bodyTooLarge: true, bodyDecodeError: 'CAPTURE_BODY_TOO_LARGE', body: null };
+  try {
+    const encodings = contentEncoding.toLowerCase().split(',').map(value => value.trim());
+    if (encodings.length > 4) throw new Error('Too many content encodings');
+    const decoders = new Map([['gzip', gunzipSync], ['br', brotliDecompressSync], ['deflate', inflateSync]]);
+    let decoded = bytes;
+    for (const encoding of encodings.reverse()) {
+      if (encoding === 'identity') continue;
+      const decompress = decoders.get(encoding);
+      if (!decompress) throw new Error('Unsupported content encoding');
+      decoded = decompress(decoded, { maxOutputLength: capturedBodyLimit });
+    }
+    return { bodyTooLarge: false, bodyDecodeError: null, body: new TextDecoder('utf-8', { fatal: true }).decode(decoded) };
+  } catch (error) {
+    // A malformed/oversized observation must fail the assertion, not throw from
+    // the stream listener or interfere with the browser's original response.
+    return { bodyTooLarge: error?.code === 'ERR_BUFFER_TOO_LARGE', bodyDecodeError: 'CAPTURE_DECODE_FAILED', body: null };
+  }
+}
 
 function command(name, args, options = {}) {
   return execFileSync(name, args, { windowsHide: true, timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'], ...options });
@@ -121,10 +144,15 @@ async function createHttpsProxy(target) {
         let size = 0, chunks = [];
         upstream.on('data', chunk => {
           size += chunk.length;
-          if (size <= 8192) chunks.push(chunk); else chunks = [];
+          if (size <= capturedBodyLimit) chunks.push(chunk); else chunks = [];
         });
-        upstream.on('end', () => responses.push({ request: observedRequest, status: upstream.statusCode,
-          bodyTooLarge: size > 8192, body: size > 8192 ? null : Buffer.concat(chunks).toString('utf8') }));
+        upstream.on('end', () => {
+          const contentEncoding = String(upstream.headers['content-encoding'] || 'identity');
+          const captured = size > capturedBodyLimit
+            ? { bodyTooLarge: true, bodyDecodeError: 'CAPTURE_BODY_TOO_LARGE', body: null }
+            : decodeCapturedBody(Buffer.concat(chunks), contentEncoding);
+          responses.push({ request: observedRequest, status: upstream.statusCode, contentEncoding, ...captured });
+        });
       }
       // Observation above neither replaces the body nor processes cookies.
       // Chromium receives the untouched response and applies Set-Cookie itself.
@@ -252,4 +280,4 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
     setAppOrigin: value => { appOrigin = value; }, setNextFault: value => { nextFault = value; }, close: () => close(server) };
 }
 
-module.exports = { createBrowserTrust, createHttpsProxy, createOidcIssuer };
+module.exports = { createBrowserTrust, createHttpsProxy, createOidcIssuer, decodeCapturedBody };

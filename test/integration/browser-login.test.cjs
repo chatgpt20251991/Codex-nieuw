@@ -411,6 +411,7 @@ test('Browser login: same-origin POST logout clears the browser session and perf
   assert(logout, 'Expected to observe the actual browser logout response');
   assert.equal(logout.status, 200);
   assert.equal(logout.bodyTooLarge, false);
+  assert.equal(logout.bodyDecodeError, null, `Could not decode the observed ${logout.contentEncoding} logout response`);
   const result = JSON.parse(logout.body);
   assert.deepEqual(Object.keys(result), ['redirectTo']);
   const redirect = new URL(result.redirectTo);
