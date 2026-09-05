@@ -1,5 +1,40 @@
 # Verification record — 5 September 2026
 
+## Gate 5 — verified in GitHub Actions
+
+Gate 4 PR #12 is merged at `e388103`. Gate 5 is proposed in PR #13.
+[CI run 33988585085](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33988585085)
+passes on `a2386e122521ae8b6d7979cacc23f1818c1a78e2` with Node 22,
+PostgreSQL 16, the pinned MinIO fixture and headless Chromium on Ubuntu.
+
+| Check | Result |
+|---|---|
+| Clean locked install and Prisma client generation | PASS |
+| Prisma schema and four workspace typechecks | PASS |
+| Rule-engine unit tests | 21 / 21 PASS |
+| Canonical JSON unit tests | 4 / 4 PASS |
+| Source-level security/compliance checks | 43 / 43 PASS |
+| Nest and Next production builds | PASS — 13 generated pages |
+| Real PostgreSQL/API/MinIO/browser integration | 48 / 48 PASS, no skips |
+| Fresh database migration and policy/grant reapplication | PASS — both migrations |
+| Upgrade from the initial schema with a published version | PASS — original row unchanged |
+| Runtime grants, administrator writes and parent-cascade protection | PASS |
+| Test-service cleanup | PASS |
+
+The 48 scenarios comprise 14 tenant-isolation, eight disclosure, 12 evidence and
+14 lifecycle cases. The migration-upgrade check executes separately before that
+suite and must also pass. It recreates old UPDATE/DELETE grants, applies the new
+migration and grant pack, verifies the stored row and checks trigger enforcement.
+Expected denied-write errors in PostgreSQL logs are assertions, not test failures.
+
+Schema/type checks, unit/static tests and both production builds also passed
+locally. Local integration startup was rejected by the execution policy, so the
+actual migration and integration results above come from GitHub's isolated test
+environment. There is no measured pre-fix regression count for Gate 5. No
+dependency versions changed. Check PR #13's latest revision before merging;
+`codex/GATE_5_REPORT.md` documents rollout and remaining boundaries. Gate 6 is next.
+Older records below describe their original revisions.
+
 ## Gate 4 evidence follow-up
 
 PR #11 (Gate 3) is merged at `5546343`; its head revision passed GitHub Actions.

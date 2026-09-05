@@ -49,7 +49,7 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: PostgreSQL, disclosure and real MinIO/browser integration
+      - name: PostgreSQL, disclosure, lifecycle and real MinIO/browser integration
         run: npm run test:integration
       - name: Stop MinIO test fixture
         if: always()

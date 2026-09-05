@@ -73,7 +73,7 @@ before(async () => {
     objectKey: 'gate3/verified-report', evidenceType: 'test_report', sha256: 'e'.repeat(64), verificationStatus: 'verified' } });
   for (const field of fields) {
     const value = await success('/passport-values', { body: { batteryItemId: item.id, fieldDefinitionId: field.id,
-      value: [10, 11, 26, 27, 28, 51].includes(field.id) ? 100 : `gate3-field-${field.id}` } });
+      value: field.id === 67 ? 'original' : [10, 11, 26, 27, 28, 51].includes(field.id) ? 100 : `gate3-field-${field.id}` } });
     await success('/evidence/link', { body: { evidenceId: evidence.id, passportValueId: value.id } });
     await success(`/passport-values/${value.id}/validate`, { body: {} });
   }

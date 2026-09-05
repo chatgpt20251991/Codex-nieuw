@@ -6,7 +6,7 @@ import { CurrentActor } from '../../common/auth/current-actor.decorator';
 import type { Actor } from '../../common/auth/auth.types';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
-import { AuditService } from '../audit/audit.service';
+import { invalidatePassports, lockValueOwner } from '../../common/tenant/passport-lock';
 
 const ValueSchema=z.object({
   modelId:z.string().uuid().optional(), batteryItemId:z.string().uuid().optional(), fieldDefinitionId:z.number().int().min(1).max(71),
@@ -15,22 +15,21 @@ const ValueSchema=z.object({
 
 @Controller('passport-values')
 export class ValuesController {
-  constructor(private readonly tenantDb:TenantDbService,private readonly audit:AuditService){}
+  constructor(private readonly tenantDb:TenantDbService){}
 
   @Post()
   async create(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=ValueSchema.parse(body);
     const row=await this.tenantDb.run(orgId,async tx=>{
-      if(b.modelId) await tx.batteryModel.findFirstOrThrow({where:{id:b.modelId,organisationId:orgId}});
-      if(b.batteryItemId) await tx.batteryItem.findFirstOrThrow({where:{id:b.batteryItemId,organisationId:orgId}});
+      await lockValueOwner(tx,orgId,{modelId:b.modelId||null,batteryItemId:b.batteryItemId||null});
       const prior=await tx.passportValue.findFirst({where:{organisationId:orgId,modelId:b.modelId||null,batteryItemId:b.batteryItemId||null,fieldDefinitionId:b.fieldDefinitionId,validUntil:null},orderBy:{createdAt:'desc'}});
       if(prior) await tx.passportValue.update({where:{id:prior.id},data:{validUntil:new Date(),validationStatus:'superseded'}});
       const created=await tx.passportValue.create({data:{organisationId:orgId,modelId:b.modelId,batteryItemId:b.batteryItemId,fieldDefinitionId:b.fieldDefinitionId,valueJson:b.value === null ? Prisma.JsonNull : b.value,unit:b.unit,sourceKind:b.sourceKind||'operator',supersedesValueId:prior?.id}});
-      if(b.batteryItemId) await tx.batteryItem.updateMany({where:{id:b.batteryItemId,organisationId:orgId,passportState:{in:['published','registered','registry_pending']}},data:{passportState:'updated'}});
-      if(b.modelId) await tx.batteryItem.updateMany({where:{modelId:b.modelId,organisationId:orgId,passportState:{in:['published','registered','registry_pending']}},data:{passportState:'updated'}});
+      await invalidatePassports(tx,orgId,b);
+      await tx.auditEvent.create({data:{organisationId:orgId,actorSubject:actor.subject,action:'passport_value.create',resourceType:'passport_value',resourceId:created.id,metadata:{fieldDefinitionId:created.fieldDefinitionId}}});
       return created;
     });
-    await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'passport_value.create',resourceType:'passport_value',resourceId:row.id,metadata:{fieldDefinitionId:row.fieldDefinitionId}}); return row;
+    return row;
   }
 
   @Get(':id')
@@ -39,17 +38,31 @@ export class ValuesController {
   @Post(':id/validate')
   async validate(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     const row=await this.tenantDb.run(orgId,async tx=>{
+      const owner=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});
+      await lockValueOwner(tx,orgId,owner);
       const value=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId},include:{evidenceLinks:{include:{evidence:true}}}});
+      if(value.validUntil||['superseded','rejected'].includes(value.validationStatus))throw new ConflictException({code:'VALUE_NOT_CURRENT'});
       const usable=value.evidenceLinks.filter(l=>usableEvidence(l.evidence));
       if(!usable.length) throw new ConflictException({code:'PROVENANCE_REQUIRED',message:'At least one verified evidence/provenance object is required before value validation.'});
-      return tx.passportValue.update({where:{id},data:{validationStatus:'validated'}});
+      if(value.validationStatus!=='validated')await invalidatePassports(tx,orgId,value);
+      const updated=await tx.passportValue.update({where:{id},data:{validationStatus:'validated'}});
+      await tx.auditEvent.create({data:{organisationId:orgId,actorSubject:actor.subject,action:'passport_value.validate',resourceType:'passport_value',resourceId:id}});
+      return updated;
     });
-    await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'passport_value.validate',resourceType:'passport_value',resourceId:id}); return {ok:true,value:row};
+    return {ok:true,value:row};
   }
 
   @Post(':id/reject')
   async reject(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string,@Body() body:any){
-    const row=await this.tenantDb.run(orgId,async tx=>{await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});return tx.passportValue.update({where:{id},data:{validationStatus:'rejected',validUntil:new Date()}})});
-    await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'passport_value.reject',resourceType:'passport_value',resourceId:id,metadata:{reason:String(body?.reason||'')}});return row;
+    return this.tenantDb.run(orgId,async tx=>{
+      const owner=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});
+      await lockValueOwner(tx,orgId,owner);
+      const current=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});
+      if(current.validUntil)throw new ConflictException({code:'VALUE_NOT_CURRENT'});
+      const row=await tx.passportValue.update({where:{id},data:{validationStatus:'rejected',validUntil:new Date()}});
+      await invalidatePassports(tx,orgId,current);
+      await tx.auditEvent.create({data:{organisationId:orgId,actorSubject:actor.subject,action:'passport_value.reject',resourceType:'passport_value',resourceId:id,metadata:{reason:String(body?.reason||'')}}});
+      return row;
+    });
   }
 }

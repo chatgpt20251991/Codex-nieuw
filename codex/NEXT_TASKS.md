@@ -5,8 +5,10 @@ Work top-to-bottom. Commit after each green gate.
 Gates 1 and 2 are verified locally and in GitHub Actions; see their gate reports.
 Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md;
 PR #11 is merged. Gate 4 evidence integrity and its 12 additional real
-MinIO/browser/API scenarios are recorded in GATE_4_REPORT.md.
-The next feature/integration work after these gates is Gate 5.
+MinIO/browser/API scenarios are recorded in GATE_4_REPORT.md; PR #12 is merged.
+Gate 5 passes all 48 integration scenarios plus a migration-upgrade check in
+GitHub Actions; see GATE_5_REPORT.md and PR #13. Review and merge that PR with
+green current-revision checks before starting Gate 6.
 
 ## Gate 1 — Reproducible install/build
 - `npm install`
@@ -44,6 +46,11 @@ The next feature/integration work after these gates is Gate 5.
 - extraction claim stays `suggested` and can never make readiness “verified” by itself
 
 ## Gate 5 — End-to-end passport lifecycle
+Implemented and verified in PR #13; see GATE_5_REPORT.md. GitHub Actions run
+33988585085 on a2386e1 passes all 48 required scenarios, including 14 lifecycle
+cases, and both fresh-install and prior-schema migration checks. Preserve these
+checks in subsequent gates. Deployment and PR merge are separate from this result.
+
 - create org → model → item
 - fill mandatory values with verified evidence
 - validate → ready → publish

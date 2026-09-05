@@ -5,12 +5,12 @@ import type { Actor } from '../../common/auth/auth.types';
 import { Roles } from '../../common/auth/roles.decorator';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
-import { AuditService } from '../audit/audit.service';
+import { invalidatePassports, lockValueOwner } from '../../common/tenant/passport-lock';
 import { ExtractionService } from './extraction/extraction.service';
 
 @Controller('evidence')
 export class EvidenceController {
-  constructor(private readonly tenantDb:TenantDbService,private readonly evidenceStorage:EvidenceStorageService,private readonly audit:AuditService,private readonly extraction:ExtractionService){}
+  constructor(private readonly tenantDb:TenantDbService,private readonly evidenceStorage:EvidenceStorageService,private readonly extraction:ExtractionService){}
 
   @Post('upload-sessions')
   createUpload(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
@@ -29,7 +29,19 @@ export class EvidenceController {
   }
 
   @Post('link')
-  async link(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() b:any){const row=await this.tenantDb.run(orgId,async tx=>{await tx.evidenceObject.findFirstOrThrow({where:{id:b.evidenceId,organisationId:orgId}});await tx.passportValue.findFirstOrThrow({where:{id:b.passportValueId,organisationId:orgId}});return tx.evidenceLink.upsert({where:{evidenceId_passportValueId:{evidenceId:b.evidenceId,passportValueId:b.passportValueId}},create:{evidenceId:b.evidenceId,passportValueId:b.passportValueId,relationship:b.relationship||'supports',locatorJson:b.locatorJson},update:{relationship:b.relationship||'supports',locatorJson:b.locatorJson}})});await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'evidence.link',resourceType:'passport_value',resourceId:b.passportValueId,metadata:{evidenceId:b.evidenceId}});return row;}
+  async link(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() b:any){
+    return this.tenantDb.run(orgId,async tx=>{
+      await tx.evidenceObject.findFirstOrThrow({where:{id:b.evidenceId,organisationId:orgId}});
+      const value=await tx.passportValue.findFirstOrThrow({where:{id:b.passportValueId,organisationId:orgId}});
+      await lockValueOwner(tx,orgId,value);
+      const row=await tx.evidenceLink.upsert({where:{evidenceId_passportValueId:{evidenceId:b.evidenceId,passportValueId:b.passportValueId}},
+        create:{evidenceId:b.evidenceId,passportValueId:b.passportValueId,relationship:b.relationship||'supports',locatorJson:b.locatorJson},
+        update:{relationship:b.relationship||'supports',locatorJson:b.locatorJson}});
+      await invalidatePassports(tx,orgId,value);
+      await tx.auditEvent.create({data:{organisationId:orgId,actorSubject:actor.subject,action:'evidence.link',resourceType:'passport_value',resourceId:b.passportValueId,metadata:{evidenceId:b.evidenceId}}});
+      return row;
+    });
+  }
 
   @Post(':id/extract')
   extract(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){return this.extraction.extractNow(orgId,id,actor.subject);}

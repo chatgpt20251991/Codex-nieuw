@@ -17,6 +17,9 @@ GRANT SELECT ON "PublicPassportSnapshot", "SupplierRequest", "AccessGrant" TO eu
 
 -- The API can append audit records, but cannot rewrite their history.
 REVOKE UPDATE, DELETE ON "AuditEvent" FROM eubp_runtime;
+-- Published versions are append-only; the migration trigger also blocks
+-- cascading deletion through an item/organisation and changes by table owners.
+REVOKE UPDATE, DELETE ON "PassportVersion" FROM eubp_runtime;
 ALTER FUNCTION get_public_passport_snapshot(text) OWNER TO eubp_resolver;
 ALTER FUNCTION resolve_supplier_request_token(text) OWNER TO eubp_resolver;
 ALTER FUNCTION resolve_access_grant_token(text) OWNER TO eubp_resolver;
