@@ -1,5 +1,5 @@
 // Source checks complement, and do not replace, the PostgreSQL/API integration suite.
-const { readFileSync, readdirSync, statSync } = require('node:fs');
+const { readFileSync, readdirSync, openSync, fstatSync, closeSync } = require('node:fs');
 const { resolve, join } = require('node:path');
 const root = resolve(__dirname, '..');
 const read = path => readFileSync(join(root, path), 'utf8');
@@ -25,7 +25,7 @@ ok('supplier token minimal resolver', rls.includes('resolve_supplier_request_tok
 ok('restricted token minimal resolver', rls.includes('resolve_access_grant_token'));
 const storage = read('apps/api/src/common/storage/storage.service.ts');
 ok('S3 checksum supplied', storage.includes('ChecksumSHA256'));
-ok('stored object bytes can be hashed', storage.includes('hashObject') && storage.includes("createHash('sha256')"));
+ok('stored object bytes can be hashed', storage.includes('malwareScanner.scan(measured())') && storage.includes("createHash('sha256')"));
 const passport = read('apps/api/src/modules/passports/passports.controller.ts');
 ok('immutable hash chain', passport.replace(/\s/g, '').includes('previousVersionHash:latest?.sha256'));
 const projection = read('apps/api/src/modules/passports/passport-projection.ts');
@@ -38,11 +38,11 @@ ok('registry requires HTTPS UPI', registryContract.includes("startsWith('https:/
 ok('max-100 batching', registryContract.replace(/\s/g, '').includes('chunkForRegistry(group,100)'));
 const auth = read('apps/api/src/common/auth/auth.service.ts');
 ok('OIDC verification exists', auth.includes('createRemoteJWKSet') && auth.includes('jwtVerify'));
-ok('production rejects dev auth', read('apps/api/src/main.ts').includes("AUTH_MODE!=='oidc'"));
+ok('production rejects dev auth', read('apps/api/src/main.ts').includes('assertProductionConfig();') && read('apps/api/src/common/http/production-config.ts').includes("env.AUTH_MODE !== 'oidc'"));
 ok('cross-tenant written authorisation gate', read('apps/api/src/common/tenant/tenant.guard.ts').includes('writtenAuthorisation.findFirst'));
 const supplier = read('apps/api/src/modules/suppliers/suppliers.controller.ts');
 ok('supplier token is hashed', supplier.includes('sha256Hex(raw)'));
-ok('supplier data enters submitted state', supplier.includes("validationStatus:'submitted'"));
+ok('supplier data enters submitted state', /validationStatus\s*:\s*['"]submitted['"]/.test(supplier));
 ok('extraction stays suggested', read('apps/api/src/modules/evidence/extraction/extraction.service.ts').includes("state:'suggested'"));
 const resolver = read('apps/api/src/modules/resolver/resolver.controller.ts');
 ok('public endpoint reads only snapshot function', resolver.includes('get_public_passport_snapshot') && !resolver.includes('passportVersion'));
@@ -63,7 +63,10 @@ function sourceText(dir) {
     if (excluded.has(entry.name) || entry.isSymbolicLink()) return [];
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return sourceText(path);
-    return statSync(path).size < 1_000_000 ? [readFileSync(path, 'utf8')] : [];
+    const descriptor = openSync(path, 'r');
+    try {
+      return fstatSync(descriptor).size < 1_000_000 ? [readFileSync(descriptor, 'utf8')] : [];
+    } finally { closeSync(descriptor); }
   });
 }
 const text = sourceText(root).join('\n');

@@ -94,7 +94,7 @@ before(async () => {
         res.end(JSON.stringify({ claims: [{ fieldDefinitionId: 11, value: 72, confidence: 0.99,
           state: 'validated', validationStatus: 'validated', evidenceIds: ['forged'] }] }));
       } else { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><title>Gate 4 browser transport test</title>'); }
-    } catch (error) { res.statusCode = 500; res.end(String(error)); }
+    } catch { res.statusCode = 500; res.end('Evidence fixture failed'); }
   });
   fixtureServer.listen(18080, '127.0.0.1'); await once(fixtureServer, 'listening');
   const listener = createServer(); listener.listen(0, '127.0.0.1'); await once(listener, 'listening');

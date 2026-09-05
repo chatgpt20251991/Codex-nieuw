@@ -14,10 +14,20 @@ export class ExtractionService {
     if(provider==='disabled') throw new ConflictException({code:'EXTRACTION_DISABLED',message:'Evidence extraction provider is not configured.'});
     if(provider!=='webhook') throw new ConflictException({code:'EXTRACTION_PROVIDER_UNSUPPORTED',message:`Unsupported extractor provider: ${provider}`});
     const url=this.config.get<string>('EXTRACTION_WEBHOOK_URL'); if(!url) throw new ConflictException('EXTRACTION_WEBHOOK_URL is required.');
-    const evidence=await this.evidenceStorage.forExtraction(organisationId,evidenceId);
-    const job=await this.tenantDb.run(organisationId,async tx=>{const job=await tx.extractionJob.create({data:{organisationId,evidenceId,provider:'webhook',status:'processing',startedAt:new Date()}});await tx.auditEvent.create({data:{organisationId,actorSubject,action:'evidence.extract',resourceType:'evidence',resourceId:evidenceId,metadata:{jobId:job.id}}});return job;});
+    const evidence=await this.evidenceStorage.forExtraction(organisationId,evidenceId,actorSubject);
+    const job=await this.tenantDb.run(organisationId,async tx=>{
+      await tx.$queryRaw`SELECT "id" FROM "EvidenceObject" WHERE "id" = ${evidenceId} AND "organisationId" = ${organisationId} FOR UPDATE`;
+      const current=await tx.evidenceObject.findFirstOrThrow({where:{id:evidenceId,organisationId}});
+      if(current.updatedAt.getTime()!==evidence.updatedAt.getTime()||current.verificationStatus!==evidence.verificationStatus||
+        (current.expiresAt&&current.expiresAt.getTime()<=Date.now()))throw new ConflictException({code:'EVIDENCE_CHANGED_RETRY'});
+      const job=await tx.extractionJob.create({data:{organisationId,evidenceId,provider:'webhook',status:'processing',startedAt:new Date()}});
+      await tx.auditEvent.create({data:{organisationId,actorSubject,action:'evidence.extract',resourceType:'evidence',resourceId:evidenceId,
+        metadata:{jobId:job.id,sha256:evidence.sha256,storageVersionId:evidence.storageVersionId,
+          scannerVersion:evidence.malwareScannerVersion,scannedAt:evidence.malwareScannedAt?.toISOString()||null}}});
+      return job;
+    });
     try{
-      const signedUrl=await this.storage.createDownloadUrl(evidence.objectKey,300);
+      const signedUrl=await this.storage.createDownloadUrl(evidence.objectKey,300,evidence.storageVersionId);
       const signal=AbortSignal.timeout(60_000);
       const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${this.config.get<string>('EXTRACTION_WEBHOOK_SECRET')||''}`},body:JSON.stringify({jobId:job.id,evidence:{id:evidence.id,mimeType:evidence.mimeType,downloadUrl:signedUrl},fieldDefinitions:fields.map(f=>({id:f.id,name:f.name,legalSource:f.legal_source}))}),signal});
       if(!response.ok) throw new Error(`Extractor returned HTTP ${response.status}`);

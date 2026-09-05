@@ -328,6 +328,10 @@ model EvidenceObject {
   sizeBytes          BigInt?
   sha256             String?
   storageChecksum    String?
+  malwareScanSha256   String?
+  malwareScannedAt    DateTime?
+  malwareScannerVersion String?
+  storageVersionId   String?
   evidenceType       String
   verificationStatus EvidenceStatus @default(pending_upload)
   issuedAt           DateTime?
