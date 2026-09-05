@@ -14,8 +14,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",
     "@aws-sdk/s3-request-presigner": "^3.883.0",
-    "@eubp/rules": "0.2.0",
-    "@eubp/shared": "0.2.0",
+    "@eubp/rules": "0.2.1",
+    "@eubp/shared": "0.2.1",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
