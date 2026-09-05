@@ -1,7 +1,7 @@
 # Gate 7 — production security engineering
 
 Base: PR #14 merged at 68b15a2. Branch: fix/gate-7-production-security.
-Status: implementation under verification; this is not a production go-live approval.
+Status: repository implementation verified in PR #15; production acceptance remains open.
 
 ## Implemented controls
 
@@ -43,8 +43,28 @@ unknown vulnerabilities, container vulnerabilities or deployment errors.
 ## Verification ledger
 
 Local: Prisma generation, all-workspace typecheck, 21 rule tests, 33 API/security
-unit tests, 43 source checks and the full production build passed. Actual GitHub
-integration/security job evidence will be recorded here after execution.
+unit tests, 43 source checks and the full production build passed.
+
+On 293a0f9, both [PR CI run 33993837120](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33993837120)
+and [push CI run 33993833842](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33993833842)
+passed clean installation, Prisma generation/schema validation, all-workspace
+typechecks, 54 unit tests, 43 source checks, production builds and all 99
+integration scenarios without skips. The separate old-schema upgrade preserves
+existing versions and leaves legacy evidence unscanned. The real dump/restore
+exercise preserves three immutable versions, 27 tenant tables, RLS, grants,
+public projections and the version hash chain.
+
+The [PR security run 33993837110](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33993837110)
+and [push security run 33993833840](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33993833840)
+also passed every check. The full lockfile SBOM has 461 package identities
+including its root, with zero npm advisories, zero Gitleaks findings and zero
+reported CodeQL findings. Findings were fixed, not suppressed.
+
+The integration breakdown is 65 retained Gate 2–6 scenarios, 17 HTTPS OIDC
+scenarios, six real ClamAV scenarios, five concurrent supplier-review scenarios
+and six browser/CSP scenarios. The prefetch rejection is a tested Next 15 boundary;
+valid RSC prefetch, hydration and navigation still work. A follow-up documentation
+revision must retain green checks on the PR's current head before merge.
 Local PostgreSQL/MinIO service startup remains unavailable under the session's
 approval policy; service integration is performed in GitHub's disposable fixture.
 
@@ -61,6 +81,7 @@ approval policy; service integration is performed in GitHub's disposable fixture
 4. Exercise encrypted production recovery, including object versions and keys,
    with an agreed RPO/RTO, and retain the signed operational evidence.
 5. Perform the scoped external penetration test and close its findings.
+
 Main branch protection is now enabled and was read back through GitHub's API.
 All five CI/security checks are required and bound to GitHub Actions, with an
 up-to-date base, a pull request and resolved conversations. Administrators are

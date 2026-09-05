@@ -31,11 +31,16 @@ template mapping and external responses still require official assets and real
 authenticated Registry tests. Both live flags remain false; the API and health
 status also report the absent adapter as unavailable when flags are misconfigured.
 
-PR #14 is merged at 68b15a2. Gate 7 security work is under verification on
-fix/gate-7-production-security; read codex/GATE_7_REPORT.md and docs/17 through
-docs/21 for controls, tests and remaining external deployment evidence.
+PR #14 is merged at 68b15a2. Gate 7 repository security work is verified in
+PR #15 on fix/gate-7-production-security: 54 unit tests, 43 source checks,
+99 integration scenarios, the upgrade/restore checks, production builds and all
+four security scans pass on 293a0f9. Main requires all five CI/security checks.
+Read codex/GATE_7_REPORT.md and docs/17 through docs/21 for execution evidence.
 Real-provider login, production storage/scanner/WAF, encrypted recovery and
 external penetration testing remain required before go-live.
+Next: review PR #15 with green current-head checks, then connect the selected
+real identity provider and browser login. Do not mark Gate 7 closed or advance
+to Gate 8 before the documented production acceptance evidence is complete.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.

@@ -25,7 +25,10 @@ before that expiry. A successful CodeQL analysis alone does not mean zero alerts
 cover missing results, failed invocations, warning/note/error/suppressed results,
 unexpected tools and the actual directory gate.
 
-The SBOM command uses the committed lockfile and includes the four workspaces.
+The SBOM command uses the committed lockfile and includes the four workspaces,
+root-only build tools and nested dependencies. A completeness check requires
+every locked package identity to be present; three regression tests reject
+workspace-filtered omissions, wrong versions and malformed reports.
 It describes npm dependency declarations, including optional platform packages;
 it does not certify a final container or list operating-system packages. The
 dedicated audit install disables dependency lifecycle scripts; the main CI job
