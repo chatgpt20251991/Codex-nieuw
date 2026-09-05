@@ -4,7 +4,6 @@ import { CurrentActor } from '../../common/auth/current-actor.decorator';
 import type { Actor } from '../../common/auth/auth.types';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
-import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
 const BootstrapSchema=z.object({ legalName:z.string().min(2), countryCode:z.string().length(2), role:z.string().optional(), vatNumber:z.string().optional() });
@@ -33,26 +32,26 @@ function identifierLimit(type:string){return type==='LEI'?20:type==='VAT'?15:typ
 
 @Controller('organisations')
 export class OrganisationsController {
-  constructor(private readonly prisma:PrismaService, private readonly tenantDb:TenantDbService, private readonly audit:AuditService){}
+  constructor(private readonly tenantDb:TenantDbService, private readonly audit:AuditService){}
 
   @Post('bootstrap')
   async bootstrap(@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=BootstrapSchema.parse(body);
-    const exists=await this.prisma.organisation.findUnique({where:{id:actor.organisationId}});
+    const exists=await this.tenantDb.run(actor.organisationId, tx=>tx.organisation.findUnique({where:{id:actor.organisationId}}));
     if(exists) throw new ConflictException({code:'ORGANISATION_EXISTS',message:'Organisation already bootstrapped.'});
-    const row=await this.prisma.organisation.create({data:{id:actor.organisationId,legalName:b.legalName,countryCode:b.countryCode.toUpperCase(),role:b.role||'responsible_economic_operator',vatNumber:b.vatNumber}});
+    const row=await this.tenantDb.run(actor.organisationId, tx=>tx.organisation.create({data:{id:actor.organisationId,legalName:b.legalName,countryCode:b.countryCode.toUpperCase(),role:b.role||'responsible_economic_operator',vatNumber:b.vatNumber}}));
     await this.tenantDb.run(row.id,tx=>tx.user.create({data:{organisationId:row.id,externalSubject:actor.subject,email:actor.email||`${actor.subject}@unknown.invalid`,displayName:actor.displayName,role:actor.role}}));
     await this.audit.log({organisationId:row.id,actorSubject:actor.subject,action:'organisation.bootstrap',resourceType:'organisation',resourceId:row.id});
     return row;
   }
 
   @Get('current')
-  async current(@CurrentTenant() organisationId:string){ return this.prisma.organisation.findUniqueOrThrow({where:{id:organisationId}}); }
+  async current(@CurrentTenant() organisationId:string){ return this.tenantDb.run(organisationId,tx=>tx.organisation.findUniqueOrThrow({where:{id:organisationId}})); }
 
   @Get('authorised-customers')
   async authorisedCustomers(@CurrentActor() actor:Actor){
     const now=new Date();
-    return this.prisma.writtenAuthorisation.findMany({where:{serviceProviderId:actor.organisationId,revokedAt:null,validFrom:{lte:now},OR:[{validUntil:null},{validUntil:{gt:now}}]},include:{responsibleOperator:true},orderBy:{createdAt:'desc'}});
+    return this.tenantDb.run(actor.organisationId,tx=>tx.writtenAuthorisation.findMany({where:{serviceProviderId:actor.organisationId,revokedAt:null,validFrom:{lte:now},OR:[{validUntil:null},{validUntil:{gt:now}}]},include:{responsibleOperator:true},orderBy:{createdAt:'desc'}}));
   }
 
   @Get('registry-profile')
@@ -74,7 +73,7 @@ export class OrganisationsController {
   @Get('registry-profile/readiness')
   async registryProfileReadiness(@CurrentTenant() organisationId:string){
     const [org,profile,identities]=await Promise.all([
-      this.prisma.organisation.findUniqueOrThrow({where:{id:organisationId}}),
+      this.tenantDb.run(organisationId,tx=>tx.organisation.findUniqueOrThrow({where:{id:organisationId}})),
       this.tenantDb.run(organisationId,tx=>tx.registryEnrolmentProfile.findUnique({where:{organisationId}})),
       this.tenantDb.run(organisationId,tx=>tx.registryIdentity.findMany({where:{organisationId}})),
     ]);

@@ -35,23 +35,56 @@ The regulatory configuration is based on the European Commission battery-passpor
 
 ## Local development
 
-Prerequisites: Node 22+, Docker, npm.
+Prerequisites: Node 22.12+, Docker, npm. CI uses Node 22; the initial local validation used Node 24.15.
 
 ```bash
 cp .env.example .env
 docker compose up -d
-npm install
+npm ci
 npm run db:generate
-npm run db:migrate
+npm run db:deploy
 # Apply RLS AFTER Prisma has created the tables:
-./scripts/apply_rls.sh
+npm run db:rls
 npm test
-npm run dev
+npm run dev --workspace @eubp/api
+# In a second terminal:
+npm run dev --workspace @eubp/web
 ```
 
 Web: http://localhost:3000
 API: http://localhost:4000/v1
 MinIO console: http://localhost:9001
+
+The API uses `DATABASE_URL` (eubp_runtime). Prisma migrations use
+`DIRECT_DATABASE_URL` (eubp_migrator). `DATABASE_ADMIN_URL` is used only by the
+separate policy/grant script. Never configure the API with the administrator URL.
+Docker creates these roles only on a fresh volume. Existing databases need explicit
+role provisioning and credential migration; do not delete a volume containing data.
+Creating future migrations with db:migrate also needs a separately configured disposable
+Prisma shadow database or a development-only role allowed to create it. The runtime
+role must never receive that privilege; normal startup uses db:deploy.
+
+## Gate 2 integration tests
+
+```bash
+docker compose -f docker-compose.integration.yml up -d --wait
+npm run db:generate
+npm run test:integration
+docker compose -f docker-compose.integration.yml down
+```
+
+The suite creates an isolated database on the local PostgreSQL server on port 55432,
+applies the committed migration using the non-superuser migrator, applies the RLS
+pack, and runs real HTTP requests against the built Nest API using the non-owner,
+non-BYPASSRLS runtime role. Only the generated test database is removed afterwards.
+For a different local test cluster, set `TEST_DATABASE_ADMIN_URL` to its `/postgres`
+database. This suite never accepts a remote server or an application database as
+its cleanup target. The Docker test cluster is disposable and contains no customer data.
+
+The non-login `eubp_resolver` role owns the three minimal resolver functions and
+can SELECT only their public projection/token-context tables. It has no BYPASSRLS
+privilege and no access to canonical passport values or evidence. Every tenant-owned
+table, including relationship tables and authorisations, enforces RLS.
 
 ## Production gates before first real customer
 

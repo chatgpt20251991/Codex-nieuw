@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { ZodExceptionFilter } from './common/http/zod-exception.filter';
 import { BigIntInterceptor } from './common/http/bigint.interceptor';
+import { PrismaExceptionFilter } from './common/http/prisma-exception.filter';
 
 function assertProductionConfig(){
  if(process.env.NODE_ENV!=='production')return;
@@ -19,7 +20,7 @@ async function bootstrap(){
  const origins=(process.env.WEB_ORIGIN||'http://localhost:3000').split(',').map(x=>x.trim());
  app.enableCors({origin:origins,credentials:true,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']});
  app.use((req:any,res:any,next:any)=>{const id=String(req.headers['x-request-id']||randomUUID());req.requestId=id;res.setHeader('X-Request-ID',id);next();});
- app.useGlobalFilters(new ZodExceptionFilter());
+ app.useGlobalFilters(new ZodExceptionFilter(), new PrismaExceptionFilter());
  app.useGlobalInterceptors(new BigIntInterceptor());
  app.setGlobalPrefix('v1');
  await app.listen(Number(process.env.PORT||4000),'0.0.0.0');

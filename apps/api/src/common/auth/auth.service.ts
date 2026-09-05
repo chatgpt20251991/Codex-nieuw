@@ -19,7 +19,7 @@ export class AuthService {
 
   async verifyBearer(token: string): Promise<Actor> {
     try {
-      if (this.mode === 'dev') return this.verifyDev(token);
+      if (this.mode === 'dev') return await this.verifyDev(token);
       const issuer = this.config.get<string>('OIDC_ISSUER');
       const audience = this.config.get<string>('OIDC_AUDIENCE');
       if (!issuer || !audience || !this.oidcJwks) throw new Error('OIDC is not fully configured');

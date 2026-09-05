@@ -3,13 +3,15 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: eubp
-      POSTGRES_USER: eubp
-      POSTGRES_PASSWORD: eubp
-    ports: ["5432:5432"]
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: eubp_local_admin
+    ports: ["127.0.0.1:5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/000_roles.sql:/docker-entrypoint-initdb.d/000_roles.sql:ro
+      - ./infra/postgres/010_local_database.sql:/docker-entrypoint-initdb.d/010_local_database.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eubp -d eubp"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d eubp"]
       interval: 5s
       timeout: 5s
       retries: 20

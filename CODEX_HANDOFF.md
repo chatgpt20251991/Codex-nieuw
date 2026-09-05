@@ -1,5 +1,10 @@
 # Codex Handoff — 5 September 2026
 
+## Current engineering status
+Gate 1 and Gate 2 are locally verified. Read TEST_REPORT.md and codex/GATE_2_REPORT.md
+for exact scope and remaining gates. The original generation notes below are historical.
+Next implementation work starts at Gate 3.
+
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
 

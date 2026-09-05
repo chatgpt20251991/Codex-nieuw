@@ -10,10 +10,23 @@ jobs:
     timeout-minutes: 20
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      DIRECT_DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      TEST_DATABASE_ADMIN_URL: postgresql://postgres:eubp_integration_admin@127.0.0.1:55432/postgres
       DEV_JWT_SECRET: 01234567890123456789012345678901
       AUTH_MODE: dev
       BATTERY_SEMANTIC_CATALOGUE_AVAILABLE: "false"
       REGISTRY_BATTERY_SUBMISSION_AVAILABLE: "false"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: eubp_integration_admin
+          POSTGRES_DB: postgres
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,3 +45,5 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: PostgreSQL migrations and tenant/API isolation
+        run: npm run test:integration

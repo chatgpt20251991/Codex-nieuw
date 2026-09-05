@@ -2,11 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { delegatedRegistryActorGate } from '@eubp/rules';
 import type { Actor } from '../../common/auth/auth.types';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
-import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class RegistryIdentityService {
-  constructor(private readonly tenantDb: TenantDbService, private readonly prisma: PrismaService) {}
+  constructor(private readonly tenantDb: TenantDbService) {}
 
   private async getIdentity(organisationId: string, actorType: 'economic_operator' | 'value_chain_actor') {
     return this.tenantDb.run(organisationId, (tx) => tx.registryIdentity.findUnique({
@@ -23,7 +22,7 @@ export class RegistryIdentityService {
 
     const now = new Date();
     const authorisation = actingOnBehalf
-      ? await this.prisma.writtenAuthorisation.findFirst({
+      ? await this.tenantDb.run(actor.organisationId, tx => tx.writtenAuthorisation.findFirst({
           where: {
             responsibleOperatorId: responsibleOrganisationId,
             serviceProviderId: actor.organisationId,
@@ -31,7 +30,7 @@ export class RegistryIdentityService {
             validFrom: { lte: now },
             OR: [{ validUntil: null }, { validUntil: { gt: now } }],
           },
-        })
+        }))
       : null;
 
     const result = delegatedRegistryActorGate({

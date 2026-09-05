@@ -2,6 +2,9 @@
 
 Work top-to-bottom. Commit after each green gate.
 
+Gate 1 is verified; see GATE_1_REPORT.md. Gate 2 results are recorded in GATE_2_REPORT.md.
+The next feature/integration work after these gates is Gate 3.
+
 ## Gate 1 — Reproducible install/build
 - `npm install`
 - commit generated `package-lock.json`

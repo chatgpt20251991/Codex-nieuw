@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
@@ -23,7 +24,7 @@ export class ValuesController {
       if(b.batteryItemId) await tx.batteryItem.findFirstOrThrow({where:{id:b.batteryItemId,organisationId:orgId}});
       const prior=await tx.passportValue.findFirst({where:{organisationId:orgId,modelId:b.modelId||null,batteryItemId:b.batteryItemId||null,fieldDefinitionId:b.fieldDefinitionId,validUntil:null},orderBy:{createdAt:'desc'}});
       if(prior) await tx.passportValue.update({where:{id:prior.id},data:{validUntil:new Date(),validationStatus:'superseded'}});
-      const created=await tx.passportValue.create({data:{organisationId:orgId,modelId:b.modelId,batteryItemId:b.batteryItemId,fieldDefinitionId:b.fieldDefinitionId,valueJson:b.value,unit:b.unit,sourceKind:b.sourceKind||'operator',supersedesValueId:prior?.id}});
+      const created=await tx.passportValue.create({data:{organisationId:orgId,modelId:b.modelId,batteryItemId:b.batteryItemId,fieldDefinitionId:b.fieldDefinitionId,valueJson:b.value === null ? Prisma.JsonNull : b.value,unit:b.unit,sourceKind:b.sourceKind||'operator',supersedesValueId:prior?.id}});
       if(b.batteryItemId) await tx.batteryItem.updateMany({where:{id:b.batteryItemId,organisationId:orgId,passportState:{in:['published','registered','registry_pending']}},data:{passportState:'updated'}});
       if(b.modelId) await tx.batteryItem.updateMany({where:{modelId:b.modelId,organisationId:orgId,passportState:{in:['published','registered','registry_pending']}},data:{passportState:'updated'}});
       return created;

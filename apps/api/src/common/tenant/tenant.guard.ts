@@ -1,11 +1,11 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantDbService } from './tenant-db.service';
 import { IS_PUBLIC_KEY } from '../auth/public.decorator';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector, private readonly prisma: PrismaService) {}
+  constructor(private readonly reflector: Reflector, private readonly tenantDb: TenantDbService) {}
 
   async canActivate(ctx: ExecutionContext) {
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [ctx.getHandler(), ctx.getClass()])) return true;
@@ -18,7 +18,7 @@ export class TenantGuard implements CanActivate {
     }
 
     const now = new Date();
-    const authorisation = await this.prisma.writtenAuthorisation.findFirst({
+    const authorisation = await this.tenantDb.run(actor.organisationId, tx => tx.writtenAuthorisation.findFirst({
       where: {
         responsibleOperatorId: requested,
         serviceProviderId: actor.organisationId,
@@ -26,7 +26,7 @@ export class TenantGuard implements CanActivate {
         validFrom: { lte: now },
         OR: [{ validUntil: null }, { validUntil: { gt: now } }],
       },
-    });
+    }));
     if (!authorisation) {
       throw new ForbiddenException({ code: 'NO_WRITTEN_AUTHORISATION', message: 'No active written authorisation exists for the requested organisation.' });
     }
