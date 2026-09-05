@@ -50,7 +50,7 @@ ok('cross-tenant written authorisation gate','writtenAuthorisation.findFirst' in
 
 supplier=(ROOT/'apps/api/src/modules/suppliers/suppliers.controller.ts').read_text()
 ok('supplier token is hashed','sha256Hex(raw)' in supplier)
-ok('supplier data enters submitted state',"validationStatus:'submitted'" in supplier)
+ok('supplier data enters submitted state',bool(re.search(r"validationStatus\s*:\s*['\"]submitted['\"]",supplier)))
 
 extract=(ROOT/'apps/api/src/modules/evidence/extraction/extraction.service.ts').read_text()
 ok('extraction stays suggested',"state:'suggested'" in extract)

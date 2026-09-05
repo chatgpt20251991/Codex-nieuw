@@ -1,5 +1,5 @@
 // Source checks complement, and do not replace, the PostgreSQL/API integration suite.
-const { readFileSync, readdirSync, statSync } = require('node:fs');
+const { readFileSync, readdirSync, openSync, fstatSync, closeSync } = require('node:fs');
 const { resolve, join } = require('node:path');
 const root = resolve(__dirname, '..');
 const read = path => readFileSync(join(root, path), 'utf8');
@@ -42,7 +42,7 @@ ok('production rejects dev auth', read('apps/api/src/main.ts').includes('assertP
 ok('cross-tenant written authorisation gate', read('apps/api/src/common/tenant/tenant.guard.ts').includes('writtenAuthorisation.findFirst'));
 const supplier = read('apps/api/src/modules/suppliers/suppliers.controller.ts');
 ok('supplier token is hashed', supplier.includes('sha256Hex(raw)'));
-ok('supplier data enters submitted state', supplier.includes("validationStatus:'submitted'"));
+ok('supplier data enters submitted state', /validationStatus\s*:\s*['"]submitted['"]/.test(supplier));
 ok('extraction stays suggested', read('apps/api/src/modules/evidence/extraction/extraction.service.ts').includes("state:'suggested'"));
 const resolver = read('apps/api/src/modules/resolver/resolver.controller.ts');
 ok('public endpoint reads only snapshot function', resolver.includes('get_public_passport_snapshot') && !resolver.includes('passportVersion'));
@@ -63,7 +63,10 @@ function sourceText(dir) {
     if (excluded.has(entry.name) || entry.isSymbolicLink()) return [];
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return sourceText(path);
-    return statSync(path).size < 1_000_000 ? [readFileSync(path, 'utf8')] : [];
+    const descriptor = openSync(path, 'r');
+    try {
+      return fstatSync(descriptor).size < 1_000_000 ? [readFileSync(descriptor, 'utf8')] : [];
+    } finally { closeSync(descriptor); }
   });
 }
 const text = sourceText(root).join('\n');

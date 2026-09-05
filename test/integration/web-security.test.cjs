@@ -87,14 +87,21 @@ after(async () => {
 });
 
 test('Gate 7 web: operator and capability documents enforce CSP and no-store headers', async () => {
-  for (const path of ['/dashboard', '/suppliers', '/supplier', '/access']) {
-    const response = await fetch(base + path);
-    const { nonce } = documentPolicy(response);
-    const html = await response.text();
-    const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map(match => match[0]);
-    assert(scripts.length > 0, `No framework scripts on ${path}`);
-    for (const script of scripts) assert(script.includes(`nonce="${nonce}"`), `Framework script has no matching nonce: ${script}`);
-  }
+  // Inspect the browser's parsed document without executing application code.
+  // Hydration and navigation are tested independently below with JavaScript on.
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    for (const path of ['/dashboard', '/suppliers', '/supplier', '/access']) {
+      const response = await page.goto(base + path, { waitUntil: 'domcontentloaded' });
+      assert(response, `No document response for ${path}`);
+      const { nonce } = documentPolicy({ status: response.status(), headers: new Headers(await response.allHeaders()) });
+      const scripts = await page.locator('script').evaluateAll(nodes => nodes.map(node => ({ nonce: node.nonce, src: node.src })));
+      assert(scripts.length > 0, `No framework scripts on ${path}`);
+      // Browsers conceal nonce content attributes; use the DOM nonce property.
+      for (const script of scripts) assert.equal(script.nonce, nonce, `Framework script has no matching nonce: ${script.src || 'inline'}`);
+    }
+  } finally { await context.close(); }
 });
 
 test('Gate 7 web: repeated documents receive fresh nonces and reject caller-supplied CSP/nonces', async () => {

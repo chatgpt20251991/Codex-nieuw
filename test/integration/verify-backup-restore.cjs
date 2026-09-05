@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { randomBytes, randomUUID, createHash } = require('node:crypto');
-const { mkdtempSync, readFileSync, openSync, closeSync, createReadStream, statSync, rmSync } = require('node:fs');
+const { mkdtempSync, readFileSync, openSync, closeSync, createReadStream, fstatSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve, join, relative, isAbsolute, basename } = require('node:path');
 const { spawn, execFile } = require('node:child_process');
@@ -23,9 +23,11 @@ function run(command, args, { env, stdin = 'ignore', stdout = 'inherit' } = {}) 
   });
 }
 
-async function fileSha256(path) {
+async function fileSha256(fd) {
   const hash = createHash('sha256');
-  for await (const bytes of createReadStream(path)) hash.update(bytes);
+  // Explicit positions use pread: hashing leaves the descriptor's shared offset
+  // untouched so the restore child still reads from byte zero. Never reopen a path.
+  for await (const bytes of createReadStream('', { fd, autoClose: false, start: 0 })) hash.update(bytes);
   return hash.digest('hex');
 }
 
@@ -156,15 +158,18 @@ module.exports = async function verifyBackupRestore(inputUrl) {
     try { await run('docker', dockerArgs('pg_dump', [...databaseArgs(sourceName), '--format=custom']),
       { env: dockerEnv, stdout: output }); }
     finally { closeSync(output); }
-    const dumpBytes = statSync(archive).size;
-    assert.ok(dumpBytes > 0, 'The backup archive must contain bytes.');
-    const dumpSha256 = await fileSha256(archive);
-    await control.query(`CREATE DATABASE ${quoteIdentifier(restoredName)} OWNER eubp_migrator TEMPLATE template0`); created.push(restoredName);
     const input = openSync(archive, 'r');
-    try { await run('docker', dockerArgs('pg_restore', [...databaseArgs(restoredName), '--exit-on-error', '--single-transaction'], true),
-      { env: dockerEnv, stdin: input }); }
+    let dumpBytes, dumpSha256;
+    try {
+      dumpBytes = fstatSync(input).size;
+      assert.ok(dumpBytes > 0, 'The backup archive must contain bytes.');
+      dumpSha256 = await fileSha256(input);
+      await control.query(`CREATE DATABASE ${quoteIdentifier(restoredName)} OWNER eubp_migrator TEMPLATE template0`); created.push(restoredName);
+      await run('docker', dockerArgs('pg_restore', [...databaseArgs(restoredName), '--exit-on-error', '--single-transaction'], true),
+        { env: dockerEnv, stdin: input });
+      assert.equal(await fileSha256(input), dumpSha256, 'Restoration must not modify the opened backup archive.');
+    }
     finally { closeSync(input); }
-    assert.equal(await fileSha256(archive), dumpSha256, 'Restoration must not modify the backup archive.');
     restoredDb = new Client({ connectionString: urlFor(restoredName) }); await restoredDb.connect();
     restoredPrisma = new PrismaClient({ datasources: { db: { url: urlFor(restoredName) } } });
     // Do not reapply migrations, policies or grants after restore: that would
