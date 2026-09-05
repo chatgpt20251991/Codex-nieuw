@@ -31,9 +31,11 @@ template mapping and external responses still require official assets and real
 authenticated Registry tests. Both live flags remain false; the API and health
 status also report the absent adapter as unavailable when flags are misconfigured.
 
-Next: review and merge PR #14 with green checks on its current revision, then
-start Gate 7's production launch blockers, beginning with OIDC provider integration
-tests. Gate 7 and deployment have not been performed by this change.
+PR #14 is merged at 68b15a2. Gate 7 security work is under verification on
+fix/gate-7-production-security; read codex/GATE_7_REPORT.md and docs/17 through
+docs/21 for controls, tests and remaining external deployment evidence.
+Real-provider login, production storage/scanner/WAF, encrypted recovery and
+external penetration testing remain required before go-live.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
@@ -83,7 +85,8 @@ Do not infer unpublished standard text from titles. Obtain/review the standards 
 2. RLS isolation is verified with separate migration/runtime DB roles; retain the non-owner role in all future integration tests.
 3. OIDC claims mapping must be matched to the chosen identity provider.
 4. Gate 4 verifies MinIO checksum/browser transport using an isolated historical fixture. Production storage selection, security, KMS and retention/immutability remain open.
-5. Evidence malware scanning is not yet implemented and is a production launch blocker.
+5. ClamAV evidence scanning is implemented in Gate 7; real production storage
+   versioning, maintained signatures and scanner deployment evidence remain blockers.
 6. Supplier invitation email delivery is not yet wired to a transactional email provider.
 7. External authority identity/access must replace capability links for authority-only data.
 8. Live Registry adapter remains intentionally disabled.

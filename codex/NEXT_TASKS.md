@@ -10,7 +10,9 @@ Gate 5 passes all 48 integration scenarios plus a migration-upgrade check in
 GitHub Actions; see GATE_5_REPORT.md. PR #13 is merged at 6972b2e.
 Gate 6 internal Registry preparation passes 65 integration tests, 32 unit tests
 and the migration-upgrade check in GitHub Actions; see GATE_6_REPORT.md and PR #14.
-Review and merge PR #14 with green current-revision checks before Gate 7.
+PR #14 is merged at 68b15a2. Gate 7 security implementation is under verification;
+see GATE_7_REPORT.md. Complete its real-provider/deployment evidence before
+declaring Gate 7 closed or advancing to Gate 8.
 
 ## Gate 1 — Reproducible install/build
 - `npm install`
