@@ -40,6 +40,19 @@ window, key-cache behavior and emergency containment process. Finish and test
 the browser sign-in/redirect/logout flow against this provider before inviting
 customers; API token verification alone does not prove that flow.
 
+Auth0 is now the selected browser provider; use `docs/22_AUTH0_SETUP.md` and the
+versioned Action template. The browser uses the official SDK with encrypted
+HttpOnly host-only cookies, a nonrolling session of at most one hour and no
+refresh token. The BFF never returns provider tokens. Logout clears the current
+browser session and contacts the provider; a copied cookie remains usable until
+expiry. Global/backchannel session revocation is not implemented or claimed.
+Preserve the configured web Host through the trusted proxy and strip untrusted
+forwarding headers there. Apply the edge budgets to `/auth/login`,
+`/auth/callback`, `/auth/logout`, `/api/session` and `/api/backend/*` as well as
+the API's `/v1` routes. Keep authorization codes and cookie/token values out of
+access and error logs. The NGINX example includes these routes; actual syntax,
+proxy trust, multi-replica rate limits and alert delivery need deployment tests.
+
 Evidence: `oidc-acceptance` record containing deployment revision, issuer,
 audience, claim/role mapping, tested key IDs, sanitized request IDs and pass/fail
 outcomes. Store neither bearer tokens nor private signing keys in the record.

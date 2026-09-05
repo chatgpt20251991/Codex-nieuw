@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuth0Client } from './lib/auth0';
+import { hasSameOrigin, hasTrustedRequestHost, readAuth0Config, trustedLogoutUrl } from './lib/auth-config';
 
 const development = process.env.NODE_ENV === 'development';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
@@ -37,10 +39,13 @@ function secureHeaders(response: NextResponse, request: NextRequest) {
   return response;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const authConfig = readAuth0Config();
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
   const connections = new Set(["'self'"]);
   try {
+    // Operator bearer tokens use the BFF. Existing supplier/access capability
+    // portals still call this explicitly configured API origin directly.
     connections.add(allowedOrigin(apiUrl, request));
     if (uploadOrigin) connections.add(allowedOrigin(uploadOrigin, request, true));
   } catch {
@@ -72,12 +77,73 @@ export function middleware(request: NextRequest) {
   // Incoming values are untrusted. Next must render with this request's fresh nonce.
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', policy);
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  let response: NextResponse;
+  const path = request.nextUrl.pathname;
+  if (path === '/auth' || path.startsWith('/auth/')) {
+    // SDK v4 also has account, passkey, passwordless and token routes. Only the
+    // reviewed authorization-code flow is mounted by this application.
+    if (!['/auth/login', '/auth/callback', '/auth/logout'].includes(path)) {
+      response = new NextResponse('Not found.', { status: 404 });
+    } else if ((path === '/auth/logout' && request.method !== 'POST')
+      || (path !== '/auth/logout' && request.method !== 'GET')) {
+      response = new NextResponse('Method not allowed.', { status: 405,
+        headers: { Allow: path === '/auth/logout' ? 'POST' : 'GET' } });
+    } else if (!authConfig) {
+      response = new NextResponse('Sign-in is not configured.', { status: 503 });
+    } else if (!hasTrustedRequestHost(request.headers, authConfig.appBaseUrl)
+      || (path === '/auth/logout' && !hasSameOrigin(request.headers, authConfig.appBaseUrl))) {
+      response = new NextResponse('Request origin is not allowed.', { status: 403 });
+    } else if (path !== '/auth/callback' && request.nextUrl.search) {
+      response = new NextResponse('Authentication parameters are fixed by the application.', { status: 400 });
+    } else {
+      try {
+        const auth0 = getAuth0Client();
+        if (!auth0) throw new Error('Authentication configuration unavailable');
+        // The SDK mounts logout as GET. Convert only this already-validated
+        // same-origin POST internally; a public GET cannot trigger logout.
+        const sdkRequest = new NextRequest(request.url, { method: 'GET', headers: requestHeaders });
+        response = await auth0.middleware(sdkRequest);
+        if (path === '/auth/logout' && response.status < 400) {
+          const redirectTo = trustedLogoutUrl(response.headers.get('location'), authConfig);
+          const wantsJson = request.headers.get('accept')?.split(',')
+            .some(value => value.split(';', 1)[0].trim().toLowerCase() === 'application/json');
+          // A CORS-mode same-origin fetch preserves Origin under no-referrer.
+          // Return the validated address so the browser can navigate to the IdP
+          // without following an external redirect inside fetch or exposing JWTs.
+          const logout = redirectTo
+            ? (wantsJson ? NextResponse.json({ redirectTo }) : NextResponse.redirect(redirectTo, 303))
+            : new NextResponse('Authentication service is unavailable.', { status: 502 });
+          for (const cookie of response.cookies.getAll()) logout.cookies.set(cookie);
+          response = logout;
+        }
+        if (response.status >= 400) {
+          const failure = new NextResponse(path === '/auth/callback' ? 'Sign-in failed. Please try again.' : 'Authentication service is unavailable.',
+            { status: path === '/auth/callback' ? 400 : 502 });
+          for (const cookie of response.cookies.getAll()) failure.cookies.set(cookie);
+          response = failure;
+        }
+      } catch {
+        response = new NextResponse(path === '/auth/callback' ? 'Sign-in failed. Please try again.' : 'Authentication service is unavailable.',
+          { status: path === '/auth/callback' ? 400 : 502 });
+      }
+    }
+  } else {
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+  }
+  if (path === '/auth/callback' && response.status >= 400 && authConfig) {
+    // SDK callback hooks can fail before its normal transaction cleanup runs.
+    // Clear only the fixed transaction cookie, preserving any existing session.
+    response.cookies.set(authConfig.secure ? '__Host-eubp_txn_' : 'eubp_dev_txn_', '', {
+      httpOnly: true, secure: authConfig.secure, sameSite: 'lax', path: '/', maxAge: 0, expires: new Date(0),
+    });
+  }
   response.headers.set('Content-Security-Policy', policy);
   return secureHeaders(response, request);
 }
 
 export const config = {
+  // Stable since Next 15.5; the OIDC SDK and TLS trust use the server Node runtime.
+  runtime: 'nodejs',
   // Keep middleware on document, navigation and prefetch requests. A client-set
   // prefetch header must never bypass the document security policy.
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],

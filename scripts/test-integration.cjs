@@ -35,6 +35,7 @@ async function main() {
   await admin.connect();
   let created = false;
   let db;
+  let browserTrust;
   try {
     await admin.query(readFileSync(resolve(root, 'infra/postgres/000_roles.sql'), 'utf8'));
     await require('../test/integration/verify-migration-upgrade.cjs')(adminUrl);
@@ -50,12 +51,20 @@ async function main() {
     // Re-applying the policy/grant pack must not fail or duplicate policies.
     await db.query(readFileSync(resolve(root, 'infra/postgres/001_rls.sql'), 'utf8'));
     await db.query(readFileSync(resolve(root, 'infra/postgres/002_runtime_grants.sql'), 'utf8'));
-    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs', 'test/integration/passport-lifecycle.test.cjs', 'test/integration/registry-contract.test.cjs', 'test/integration/oidc-auth.test.cjs', 'test/integration/malware-scanning.test.cjs', 'test/integration/web-security.test.cjs', 'test/integration/supplier-review-security.test.cjs']);
+    browserTrust = require('../test/fixtures/browser-oidc.cjs').createBrowserTrust();
+    env.TEST_BROWSER_TLS_DIRECTORY = browserTrust.directory;
+    env.NODE_EXTRA_CA_CERTS = browserTrust.caFile;
+    delete env.NODE_TLS_REJECT_UNAUTHORIZED;
+    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs', 'test/integration/passport-lifecycle.test.cjs', 'test/integration/registry-contract.test.cjs', 'test/integration/oidc-auth.test.cjs', 'test/integration/malware-scanning.test.cjs', 'test/integration/web-security.test.cjs', 'test/integration/browser-login.test.cjs', 'test/integration/supplier-review-security.test.cjs']);
   } finally {
-    if (db) await db.end();
-    // Name is generated above; never accept a user-provided database deletion target.
-    if (created) await admin.query(`DROP DATABASE "${database}" WITH (FORCE)`);
-    await admin.end();
+    try {
+      if (db) await db.end();
+      // Name is generated above; never accept a user-provided database deletion target.
+      if (created) await admin.query(`DROP DATABASE "${database}" WITH (FORCE)`);
+    } finally {
+      try { await admin.end(); }
+      finally { if (browserTrust) browserTrust.cleanup(); }
+    }
   }
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

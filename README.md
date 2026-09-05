@@ -24,7 +24,7 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Separate EU Registry identities for responsible economic operator vs DPP service provider/value-chain actor
 - Verification-lifetime gate (electronic-ID expiry and hard three-year ceiling)
 - Registry enrolment profile for legal name/address/NTR-LEI-VAT-eID/contact/legal representative preparation
-- OIDC production auth + isolated development-token mode
+- OIDC production auth, Auth0 browser cookie sessions and isolated development-token mode
 - Enterprise-style Next.js operator workspace and supplier/restricted portals
 
 ## Truth status
@@ -58,6 +58,15 @@ MinIO console: http://localhost:9001
 The API uses `DATABASE_URL` (eubp_runtime). Prisma migrations use
 `DIRECT_DATABASE_URL` (eubp_migrator). `DATABASE_ADMIN_URL` is used only by the
 separate policy/grant script. Never configure the API with the administrator URL.
+
+For production browser login, follow [the Auth0 setup runbook](docs/22_AUTH0_SETUP.md).
+`next dev` retains isolated development authentication; production builds use
+the official Auth0 SDK and the same-origin server API proxy. Provider tokens are
+encrypted in HttpOnly cookies and never returned to browser JavaScript. The actual
+Auth0 EU tenant, trusted user provisioning and deployment secrets still require
+administrator setup and real-provider acceptance; no account is created by the
+repository. Next.js reads its environment from the web workspace or deployment
+environment, not automatically from the root `.env` used by administrative scripts.
 Docker creates these roles only on a fresh volume. Existing databases need explicit
 role provisioning and credential migration; do not delete a volume containing data.
 Creating future migrations with db:migrate also needs a separately configured disposable
