@@ -64,10 +64,11 @@ Creating future migrations with db:migrate also needs a separately configured di
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
 
-## Gate 2 and Gate 3 integration tests
+## Gate 2–4 integration tests
 
 ```bash
 docker compose -f docker-compose.integration.yml up -d --wait
+npx playwright install chromium
 npm run db:generate
 npm run test:integration
 docker compose -f docker-compose.integration.yml down
@@ -96,6 +97,26 @@ Grants require a battery, an allowed tier and a finite expiry. Future, expired,
 revoked or malformed grants fail closed. Revoke a grant with authenticated
 `POST /v1/access-grants/:id/revoke`; tenant RLS and an atomic audit event apply.
 See `codex/GATE_3_REPORT.md` for test scope and legacy-snapshot rollout notes.
+
+Gate 4 uses a real, private MinIO bucket on loopback port 59000 and a headless
+Chromium browser. A fixture page on port 18080 hashes a File, obtains a signed PUT
+from the API, uploads across origins and finalizes it. The suite checks missing,
+corrupt and replaced bytes, checksum headers, size, supplier ownership, evidence
+verification/expiry, value provenance and suggestions-only extraction. It is a
+browser transport test; it does not click through the complete Next.js workspace.
+Only its randomly named test bucket is emptied and removed. All 34 integration
+tests are required; missing PostgreSQL, MinIO or a browser fails the suite.
+
+CI installs Chromium with `npx playwright install --with-deps chromium`. To use
+an existing compatible local browser, set `TEST_BROWSER_EXECUTABLE` to its absolute
+executable path. `TEST_S3_ENDPOINT` can select another dedicated loopback MinIO
+port. Native MinIO must use the synthetic credentials and CORS origin in
+`docker-compose.integration.yml`; never use customer storage for this suite.
+
+The integration Compose file pins a historical MinIO protocol fixture by digest,
+exposes it only on loopback and keeps its data in temporary memory. This fixture
+is not a production storage recommendation or a storage security certification.
+See `codex/GATE_4_REPORT.md` for the version boundary and remaining production work.
 
 ## Production gates before first real customer
 

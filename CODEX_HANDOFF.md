@@ -2,10 +2,12 @@
 
 ## Current engineering status
 Gates 1 and 2 are verified locally and in GitHub Actions on `e9ee731`.
-Gate 3 now has 22 passing PostgreSQL/API integration tests (14 isolation plus 8
-disclosure scenarios). Read TEST_REPORT.md and codex/GATE_3_REPORT.md for exact
-scope and remaining gates. The original generation notes below are historical.
-Next implementation work starts at Gate 4: evidence integrity with MinIO.
+Gate 3 was merged through PR #11 at `5546343` after passing GitHub Actions.
+Gate 4 adds real MinIO/browser evidence integrity coverage: 34 integration tests
+(14 isolation, 8 disclosure, 12 evidence scenarios), with no skips. Read
+TEST_REPORT.md and codex/GATE_4_REPORT.md for verification scope and remaining
+gates. The original generation notes below are historical.
+Next implementation work starts at Gate 5: the complete passport lifecycle.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
@@ -54,12 +56,12 @@ Do not infer unpublished standard text from titles. Obtain/review the standards 
 1. Prisma schema/migrations are verified in Gate 1/2; keep the clean-install CI gate required for changes.
 2. RLS isolation is verified with separate migration/runtime DB roles; retain the non-owner role in all future integration tests.
 3. OIDC claims mapping must be matched to the chosen identity provider.
-4. MinIO/S3 checksum header behaviour needs an end-to-end browser test.
+4. Gate 4 verifies MinIO checksum/browser transport using an isolated historical fixture. Production storage selection, security, KMS and retention/immutability remain open.
 5. Evidence malware scanning is not yet implemented and is a production launch blocker.
 6. Supplier invitation email delivery is not yet wired to a transactional email provider.
 7. External authority identity/access must replace capability links for authority-only data.
 8. Live Registry adapter remains intentionally disabled.
-9. Evidence extraction webhook needs a private, DPA-reviewed provider and schema-contract tests.
+9. Gate 4 tests suggestions-only extraction against a local webhook; a private, DPA-reviewed production provider and its complete schema contract remain open.
 10. Retention/continuity/wind-down mechanics require legal + operational validation before contractual “lifetime” promises.
 
 ## Do not do first

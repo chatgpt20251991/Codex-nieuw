@@ -3,8 +3,10 @@
 Work top-to-bottom. Commit after each green gate.
 
 Gates 1 and 2 are verified locally and in GitHub Actions; see their gate reports.
-Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md.
-The next feature/integration work after these gates is Gate 4.
+Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md;
+PR #11 is merged. Gate 4 evidence integrity and its 12 additional real
+MinIO/browser/API scenarios are recorded in GATE_4_REPORT.md.
+The next feature/integration work after these gates is Gate 5.
 
 ## Gate 1 — Reproducible install/build
 - `npm install`
