@@ -32,9 +32,10 @@ const projection = read('apps/api/src/modules/passports/passport-projection.ts')
 ok('public projection strips evidence IDs', passport.includes('projectPassport(canonical)') && projection.includes('fieldId: value.fieldId, name: value.name, value: value.value, unit: value.unit'));
 ok('public snapshot written separately', passport.includes('publicPassportSnapshot.create'));
 const registry = read('apps/api/src/modules/registry/registry.controller.ts');
+const registryContract = read('apps/api/src/modules/registry/registry-contract.ts');
 ok('no fake live registry success', registry.includes('LIVE_REGISTRY_ADAPTER_NOT_CONFIGURED'));
-ok('registry requires HTTPS UPI', registry.includes("startsWith('https://')"));
-ok('max-100 batching', registry.includes('chunkForRegistry(records,100)'));
+ok('registry requires HTTPS UPI', registryContract.includes("startsWith('https://')") && registryContract.includes("url.protocol === 'https:'"));
+ok('max-100 batching', registryContract.replace(/\s/g, '').includes('chunkForRegistry(group,100)'));
 const auth = read('apps/api/src/common/auth/auth.service.ts');
 ok('OIDC verification exists', auth.includes('createRemoteJWKSet') && auth.includes('jwtVerify'));
 ok('production rejects dev auth', read('apps/api/src/main.ts').includes("AUTH_MODE!=='oidc'"));

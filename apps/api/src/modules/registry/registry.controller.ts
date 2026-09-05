@@ -1,18 +1,55 @@
 import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
-import { chunkForRegistry, registryGate } from '@eubp/rules';
+import { z } from 'zod';
+import { registryGate } from '@eubp/rules';
 import { RegistryIdentityService } from './registry-identity.service';
-import { CurrentActor } from '../../common/auth/current-actor.decorator'; import type { Actor } from '../../common/auth/auth.types'; import { CurrentTenant } from '../../common/tenant/current-tenant.decorator'; import { TenantDbService } from '../../common/tenant/tenant-db.service'; import { AuditService } from '../audit/audit.service'; import { PassportDataService } from '../passports/passport-data.service';
+import { CurrentActor } from '../../common/auth/current-actor.decorator';
+import type { Actor } from '../../common/auth/auth.types';
+import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
+import { PassportDataService } from '../passports/passport-data.service';
+import { RegistryPreparationService } from './registry-preparation.service';
 
 @Controller('registry')
 export class RegistryController {
- constructor(private readonly tenantDb:TenantDbService,private readonly audit:AuditService,private readonly passportData:PassportDataService,private readonly registryIdentity:RegistryIdentityService){}
- private flags(){return {batterySemanticCatalogueAvailable:process.env.BATTERY_SEMANTIC_CATALOGUE_AVAILABLE==='true',batteryRegistrationAvailable:process.env.REGISTRY_BATTERY_SUBMISSION_AVAILABLE==='true'};}
+  constructor(private readonly passportData: PassportDataService, private readonly registryIdentity: RegistryIdentityService,
+    private readonly preparation: RegistryPreparationService) {}
 
- @Get('items/:itemId/gate') async gate(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('itemId') itemId:string){const v=await this.passportData.validate(orgId,itemId);const complianceGate=registryGate(this.flags(),v.publicationBlockers.length);const actorGate=await this.registryIdentity.gate(orgId,actor);return {allowed:complianceGate.allowed&&actorGate.allowed,complianceGate,actorGate};}
+  @Get('items/:itemId/gate')
+  async gate(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('itemId') itemId: string) {
+    const validation = await this.passportData.validate(orgId, z.string().uuid().parse(itemId));
+    const complianceGate = registryGate({
+      batterySemanticCatalogueAvailable: process.env.BATTERY_SEMANTIC_CATALOGUE_AVAILABLE === 'true',
+      batteryRegistrationAvailable: process.env.REGISTRY_BATTERY_SUBMISSION_AVAILABLE === 'true',
+    }, validation.publicationBlockers.length);
+    const actorGate = await this.registryIdentity.gate(orgId, actor);
+    return { allowed: false, code: 'LIVE_REGISTRY_ADAPTER_NOT_CONFIGURED', complianceGate, actorGate };
+  }
 
- @Post('export-json') async exportJson(@CurrentTenant() orgId:string,@Body() b:any){const itemIds:Array<string>=Array.isArray(b.itemIds)?b.itemIds:[];if(!itemIds.length||itemIds.length>1000)throw new ConflictException({code:'ITEM_IDS_REQUIRED',message:'Provide 1..1000 itemIds.'});const records=await this.tenantDb.run(orgId,async tx=>{const items=await tx.batteryItem.findMany({where:{organisationId:orgId,id:{in:itemIds}},include:{versions:{where:{publicationState:'published'},orderBy:{versionNo:'desc'},take:1}}});return items.map(i=>({batteryItemId:i.id,passportVersionId:i.versions[0]?.id,upi:i.upi,productIdentifier:i.serialOrItemIdentifier,schemaStatus:this.flags().batterySemanticCatalogueAvailable?'ready':'draft-pending-battery-semantic-catalogue'}));});const invalid=records.filter(r=>!r.passportVersionId||!r.upi?.startsWith('https://'));if(invalid.length)throw new ConflictException({code:'REGISTRY_PREVALIDATION_FAILED',invalid:invalid.map(x=>x.batteryItemId)});return {format:'eubp-registry-draft-export',warning:'This export is an internal adapter format until the final battery semantic catalogue/API contract is configured.',batches:chunkForRegistry(records,100)};}
+  @Post('export-json')
+  exportJson(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Body() body: unknown) {
+    return this.preparation.prepare(orgId, actor, body, 'json');
+  }
 
- @Post('items/:itemId/prepare') async prepare(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('itemId') itemId:string){const validation=await this.passportData.validate(orgId,itemId);const complianceGate=registryGate(this.flags(),validation.publicationBlockers.length);const actorGate=await this.registryIdentity.gate(orgId,actor);const gate={allowed:complianceGate.allowed&&actorGate.allowed,code:!complianceGate.allowed?complianceGate.code:!actorGate.allowed?actorGate.code:'READY',message:!complianceGate.allowed?complianceGate.message:!actorGate.allowed?actorGate.message:'Ready for configured Registry adapter.',complianceGate,actorGate};const result=await this.tenantDb.run(orgId,async tx=>{const item=await tx.batteryItem.findFirstOrThrow({where:{id:itemId,organisationId:orgId},include:{versions:{where:{publicationState:'published'},orderBy:{versionNo:'desc'},take:1}}});const latest=item.versions[0];if(!latest)throw new ConflictException({code:'NO_PUBLISHED_PASSPORT'});if(!item.upi?.startsWith('https://'))throw new ConflictException({code:'INVALID_REGISTRY_UPI',message:'EU Registry preparation requires an HTTPS UPI.'});return tx.registrySubmission.create({data:{organisationId:orgId,batteryItemId:itemId,passportVersionId:latest.id,method:'eu_registry_adapter',status:gate.allowed?'draft':'blocked',requestPayload:{upi:item.upi,passportVersionId:latest.id,gate} as any}});});await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'registry.prepare',resourceType:'registry_submission',resourceId:result.id,metadata:{gate}});return {submission:result,gate};}
+  @Post('export-xml')
+  exportXml(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Body() body: unknown) {
+    return this.preparation.prepare(orgId, actor, body, 'xml');
+  }
 
- @Post('items/:itemId/submit') async submit(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('itemId') itemId:string){const validation=await this.passportData.validate(orgId,itemId);const complianceGate=registryGate(this.flags(),validation.publicationBlockers.length);const actorGate=await this.registryIdentity.gate(orgId,actor);if(!complianceGate.allowed)throw new ConflictException(complianceGate);if(!actorGate.allowed)throw new ConflictException(actorGate);throw new ConflictException({code:'LIVE_REGISTRY_ADAPTER_NOT_CONFIGURED',message:'The compliance gate is open, but no live EU Registry adapter is configured. Do not mark this battery as registered.'});}
+  @Get('exports/:correlationId')
+  exported(@CurrentTenant() orgId: string, @Param('correlationId') correlationId: string) {
+    return this.preparation.get(orgId, z.string().uuid().parse(correlationId));
+  }
+
+  @Post('items/:itemId/prepare')
+  prepare(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('itemId') itemId: string, @Body() body: unknown) {
+    z.object({}).strict().parse(body);
+    return this.preparation.prepare(orgId, actor, { itemIds: [itemId] }, 'json', 'registry.prepare');
+  }
+
+  @Post('items/:itemId/submit')
+  async submit(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('itemId') itemId: string, @Body() body: unknown) {
+    z.object({}).strict().parse(body);
+    const result = await this.preparation.prepare(orgId, actor, { itemIds: [itemId] }, 'json', 'registry.submit_blocked');
+    throw new ConflictException({ code: 'LIVE_REGISTRY_ADAPTER_NOT_CONFIGURED', correlationId: result.correlationId,
+      result: result.result, message: 'The local blocked outcome was recorded. No live Registry request was sent.' });
+  }
 }

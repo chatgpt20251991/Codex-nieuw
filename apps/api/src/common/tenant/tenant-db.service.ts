@@ -6,10 +6,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class TenantDbService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async run<T>(organisationId: string, work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  async run<T>(organisationId: string, work: (tx: Prisma.TransactionClient) => Promise<T>, options?: { timeout: number }): Promise<T> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_org_id', ${organisationId}, true)`;
       return work(tx);
-    });
+    }, options);
   }
 }
