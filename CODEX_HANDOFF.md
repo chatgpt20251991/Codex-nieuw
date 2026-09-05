@@ -19,9 +19,21 @@ published version and enforced grants and cascade protection. Read
 Local integration startup remained blocked; the actual integration and migration
 verification ran in GitHub's isolated PostgreSQL/MinIO/Chromium environment.
 
-Next: review and merge PR #13 after checking its current revision's CI, then
-start Gate 6, the Registry adapter contract. Gate 6 has not been implemented by
-this change. Both live Registry flags remain false.
+Gate 5 is merged through PR #13 at `6972b2e`.
+
+Gate 6 internal Registry preparation is implemented in PR #14 on
+`fix/gate-6-registry-contract`. GitHub Actions run `33990468657` on `df8b1a5`
+passes clean install, schema/typechecks, 32 unit tests, 43 source checks, production
+builds, all 65 integration scenarios and the prior-schema migration-upgrade check.
+Read `codex/GATE_6_REPORT.md` and `docs/16_REGISTRY_CONTRACT_2026-09-05.md`.
+JSON/XML fixtures are internal drafts, not verified official upload files. Actual
+template mapping and external responses still require official assets and real
+authenticated Registry tests. Both live flags remain false; the API and health
+status also report the absent adapter as unavailable when flags are misconfigured.
+
+Next: review and merge PR #14 with green checks on its current revision, then
+start Gate 7's production launch blockers, beginning with OIDC provider integration
+tests. Gate 7 and deployment have not been performed by this change.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.

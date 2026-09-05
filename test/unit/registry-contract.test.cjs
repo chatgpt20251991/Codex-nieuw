@@ -7,6 +7,7 @@ const { serializeRegistryDraft, buildRegistryDraft, ExportRequest, validRegistry
   require('../../apps/api/dist/modules/registry/registry-contract.js');
 const { DisabledRegistryAdapter } = require('../../apps/api/dist/modules/registry/registry.adapter.js');
 const { RegistryController } = require('../../apps/api/dist/modules/registry/registry.controller.js');
+const { HealthController } = require('../../apps/api/dist/modules/health/health.controller.js');
 const fixture = name => readFileSync(resolve(__dirname, '../fixtures/registry', name), 'utf8').replace(/\r\n/g, '\n');
 const golden = JSON.parse(fixture('internal-draft.json'));
 const record = golden.records[0];
@@ -86,6 +87,7 @@ test('Gate 6: enabled flags and successful prerequisite checks still cannot enab
     const gate = await controller.gate(randomUUID(), {}, record.batteryItemId);
     assert.equal(gate.complianceGate.allowed, true); assert.equal(gate.actorGate.allowed, true);
     assert.equal(gate.allowed, false); assert.equal(gate.code, 'LIVE_REGISTRY_ADAPTER_NOT_CONFIGURED');
+    assert.equal(new HealthController().get().registryBatterySubmissionAvailable, false);
     const draft = buildRegistryDraft([record], 'json');
     assert.equal(draft.batches[0][0].schemaStatus, 'draft-pending-battery-semantic-catalogue');
     assert.equal(draft.result.outcome, 'blocked'); assert.equal(draft.result.registryUri, null);

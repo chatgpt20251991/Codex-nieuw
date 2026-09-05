@@ -1,5 +1,45 @@
 # Verification record — 5 September 2026
 
+## Gate 6 — internal Registry preparation verified
+
+Gate 5 PR #13 is merged at `6972b2e`. Gate 6 is proposed in PR #14.
+[PR CI run 33990468657](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33990468657)
+and [push CI run 33990466349](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33990466349)
+pass on `df8b1a50ebe744c8d349a56c07516a68757c16ac`.
+
+| Check | Result |
+|---|---|
+| Clean locked install, Prisma generation/schema, all workspace typechecks | PASS |
+| Rule tests | 21 / 21 PASS |
+| Canonical JSON and Registry contract unit tests | 11 / 11 PASS |
+| Source-level security/compliance checks | 43 / 43 PASS |
+| API and web production builds | PASS — 13 generated pages |
+| Real PostgreSQL/API/MinIO/Chromium integration | 65 / 65 PASS, no skips |
+| Fresh-install and prior-schema migration upgrade | PASS |
+| Isolated service cleanup | PASS |
+
+The 65 cases retain the prior 48 and add 17 Registry scenarios, including 101
+real API publications, 100/1 file splitting, trusted grouping, Chromium XML
+parsing, hash reconstruction from stored JSONB, complete-request rejection,
+rejected-result retrieval, current evidence/readiness, legacy metadata, RLS,
+blocked preparation/submission and forged-success rejection.
+
+Local unit/static tests, typechecks and production builds also pass. An additional
+health-status guard is covered by the enabled-flags unit case; PR #14's latest
+revision must retain green full CI before merge. Local integration services were
+not started; the actual integration verification ran in GitHub's isolated setup.
+
+Early CI failures came from fixture configuration: default HTTP identifiers were
+correctly rejected, then a malformed legacy fixture left a schema column at its
+default. Fixtures now explicitly use synthetic HTTPS identifiers and matching
+malformed metadata. No HTTPS or immutable-version check was weakened. This is
+not a measured pre-implementation regression comparison.
+
+See `codex/GATE_6_REPORT.md` for scope. These are internal, non-uploadable
+preparation fixtures; actual official template mapping and external response
+ingestion remain unverified. No dependency or migration was added. Next is
+Gate 7 after PR #14 review/merge. Older records below describe earlier revisions.
+
 ## Gate 5 — verified in GitHub Actions
 
 Gate 4 PR #12 is merged at `e388103`. Gate 5 is proposed in PR #13.

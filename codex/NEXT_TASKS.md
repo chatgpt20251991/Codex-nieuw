@@ -7,8 +7,10 @@ Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md
 PR #11 is merged. Gate 4 evidence integrity and its 12 additional real
 MinIO/browser/API scenarios are recorded in GATE_4_REPORT.md; PR #12 is merged.
 Gate 5 passes all 48 integration scenarios plus a migration-upgrade check in
-GitHub Actions; see GATE_5_REPORT.md and PR #13. Review and merge that PR with
-green current-revision checks before starting Gate 6.
+GitHub Actions; see GATE_5_REPORT.md. PR #13 is merged at 6972b2e.
+Gate 6 internal Registry preparation passes 65 integration tests, 32 unit tests
+and the migration-upgrade check in GitHub Actions; see GATE_6_REPORT.md and PR #14.
+Review and merge PR #14 with green current-revision checks before Gate 7.
 
 ## Gate 1 — Reproducible install/build
 - `npm install`
@@ -61,6 +63,11 @@ checks in subsequent gates. Deployment and PR merge are separate from this resul
 - recycle closes active lifecycle path
 
 ## Gate 6 — Registry adapter contract
+Internal preparation implemented and verified in PR #14 (run 33990468657 on
+df8b1a5). Official upload-template mapping and live integration remain unavailable
+and must not be implied by passing internal fixtures. Preserve all 65 integration
+scenarios and the disabled-adapter truth checks. See GATE_6_REPORT.md.
+
 - keep live submit disabled
 - create JSON/XML adapter contract fixtures from current official Registry documentation
 - test max-100 batching and reject whole batch locally if any item fails pre-validation

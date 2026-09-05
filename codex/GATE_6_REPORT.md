@@ -1,9 +1,10 @@
 # Gate 6 — Internal Registry preparation contract
 
 Gate 5 PR #13 was merged at `6972b2e`. This Gate 6 branch is
-`fix/gate-6-registry-contract`. Integration verification is pending; local rule,
-canonical/contract unit tests and static checks pass. This report will be updated
-with the actual GitHub CI result before the PR is marked ready.
+`fix/gate-6-registry-contract`, proposed in [PR #14](https://github.com/chatgpt20251991/Codex-nieuw/pull/14).
+Internal preparation is verified in [CI run 33990468657](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33990468657)
+on `df8b1a50ebe744c8d349a56c07516a68757c16ac`. Review the current PR revision's
+checks before merge. Neither PR merge nor deployment is claimed here.
 
 ## Source and scope
 
@@ -18,6 +19,8 @@ The fixtures are explicitly application-owned `eubp.registry-draft.v1` with
 `urn:eubp:registry-draft:v1`. They are not official upload files or external-success
 fixtures. Both live flags remain false. Even setting both flags true cannot
 activate the absent adapter or change an internal draft to `ready`/`registered`.
+The health endpoint used by the UI reports effective unavailability too, so an
+environment flag cannot make the screen claim live submission is enabled.
 
 ## Changes and API behavior
 
@@ -55,7 +58,7 @@ activate the absent adapter or change an internal draft to `ready`/`registered`.
   Prepare returns the blocked record; submit persists its blocked local attempt
   and returns 409. No external request is performed and passport state is untouched.
 
-## Prepared verification
+## Verification
 
 Seven contract unit tests cover golden JSON/XML fixtures, escaping/Unicode,
 1/100/101/1000 limits, grouping, duplicate IDs across file boundaries, invalid
@@ -70,6 +73,19 @@ unsafe UPIs, tenant isolation, rejection retrieval, EV/LMT grouping, preparation
 blocked submission, spoofed success and malformed legacy contract metadata.
 All 65 integration scenarios and the
 existing fresh-install/migration-upgrade check are required, without skipping.
+
+All 65 integration scenarios and the migration-upgrade check pass in the linked
+GitHub run, together with clean installation, Prisma generation/schema, all
+workspace typechecks, 32 unit tests, 43 source checks and both production builds
+(13 pages). CI runs Node 22, PostgreSQL 16, the pinned historical MinIO fixture
+and Chromium. Unit/static tests, typechecks and builds also passed locally;
+integration services were not started locally. CI cleanup passed.
+
+Initial test failures were corrected in the fixtures: Registry cases now use a
+reserved synthetic HTTPS host (never contacted), and the imported invalid-schema
+case explicitly stores its intended schema column. Production checks were not
+weakened. The suite proves serialization and API behavior, not a full Next.js UI
+workflow or a production load test of 1000 publications.
 
 ## Remaining boundaries
 
