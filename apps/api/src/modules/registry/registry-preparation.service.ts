@@ -62,7 +62,9 @@ export class RegistryPreparationService {
               canonical?.battery?.category !== item.model.category || canonical?.schema !== latest.schemaVersion ||
               canonical?.ruleSetVersion !== latest.ruleSetVersion || hashJson(latest.canonicalJson) !== latest.sha256)
             code = 'PUBLISHED_IDENTITY_MISMATCH';
-          else if (!xmlTextAllowed(latest.schemaVersion) || !xmlTextAllowed(latest.ruleSetVersion)) code = 'INVALID_CONTRACT_METADATA';
+          else if (!latest.schemaVersion.trim() || !latest.ruleSetVersion.trim() ||
+              !xmlTextAllowed(latest.schemaVersion) || !xmlTextAllowed(latest.ruleSetVersion) ||
+              !['EV', 'LMT', 'INDUSTRIAL_GT_2KWH'].includes(item.model.category)) code = 'INVALID_CONTRACT_METADATA';
           else if (upis.has(item.upi!)) code = 'DUPLICATE_UPI';
         }
         if (code) invalid.push({ itemId, code });

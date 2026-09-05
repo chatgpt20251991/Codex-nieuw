@@ -33,7 +33,7 @@ export function xmlTextAllowed(value: string) {
 }
 
 export function validRegistryUpi(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length > 2000 || !value.startsWith('https://') || /\s/.test(value)) return false;
+  if (typeof value !== 'string' || value.length > 2000 || !value.startsWith('https://') || /\s/.test(value) || value.includes('#')) return false;
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password && !url.hash && xmlTextAllowed(value);
@@ -44,7 +44,8 @@ const recordSchema = z.object({ batteryItemId: z.string().uuid(), passportVersio
   upi: z.string().refine(validRegistryUpi, 'An HTTPS UPI of at most 2000 characters is required.'),
   productIdentifier: z.string().min(1).refine(xmlTextAllowed, 'Identifier contains unsupported XML characters.'),
   schemaStatus: z.literal(DRAFT_STATUS), category: z.enum(['EV', 'LMT', 'INDUSTRIAL_GT_2KWH']),
-  schemaVersion: z.string().min(1).refine(xmlTextAllowed), ruleSetVersion: z.string().min(1).refine(xmlTextAllowed),
+  schemaVersion: z.string().refine(value => Boolean(value.trim()) && xmlTextAllowed(value)),
+  ruleSetVersion: z.string().refine(value => Boolean(value.trim()) && xmlTextAllowed(value)),
   passportSha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 
 export function blockedRegistryResult() {

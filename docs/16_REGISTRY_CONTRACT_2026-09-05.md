@@ -22,6 +22,8 @@ The [Commission Registry overview](https://single-market-economy.ec.europa.eu/si
 
 Gate 6 fixtures are application-owned preparation formats informed by the constraints above. They are explicitly internal drafts, carry an application namespace and `uploadable: false`, and do not claim conformance to an official upload schema. Their identifiers and hashes support internal tracing; a local correlation ID is not an external Registry receipt.
 
+The internal contract is `eubp.registry-draft.v1`; its XML namespace is `urn:eubp:registry-draft:v1`. Category, passport schema/rule-set version and passport hash come from the checked stored publication. These application metadata fields are not claimed to be official Registry field names.
+
 Grouping by tenant, battery category, passport schema and rule-set version is this repository's safety policy. Complete-candidate validation before grouping/chunking is also an internal policy. The documented EU count limit and all-or-nothing outcome apply to each submitted file.
 
 Export, local validation and blocked submission must never establish `registered`, an external correlation ID or a Registry URI. Keep both live flags false. Eventual enablement requires obtaining and recording the applicable official templates/semantic assets and their source/version/hash, implementing their exact mapping, and passing real authenticated Registry integration tests. Passing internal fixture tests does not satisfy that requirement.

@@ -351,6 +351,36 @@ test('Gate 6: current compliance blockers are rechecked even if legacy data stil
   }
 });
 
+test('Gate 6: legacy publications with malformed contract metadata retain a rejected local result', async () => {
+  const sample = published[2].publication.version;
+  for (const invalidField of ['ruleSetVersion', 'schema']) {
+    const item = await makeItem();
+    const upi = `https://id.example.invalid/b/${item.publicId}`;
+    const canonical = structuredClone(sample.canonicalJson);
+    canonical.generatedAt = new Date().toISOString();
+    canonical.battery = { ...canonical.battery, id: item.id, publicId: item.publicId,
+      serial: item.serialOrItemIdentifier, upi };
+    canonical[invalidField] = '';
+    // A newly inserted, synthetic legacy publication exercises imported malformed
+    // metadata. No existing immutable version is updated and no trigger is disabled.
+    const version = await admin.$transaction(async tx => {
+      const row = await tx.passportVersion.create({ data: { organisationId: orgs.A, batteryItemId: item.id,
+        versionNo: 1, ruleSetVersion: canonical.ruleSetVersion, canonicalJson: canonical,
+        sha256: hashJson(canonical), previousVersionHash: null, publicationState: 'published', publishedAt: new Date() } });
+      await tx.batteryItem.update({ where: { id: item.id }, data: { upi, passportState: 'published' } });
+      return row;
+    });
+    const rejected = await rejectBatch([published[0].item.id, item.id]);
+    assert.deepEqual(rejected.data.invalid, [{ itemId: item.id, code: 'INVALID_CONTRACT_METADATA' }]);
+    const retained = await success(`/registry/exports/${rejected.data.correlationId}`);
+    assert.deepEqual(retained.errorReport, { requestedCount: 2, invalid: rejected.data.invalid });
+    assert.equal(retained.result.outcome, 'rejected');
+    assert.equal(retained.result.liveSubmissionAttempted, false);
+    assert.deepEqual(retained.submissions, []);
+    assert.deepEqual(await admin.passportVersion.findUniqueOrThrow({ where: { id: version.id } }), version);
+  }
+});
+
 test('Gate 6: missing or unsafe HTTPS identifiers fail closed for the entire batch', async () => {
   const entry = await publishNew();
   try {

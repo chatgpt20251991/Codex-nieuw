@@ -62,12 +62,13 @@ Seven contract unit tests cover golden JSON/XML fixtures, escaping/Unicode,
 inputs and enabled-flags-without-adapter truth behavior. Four canonical and 21
 rule tests and all 43 static checks remain mandatory.
 
-Sixteen new integration scenarios use real PostgreSQL/RLS, API publications,
+Seventeen new integration scenarios use real PostgreSQL/RLS, API publications,
 verified MinIO evidence and Chromium's XML parser. They cover 101 actual
 publications split as 100/1, stored payload/file hashes and reconstruction,
 strict input, a bad item after 100 good items, current state/readiness/expiry,
 unsafe UPIs, tenant isolation, rejection retrieval, EV/LMT grouping, preparation,
-blocked submission and spoofed success. All 64 integration scenarios and the
+blocked submission, spoofed success and malformed legacy contract metadata.
+All 65 integration scenarios and the
 existing fresh-install/migration-upgrade check are required, without skipping.
 
 ## Remaining boundaries

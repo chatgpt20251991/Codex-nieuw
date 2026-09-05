@@ -56,7 +56,8 @@ test('Gate 6: empty/oversized contracts, unknown fields, arbitrary XML tags and 
   assert.throws(() => buildRegistryDraft(records(1001), 'xml'));
   assert.throws(() => serializeRegistryDraft(records(101), 'json', golden.correlationId));
   for (const changed of [{ ...record, schemaStatus: 'ready' }, { ...record, '</record><attack>': 'injection' },
-    { ...record, productIdentifier: 'bad\u0000text' }, { ...record, productIdentifier: 'bad\ud800text' }]) {
+    { ...record, productIdentifier: 'bad\u0000text' }, { ...record, productIdentifier: 'bad\ud800text' },
+    { ...record, schemaVersion: '' }, { ...record, ruleSetVersion: '   ' }]) {
     assert.throws(() => serializeRegistryDraft([changed], 'xml', golden.correlationId));
   }
   for (const body of [{}, { itemIds: [] }, { itemIds: [record.batteryItemId, record.batteryItemId] },
@@ -70,7 +71,7 @@ test('Gate 6: documented HTTPS/2000 limit and internal credentials/fragment rest
   assert.equal(validRegistryUpi(prefix + 'x'.repeat(2000 - prefix.length)), true);
   assert.equal(validRegistryUpi(prefix + 'x'.repeat(2001 - prefix.length)), false);
   for (const value of [null, '', 'http://example.invalid', 'https://', 'https://user:pass@example.invalid',
-    'https://example.invalid/#fragment', ' https://example.invalid', 'https://example.invalid/white space']) {
+    'https://example.invalid/#fragment', 'https://example.invalid/#', ' https://example.invalid', 'https://example.invalid/white space']) {
     assert.equal(validRegistryUpi(value), false, String(value));
   }
 });
