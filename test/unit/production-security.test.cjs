@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 require('reflect-metadata');
 const { AuthService } = require('../../apps/api/dist/common/auth/auth.service');
+const { AuthGuard } = require('../../apps/api/dist/common/auth/auth.guard');
 const { assertProductionConfig } = require('../../apps/api/dist/common/http/production-config');
 const { securityMiddleware } = require('../../apps/api/dist/common/http/security.middleware');
 const valid = { NODE_ENV: 'production', AUTH_MODE: 'oidc', OIDC_ISSUER: 'https://issuer.example',
@@ -11,6 +12,19 @@ const valid = { NODE_ENV: 'production', AUTH_MODE: 'oidc', OIDC_ISSUER: 'https:/
   SUPPLIER_PORTAL_BASE_URL: 'https://passport.example/supplier', RESTRICTED_ACCESS_BASE_URL: 'https://passport.example/access',
   MALWARE_SCANNER: 'clamav', CLAMAV_HOST: 'clamav.internal' };
 const auth = env => new AuthService({ get: key => env[key] });
+
+test('bearer parsing bounds hostile headers and preserves credentials without ambiguous whitespace', async () => {
+  const seen = [];
+  const guard = new AuthGuard({ getAllAndOverride: () => false }, { verifyBearer: token => { seen.push(token); return { subject: 'fixture' }; } });
+  const context = authorization => ({ getHandler: () => null, getClass: () => null,
+    switchToHttp: () => ({ getRequest: () => ({ headers: { authorization } }) }) });
+  for (const header of [undefined, [], 'Bearer', 'Bearer ', 'Bearer ' + ' '.repeat(20000), 'Bearer ' + 'a'.repeat(16400), 'Bearer one two', 'Basic token']) {
+    await assert.rejects(guard.canActivate(context(header)), error => error.getResponse().code === 'BEARER_REQUIRED');
+  }
+  assert.deepEqual(seen, []);
+  assert.equal(await guard.canActivate(context('bEaReR  one.two.three')), true);
+  assert.deepEqual(seen, ['one.two.three']);
+});
 
 test('production refuses missing or unsafe authentication, origins and scanner configuration', () => {
   assert.doesNotThrow(() => { assertProductionConfig(valid); auth(valid); });

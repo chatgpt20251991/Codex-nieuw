@@ -42,7 +42,7 @@ unknown vulnerabilities, container vulnerabilities or deployment errors.
 
 ## Verification ledger
 
-Local: Prisma generation, all-workspace typecheck, 21 rule tests, 29 API/security
+Local: Prisma generation, all-workspace typecheck, 21 rule tests, 33 API/security
 unit tests, 43 source checks and the full production build passed. Actual GitHub
 integration/security job evidence will be recorded here after execution.
 Local PostgreSQL/MinIO service startup remains unavailable under the session's
@@ -61,7 +61,10 @@ approval policy; service integration is performed in GitHub's disposable fixture
 4. Exercise encrypted production recovery, including object versions and keys,
    with an agreed RPO/RTO, and retain the signed operational evidence.
 5. Perform the scoped external penetration test and close its findings.
-6. Require the CI/security checks through the repository's branch rules.
+Main branch protection is now enabled and was read back through GitHub's API.
+All five CI/security checks are required and bound to GitHub Actions, with an
+up-to-date base, a pull request and resolved conversations. Administrators are
+covered; force pushes and branch deletion are disabled.
 
 See docs/17_SECURITY_AUTOMATION.md through docs/21_PRODUCTION_SECURITY_RUNBOOK.md.
 No production deployment, real-provider login, real backup recovery or penetration

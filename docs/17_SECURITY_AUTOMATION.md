@@ -108,8 +108,10 @@ Record the post-remediation audit and exact tested lockfile in the Gate 7 report
 
 Before merge, all four security check names above and the main CI checks should
 be green on the proposed revision. Configuring them as required checks in the
-repository's branch rules is an additional administrative task; the workflow
-file alone does not prevent someone bypassing a failed check.
+repository's branch protection is now completed for main: the five check contexts
+are required, including for administrators. An up-to-date base and pull request
+with resolved conversations are required; force pushes and deletion are disabled.
+The workflow file alone would not provide this enforcement.
 
 For a scanner finding, inspect the location and data flow, fix the defect and
 rerun. A proven synthetic-fixture false positive needs a narrowly scoped,

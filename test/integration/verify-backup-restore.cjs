@@ -4,6 +4,7 @@ const { mkdtempSync, readFileSync, openSync, closeSync, createReadStream, fstatS
 const { tmpdir } = require('node:os');
 const { resolve, join, relative, isAbsolute, basename } = require('node:path');
 const { spawn, execFile } = require('node:child_process');
+const { pipeline } = require('node:stream/promises');
 const { promisify } = require('node:util');
 const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
@@ -13,20 +14,29 @@ const root = resolve(__dirname, '../..');
 const execute = promisify(execFile);
 const quoteIdentifier = identifier => `"${identifier.replace(/"/g, '""')}"`;
 
-function run(command, args, { env, stdin = 'ignore', stdout = 'inherit' } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: root, env, windowsHide: true, timeout: 120000, stdio: [stdin, stdout, 'pipe'] });
-    let stderr = '';
-    child.stderr.on('data', bytes => { stderr = (stderr + bytes).slice(-10000); });
+async function run(command, args, { env, inputStream, stdout = 'inherit' } = {}) {
+  const child = spawn(command, args, { cwd: root, env, windowsHide: true, timeout: 120000,
+    stdio: [inputStream ? 'pipe' : 'ignore', stdout, 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', bytes => { stderr = (stderr + bytes).slice(-10000); });
+  const exited = new Promise((resolve, reject) => {
     child.once('error', reject);
     child.once('exit', code => code === 0 ? resolve() : reject(new Error(`${command} failed (${code}): ${stderr}`)));
   });
+  try {
+    if (inputStream) await Promise.all([exited, pipeline(inputStream, child.stdin)]);
+    else await exited;
+  } catch (error) {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+    await exited.catch(() => {});
+    throw error;
+  }
 }
 
 async function fileSha256(fd) {
   const hash = createHash('sha256');
-  // Explicit positions use pread: hashing leaves the descriptor's shared offset
-  // untouched so the restore child still reads from byte zero. Never reopen a path.
+  // Explicit positions use pread: each hash begins at byte zero independently
+  // of the dump writer's shared offset. Never reopen a path.
   for await (const bytes of createReadStream('', { fd, autoClose: false, start: 0 })) hash.update(bytes);
   return hash.digest('hex');
 }
@@ -154,22 +164,22 @@ module.exports = async function verifyBackupRestore(inputUrl) {
     assert.ok(tenantTables.every(table => table.rls && table.force_rls));
     assert.ok(expectedShape.tables.every(table => table.owner === 'eubp_migrator'));
 
-    const output = openSync(archive, 'wx', 0o600);
-    try { await run('docker', dockerArgs('pg_dump', [...databaseArgs(sourceName), '--format=custom']),
-      { env: dockerEnv, stdout: output }); }
-    finally { closeSync(output); }
-    const input = openSync(archive, 'r');
+    // Keep the exclusively created inode open throughout the operation. A path
+    // replacement cannot substitute a different archive between dump and restore.
+    const archiveFd = openSync(archive, 'wx+', 0o600);
     let dumpBytes, dumpSha256;
     try {
-      dumpBytes = fstatSync(input).size;
+      await run('docker', dockerArgs('pg_dump', [...databaseArgs(sourceName), '--format=custom']),
+        { env: dockerEnv, stdout: archiveFd });
+      dumpBytes = fstatSync(archiveFd).size;
       assert.ok(dumpBytes > 0, 'The backup archive must contain bytes.');
-      dumpSha256 = await fileSha256(input);
+      dumpSha256 = await fileSha256(archiveFd);
       await control.query(`CREATE DATABASE ${quoteIdentifier(restoredName)} OWNER eubp_migrator TEMPLATE template0`); created.push(restoredName);
       await run('docker', dockerArgs('pg_restore', [...databaseArgs(restoredName), '--exit-on-error', '--single-transaction'], true),
-        { env: dockerEnv, stdin: input });
-      assert.equal(await fileSha256(input), dumpSha256, 'Restoration must not modify the opened backup archive.');
+        { env: dockerEnv, inputStream: createReadStream('', { fd: archiveFd, autoClose: false, start: 0 }) });
+      assert.equal(await fileSha256(archiveFd), dumpSha256, 'Restoration must not modify the opened backup archive.');
     }
-    finally { closeSync(input); }
+    finally { closeSync(archiveFd); }
     restoredDb = new Client({ connectionString: urlFor(restoredName) }); await restoredDb.connect();
     restoredPrisma = new PrismaClient({ datasources: { db: { url: urlFor(restoredName) } } });
     // Do not reapply migrations, policies or grants after restore: that would
