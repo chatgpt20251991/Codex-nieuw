@@ -156,6 +156,9 @@ before(async () => {
   base = `http://127.0.0.1:${port}/v1`;
   const env = { ...process.env, PORT: String(port), S3_ENDPOINT: endpoint.href, S3_BUCKET: bucket,
     S3_REGION: 'eu-central-1', S3_ACCESS_KEY: 'eubp-integration', S3_SECRET_KEY: 'eubp-integration-secret', S3_FORCE_PATH_STYLE: 'true',
+    // Registry requires HTTPS identifier syntax. This reserved synthetic host
+    // is never contacted; actual publication/evidence requests still use loopback.
+    RESOLVER_BASE_URL: 'https://id.example.invalid/b',
     BATTERY_SEMANTIC_CATALOGUE_AVAILABLE: 'false', REGISTRY_BATTERY_SUBMISSION_AVAILABLE: 'false' };
   delete env.NODE_TEST_CONTEXT;
   api = spawn(process.execPath, ['apps/api/dist/main.js'], { cwd: resolve(__dirname, '../..'), env,
