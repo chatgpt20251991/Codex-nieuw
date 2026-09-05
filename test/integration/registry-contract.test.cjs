@@ -368,7 +368,7 @@ test('Gate 6: legacy publications with malformed contract metadata retain a reje
     // metadata. No existing immutable version is updated and no trigger is disabled.
     const version = await admin.$transaction(async tx => {
       const row = await tx.passportVersion.create({ data: { organisationId: orgs.A, batteryItemId: item.id,
-        versionNo: 1, ruleSetVersion: canonical.ruleSetVersion, canonicalJson: canonical,
+        versionNo: 1, schemaVersion: canonical.schema, ruleSetVersion: canonical.ruleSetVersion, canonicalJson: canonical,
         sha256: hashJson(canonical), previousVersionHash: null, publicationState: 'published', publishedAt: new Date() } });
       await tx.batteryItem.update({ where: { id: item.id }, data: { upi, passportState: 'published' } });
       return row;
