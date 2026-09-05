@@ -12,8 +12,8 @@ let web, browser, base, logs = '';
 const root = resolve(__dirname, '../..');
 const api = new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1');
 
-function documentPolicy(response) {
-  assert.equal(response.status, 200);
+function documentPolicy(response, body = '') {
+  assert.equal(response.status, 200, `Unexpected document status ${response.status}; body=${body.slice(0, 3000)}; Next logs=${logs.slice(-8000)}`);
   const policy = response.headers.get('content-security-policy');
   assert(policy, 'Missing enforced CSP');
   const nonce = /'nonce-([A-Za-z0-9+/]{43}=)'/.exec(policy)?.[1];
@@ -31,6 +31,12 @@ function documentPolicy(response) {
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   assert.match(response.headers.get('permissions-policy'), /camera=\(\)/);
   return { policy, nonce };
+}
+
+async function fetchDocument(path, options) {
+  const response = await fetch(base + path, options);
+  const body = await response.text();
+  return { ...documentPolicy(response, body), body };
 }
 
 async function instrumentPage() {
@@ -95,7 +101,8 @@ test('Gate 7 web: operator and capability documents enforce CSP and no-store hea
     for (const path of ['/dashboard', '/suppliers', '/supplier', '/access']) {
       const response = await page.goto(base + path, { waitUntil: 'domcontentloaded' });
       assert(response, `No document response for ${path}`);
-      const { nonce } = documentPolicy({ status: response.status(), headers: new Headers(await response.allHeaders()) });
+      const { nonce } = documentPolicy({ status: response.status(), headers: new Headers(await response.allHeaders()) },
+        response.status() === 200 ? '' : await response.text());
       const scripts = await page.locator('script').evaluateAll(nodes => nodes.map(node => ({ nonce: node.nonce, src: node.src })));
       assert(scripts.length > 0, `No framework scripts on ${path}`);
       // Browsers conceal nonce content attributes; use the DOM nonce property.
@@ -105,19 +112,42 @@ test('Gate 7 web: operator and capability documents enforce CSP and no-store hea
 });
 
 test('Gate 7 web: repeated documents receive fresh nonces and reject caller-supplied CSP/nonces', async () => {
-  const first = documentPolicy(await fetch(`${base}/suppliers`));
-  const secondResponse = await fetch(`${base}/suppliers`, { headers: {
+  const first = await fetchDocument('/suppliers');
+  const second = await fetchDocument('/suppliers', { headers: {
+    'x-nonce': 'attacker-controlled-nonce',
+    'content-security-policy': "script-src 'unsafe-inline'",
+    purpose: 'prefetch',
+  } });
+  assert.notEqual(first.nonce, second.nonce);
+  assert(!second.body.includes('attacker-controlled-nonce'));
+});
+
+test('Gate 7 web: inconsistent router prefetch metadata is rejected with a closed, uncacheable response', async () => {
+  const response = await fetch(`${base}/suppliers`, { headers: {
     'x-nonce': 'attacker-controlled-nonce',
     'content-security-policy': "script-src 'unsafe-inline'",
     'next-router-prefetch': '1', purpose: 'prefetch',
   } });
-  const second = documentPolicy(secondResponse);
-  assert.notEqual(first.nonce, second.nonce);
-  assert(!(await secondResponse.text()).includes('attacker-controlled-nonce'));
+  const body = await response.text();
+  assert.equal(response.status, 400, `Unexpected prefetch status ${response.status}; body=${body.slice(0, 3000)}; Next logs=${logs.slice(-8000)}`);
+  assert.equal(body, 'Invalid prefetch request.');
+  assert.equal(response.headers.get('content-security-policy'), "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
+  assert.match(response.headers.get('cache-control'), /no-store/);
+  assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+
+  // Real Next router prefetches pair the Flight header with RSC: 1. The
+  // rejection rule must preserve that supported path and its security headers.
+  const prefetch = await fetch(`${base}/suppliers`, { headers: { rsc: '1', 'next-router-prefetch': '1' } });
+  const prefetchBody = await prefetch.text();
+  documentPolicy(prefetch, prefetchBody);
+  assert.match(prefetch.headers.get('content-type'), /^text\/x-component/);
+  assert(prefetchBody.length > 0, 'Expected a real router prefetch payload');
 });
 
 test('Gate 7 web: connect-src names only the application and explicitly configured services', async () => {
-  const { policy } = documentPolicy(await fetch(`${base}/suppliers`));
+  const { policy } = await fetchDocument('/suppliers');
   const connections = policy.split('; ').find(directive => directive.startsWith('connect-src ')).split(' ').slice(1);
   const expected = ["'self'", api.origin];
   if (process.env.NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN) expected.push(new URL(process.env.NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN).origin);
@@ -166,21 +196,29 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
 });
 
 test('Gate 7 web: the browser blocks injected inline scripts and inline event handlers', async () => {
-  const { context, page } = await instrumentPage();
+  const { context, page, errors } = await instrumentPage();
   try {
-    await page.goto(`${base}/access`, { waitUntil: 'networkidle' });
-    await page.getByText('No access token found.', { exact: true }).waitFor();
-    assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
-    await page.evaluate(() => {
-      const script = document.createElement('script');
-      script.textContent = 'window.__gate7InjectedScript = true';
-      document.body.appendChild(script);
-      const button = document.createElement('button');
-      button.setAttribute('onclick', 'window.__gate7InjectedHandler = true');
-      document.body.appendChild(button);
-      button.click();
+    let deliveredPolicy;
+    await page.route(`${base}/access`, async route => {
+      const response = await route.fetch();
+      const html = await response.text();
+      deliveredPolicy = documentPolicy({ status: response.status(), headers: new Headers(response.headers()) }, html).policy;
+      // Insert fixed probes at known template markers while preserving the real
+      // response CSP and every framework nonce. Chromium's HTML parser, rather
+      // than trusted page.evaluate/CDP code, creates the untrusted script nodes.
+      assert(html.includes('<head>') && html.includes('<body>'), 'Expected application document markers');
+      const body = html.replace('<head>', '<head><script>window.__gate7InjectedScript = true</script>')
+        .replace('<body>', '<body><img hidden src="data:image/png;base64,AA==" onerror="window.__gate7InjectedHandler = true">');
+      await route.fulfill({ response, body });
     });
-    await page.waitForFunction(() => window.__gate7Violations.length >= 2);
+    const response = await page.goto(`${base}/access`, { waitUntil: 'networkidle' });
+    assert.equal(await response.headerValue('content-security-policy'), deliveredPolicy);
+    await page.waitForFunction(() => {
+      const directives = window.__gate7Violations.map(violation => violation.directive);
+      return directives.includes('script-src-elem') && directives.includes('script-src-attr');
+    }, undefined, { timeout: 5000 }).catch(async () => {
+      assert.fail(`Expected parser-inserted script and event-handler CSP violations; observed=${JSON.stringify(await page.evaluate(() => window.__gate7Violations))}; pageErrors=${JSON.stringify(errors)}; Next logs=${logs.slice(-8000)}`);
+    });
     const result = await page.evaluate(() => ({
       script: Boolean(window.__gate7InjectedScript), handler: Boolean(window.__gate7InjectedHandler),
       directives: window.__gate7Violations.map(violation => violation.directive),

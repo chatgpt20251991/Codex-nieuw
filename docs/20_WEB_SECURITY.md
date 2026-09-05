@@ -25,6 +25,12 @@ are same-origin. No external analytics or third-party script origins are added.
 
 The middleware covers HTML, React Server Component navigation and prefetch
 requests. Sending a client-controlled prefetch header does not bypass it.
+Router-prefetch metadata without the accompanying `RSC: 1` marker is rejected
+with a generic 400 response, a closed CSP and no-store headers before rendering.
+The installed Next router includes that marker on genuine prefetch requests.
+Next 15 hides Flight headers from middleware and restores them afterwards, so
+this validation uses a supported `beforeFiles` rewrite to a small rejection
+route handler. It does not rely on reading hidden headers inside middleware.
 Versioned framework assets under `_next/static`, image optimization and the
 favicon are excluded from dynamic document processing.
 
@@ -63,19 +69,23 @@ builds, server startup, browsers or checks fail the suite; there are no skips.
 It must run after the production web build and browser installation, with the
 same loopback `NEXT_PUBLIC_API_URL` configuration used for that build.
 
-The five scenarios verify:
+The six scenarios verify:
 
 1. Operator and capability pages have matching nonces on all rendered framework
    scripts and enforced CSP/no-store/security headers.
-2. Repeated requests receive distinct nonces, and supplied nonce/CSP/prefetch
-   headers cannot select or bypass the document policy.
-3. `connect-src` contains only the application and explicitly configured service
+2. Repeated requests receive distinct nonces, and supplied nonce/CSP headers
+   cannot select the document policy, including browser document prefetches.
+3. Inconsistent router-prefetch metadata returns a closed, uncacheable 400 response;
+   genuine RSC prefetches retain their successful Flight response and security headers.
+4. `connect-src` contains only the application and explicitly configured service
    origins.
-4. A real production page hydrates, handles form state and a submit click, makes
+5. A real production page hydrates, handles form state and a submit click, makes
    its API request, renders the result, navigates through Next's client router
    and handles file selection without any CSP violation or page exception.
-5. Chromium blocks deliberately inserted, unnonced inline script and inline
-   event-handler code while the existing capability page hydrates normally.
+6. Chromium blocks unnonced inline script and inline event-handler probes
+   inserted into a real document response before browser parsing, retaining the
+   server's enforced CSP and framework nonces. The normal hydration scenario is
+   checked separately without injected markup.
 
 The form test intercepts API responses with synthetic fixtures, so it proves
 browser/CSP behavior rather than server authentication or persistence. Separate
