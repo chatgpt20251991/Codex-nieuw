@@ -166,11 +166,12 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
     let created = false;
     // These synthetic API responses isolate real browser/CSP behavior. Tenant,
     // authentication and persistence are exercised by the API integration suites.
-    await page.route(`${api.origin}/**`, async route => {
+    await page.route(`${base}/api/backend/**`, async route => {
       const request = route.request();
       const url = new URL(request.url());
       let body = [];
-      if (url.pathname === `${api.pathname}/suppliers`) {
+      assert.equal(request.headers().authorization, undefined, 'Production browser requests must not carry bearer credentials');
+      if (url.pathname === '/api/backend/suppliers') {
         if (request.method() === 'POST') {
           const input = request.postDataJSON();
           assert.equal(input.legalName, 'Gate 7 CSP supplier');
@@ -179,10 +180,7 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
           body = suppliers[0];
         } else body = suppliers;
       }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body),
-        headers: { 'access-control-allow-origin': base,
-          'access-control-allow-methods': 'GET, POST, OPTIONS',
-          'access-control-allow-headers': 'content-type, authorization, x-acting-organisation-id' } });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
     await page.goto(`${base}/suppliers`, { waitUntil: 'networkidle' });
     assert.equal(await page.getByRole('button', { name: 'Add supplier', exact: true }).isEnabled(), false);

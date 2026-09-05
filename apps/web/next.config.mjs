@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep the maintained server SDK's optional crypto imports native to Node.
+  serverExternalPackages: ['@auth0/nextjs-auth0'],
   async rewrites() {
     return {
       beforeFiles: [{

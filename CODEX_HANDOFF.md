@@ -38,8 +38,12 @@ four security scans pass on 293a0f9. Main requires all five CI/security checks.
 Read codex/GATE_7_REPORT.md and docs/17 through docs/21 for execution evidence.
 Real-provider login, production storage/scanner/WAF, encrypted recovery and
 external penetration testing remain required before go-live.
-Next: review PR #15 with green current-head checks, then connect the selected
-real identity provider and browser login. Do not mark Gate 7 closed or advance
+PR #15 is merged at `f164e60`. Auth0 has been selected for browser login, using
+an EU tenant when the administrator creates it. The browser-login follow-up
+adds the official Next SDK, a server-side API proxy, protected cookie sessions
+and an administrator-controlled claim Action. Read `docs/22_AUTH0_SETUP.md`.
+The real tenant, application credentials, deployment URLs and MFA acceptance
+are still to be supplied and verified. Do not mark Gate 7 closed or advance
 to Gate 8 before the documented production acceptance evidence is complete.
 
 ## Mission

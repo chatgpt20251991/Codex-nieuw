@@ -2,7 +2,7 @@
 
 Work from the repository root and read `AGENTS.md` and `CODEX_HANDOFF.md` before touching code.
 
-Follow the current status in `CODEX_HANDOFF.md` and execute `codex/NEXT_TASKS.md` in order. Gates 1–5 and Gate 6's internal Registry preparation have verification reports; retain their clean-install, schema, build, tenant-isolation, disclosure, real MinIO/browser evidence, lifecycle, Registry contract and migration-upgrade checks. The next implementation gate is Gate 7: production launch blockers, starting with OIDC provider integration tests. Do not skip earlier checks to expand product features.
+Follow the current status in `CODEX_HANDOFF.md` and execute `codex/NEXT_TASKS.md` in order. Gates 1–5, Gate 6's internal Registry preparation and Gate 7's repository security controls have verification reports. Retain their clean-install, schema, build, tenant-isolation, disclosure, real MinIO/browser evidence, lifecycle, Registry contract, malware, security scans and upgrade/restore checks. Continue Gate 7 production acceptance: complete and verify the selected Auth0 EU tenant and browser login using `docs/22_AUTH0_SETUP.md`, then the remaining deployment controls. Protocol fixtures do not replace actual provider acceptance. Do not skip earlier checks to expand product features.
 
 Do not weaken any truth gate merely to make tests pass. In particular, do not fake EU Registry success, do not auto-validate extracted/supplier data, and do not route canonical/restricted passport data through the public resolver.
 

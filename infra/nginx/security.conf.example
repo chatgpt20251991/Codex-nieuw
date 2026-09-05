@@ -1,17 +1,20 @@
 # Include ONCE directly inside the existing nginx.conf http { ... } block.
 # This file contains no listener, TLS certificate, upstream or real-IP trust rule.
-# Review and test it in the actual dedicated API gateway before activation.
+# Review and test it in the actual dedicated API/web gateway before activation.
 
-# Empty map keys are intentionally not counted: this budget applies to /v1,
+# Empty map keys are intentionally not counted: this budget applies to API/auth,
 # not unrelated virtual hosts' web assets. Case variants remain limited.
 map $uri $eubp_api_limit_key {
     default "";
     ~*^/v1(/|$) $binary_remote_addr;
+    ~*^/(api/backend|api/session|auth)(/|$) $binary_remote_addr;
 }
 
 map $uri $eubp_sensitive_limit_key {
     default "";
     ~*^/v1/(auth|supplier-portal|restricted-access|access-grants)(/|$) $binary_remote_addr;
+    ~*^/auth/(login|callback|logout)/?$ $binary_remote_addr;
+    ~*^/api/backend/access-grants(/|$) $binary_remote_addr;
 }
 
 # These categories avoid logging public identifiers, tenant IDs or tokens.
@@ -22,6 +25,9 @@ map $uri $eubp_route_class {
     ~*^/v1/restricted-access(/|$) restricted_capability;
     ~*^/v1/access-grants(/|$) access_grant;
     ~*^/v1/auth(/|$) auth;
+    ~*^/auth(/|$) browser_auth;
+    ~*^/api/session/?$ browser_session;
+    ~*^/api/backend(/|$) browser_api;
     ~*^/v1/evidence(/|$) evidence;
     ~*^/v1/health/?$ health;
     ~*^/v1(/|$) api;
