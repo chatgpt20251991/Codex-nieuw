@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eubp
+      POSTGRES_USER: eubp
+      POSTGRES_PASSWORD: eubp
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eubp -d eubp"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: eubp-local
+      MINIO_ROOT_PASSWORD: eubp-local-secret
+    ports: ["9000:9000", "9001:9001"]
+    volumes:
+      - miniodata:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 eubp-local eubp-local-secret; do sleep 1; done;
+      /usr/bin/mc mb --ignore-existing local/eubp-evidence;
+      /usr/bin/mc anonymous set none local/eubp-evidence;
+      exit 0;"
+
+volumes:
+  pgdata:
+  miniodata:

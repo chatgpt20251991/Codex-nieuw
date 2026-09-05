@@ -1,0 +1,1008 @@
+{
+  "schema": "eubatterypassport.official-guidance-map",
+  "version": "0.1.0",
+  "source_guidance": "European Commission, Guidance Document: Digital Batteries Passport – data points by category, Version 2.0, 15 August 2026",
+  "legal_basis": "Regulation (EU) 2023/1542, Articles 77-78 and Annex XIII",
+  "important": [
+    "This file is a build-time compliance map, not legal advice.",
+    "The Commission guidance is non-authoritative and may be updated.",
+    "Battery DPP semantic catalogue is not yet defined in the EU Registry as of 2026-09-05.",
+    "The Article 77(9) legitimate-interest implementing act is still pending; access logic must be versioned/configurable."
+  ],
+  "fields": [
+    {
+      "id": 1,
+      "name": "Unique identifier",
+      "legal_source": "BR Article 77(3)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "item_identity",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Unique identifier linked to the QR/data carrier."
+    },
+    {
+      "id": 2,
+      "name": "Identity of who is registering and/or is responsible for the battery passport",
+      "legal_source": "BR Article 77(3)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "passport_identity",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Responsible economic operator remains legally accountable."
+    },
+    {
+      "id": 3,
+      "name": "Manufacturer name, registered trade name or registered trademark",
+      "legal_source": "BR Annex VI Part A(1)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 4,
+      "name": "Manufacturer postal address, indicating a single contact point",
+      "legal_source": "BR Annex VI Part A(1)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 5,
+      "name": "If available, manufacturer web and email address",
+      "legal_source": "BR Annex VI Part A(1)",
+      "applicability_2027_02_18": {
+        "EV": "optional_if_available",
+        "LMT": "optional_if_available",
+        "INDUSTRIAL_GT_2KWH": "optional_if_available"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 6,
+      "name": "Battery category",
+      "legal_source": "BR Annex VI Part A(2)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 7,
+      "name": "Model identification and batch or serial number, or product number or another element allowing identification",
+      "legal_source": "BR Annex VI Part A(2)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "item_identity",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 8,
+      "name": "Place of manufacture (geographical location of a battery manufacturing plant)",
+      "legal_source": "BR Annex VI Part A(3)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 9,
+      "name": "Date of manufacturing (month and year)",
+      "legal_source": "BR Annex VI Part A(4)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "item_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 10,
+      "name": "Weight",
+      "legal_source": "BR Annex VI Part A(5)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 11,
+      "name": "Capacity",
+      "legal_source": "BR Annex VI Part A(6)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 12,
+      "name": "Chemistry",
+      "legal_source": "BR Annex VI Part A(7)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 13,
+      "name": "Hazardous substances present in the battery, other than mercury, cadmium or lead",
+      "legal_source": "BR Annex VI Part A(8)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 14,
+      "name": "Usable extinguishing agent",
+      "legal_source": "BR Annex VI Part A(9)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 15,
+      "name": "Critical raw materials present in the battery above 0.1% weight by weight",
+      "legal_source": "BR Annex VI Part A(10)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 16,
+      "name": "Material composition of the battery, including chemistry, hazardous substances and critical raw materials",
+      "legal_source": "BR Annex XIII 1(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed_duplicate",
+        "LMT": "not_displayed_duplicate",
+        "INDUSTRIAL_GT_2KWH": "not_displayed_duplicate"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Commission guidance says not to fill/display as a separate point because the same data is already required above."
+    },
+    {
+      "id": 17,
+      "name": "Carbon footprint declaration",
+      "legal_source": "BR Annex XIII 1(c)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_format_pending",
+        "LMT": "deferred_format_pending",
+        "INDUSTRIAL_GT_2KWH": "deferred_format_pending"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Not to be filled/displayed as of February 2027; format still to be specified in an upcoming implementing act."
+    },
+    {
+      "id": 18,
+      "name": "Carbon footprint label",
+      "legal_source": "BR Annex XIII 1(c)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_format_pending",
+        "LMT": "deferred_format_pending",
+        "INDUSTRIAL_GT_2KWH": "deferred_format_pending"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Not to be filled/displayed as of February 2027; format still to be specified."
+    },
+    {
+      "id": 19,
+      "name": "Responsible sourcing information as indicated in the battery due diligence policy report referred to in Article 52(3)",
+      "legal_source": "BR Annex XIII 1(d)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_until_august_2027",
+        "LMT": "deferred_until_august_2027",
+        "INDUSTRIAL_GT_2KWH": "deferred_until_august_2027"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Guidance states this is not to be filled/displayed as of February 2027 and is required from August 2027 under Article 48(1)."
+    },
+    {
+      "id": 20,
+      "name": "Percentage share of cobalt in active materials recovered from battery manufacturing waste or post-consumer waste",
+      "legal_source": "BR Annex XIII 1(e)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_article_8",
+        "LMT": "deferred_article_8",
+        "INDUSTRIAL_GT_2KWH": "deferred_article_8"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Applies in line with Article 8 and the relevant delegated act; not to be filled/displayed as of February 2027."
+    },
+    {
+      "id": 21,
+      "name": "Percentage share of lithium in active materials recovered from battery manufacturing waste or post-consumer waste",
+      "legal_source": "BR Annex XIII 1(e)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_article_8",
+        "LMT": "deferred_article_8",
+        "INDUSTRIAL_GT_2KWH": "deferred_article_8"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Applies in line with Article 8 and the relevant delegated act; not to be filled/displayed as of February 2027."
+    },
+    {
+      "id": 22,
+      "name": "Percentage share of nickel in active materials recovered from battery manufacturing waste or post-consumer waste",
+      "legal_source": "BR Annex XIII 1(e)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_article_8",
+        "LMT": "deferred_article_8",
+        "INDUSTRIAL_GT_2KWH": "deferred_article_8"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Applies in line with Article 8 and the relevant delegated act; not to be filled/displayed as of February 2027."
+    },
+    {
+      "id": 23,
+      "name": "Percentage share of lead present in the battery and recovered from waste",
+      "legal_source": "BR Annex XIII 1(e)",
+      "applicability_2027_02_18": {
+        "EV": "deferred_article_8",
+        "LMT": "deferred_article_8",
+        "INDUSTRIAL_GT_2KWH": "deferred_article_8"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Applies in line with Article 8 and the relevant delegated act; not to be filled/displayed as of February 2027."
+    },
+    {
+      "id": 24,
+      "name": "Share of renewable content",
+      "legal_source": "BR Annex XIII 1(f)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 25,
+      "name": "Rated capacity (Ah)",
+      "legal_source": "BR Annex XIII 1(g)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed_duplicate",
+        "LMT": "not_displayed_duplicate",
+        "INDUSTRIAL_GT_2KWH": "not_displayed_duplicate"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Guidance treats this as repetition of data point 11."
+    },
+    {
+      "id": 26,
+      "name": "Minimal voltage, with temperature range when relevant",
+      "legal_source": "BR Annex XIII 1(h)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 27,
+      "name": "Nominal voltage, with temperature range when relevant",
+      "legal_source": "BR Annex XIII 1(h)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 28,
+      "name": "Maximum voltage, with temperature range when relevant",
+      "legal_source": "BR Annex XIII 1(h)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 29,
+      "name": "Original power capability (W)",
+      "legal_source": "BR Annex XIII 1(i)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 30,
+      "name": "Power limits, with temperature range when relevant",
+      "legal_source": "BR Annex XIII 1(i)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 31,
+      "name": "Expected battery lifetime expressed in cycles",
+      "legal_source": "BR Annex XIII 1(j)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_industrial_cycle_applications"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Industrial: applicable where lifetime can be expressed in cycles."
+    },
+    {
+      "id": 32,
+      "name": "Reference test used for expected battery lifetime expressed in cycles",
+      "legal_source": "BR Annex XIII 1(j)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_industrial_cycle_applications"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Industrial: applicable where lifetime can be expressed in cycles."
+    },
+    {
+      "id": 33,
+      "name": "Capacity threshold for exhaustion",
+      "legal_source": "BR Annex XIII 1(k)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "not_displayed",
+        "INDUSTRIAL_GT_2KWH": "not_displayed"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Mandatory for EV; guidance says not to fill/display for LMT and industrial."
+    },
+    {
+      "id": 34,
+      "name": "Temperature range the battery can withstand when not in use (reference test)",
+      "legal_source": "BR Annex XIII 1(l)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 35,
+      "name": "Period for which the commercial warranty for calendar life applies",
+      "legal_source": "BR Annex XIII 1(m)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_commercial_warranty",
+        "LMT": "conditional_if_commercial_warranty",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_commercial_warranty"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Only if a commercial warranty is envisaged."
+    },
+    {
+      "id": 36,
+      "name": "Initial round trip energy efficiency",
+      "legal_source": "BR Annex XIII 1(n)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_some_industrial_batteries"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Industrial: only applicable for some industrial batteries."
+    },
+    {
+      "id": 37,
+      "name": "Round trip energy efficiency at 50% of cycle-life",
+      "legal_source": "BR Annex XIII 1(n)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_some_industrial_batteries"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Industrial: only applicable for some industrial batteries."
+    },
+    {
+      "id": 38,
+      "name": "Internal battery cell and pack resistance",
+      "legal_source": "BR Annex XIII 1(o)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 39,
+      "name": "C-rate of relevant cycle-life test",
+      "legal_source": "BR Annex XIII 1(p)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_some_industrial_batteries"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Industrial: only applicable for some industrial batteries."
+    },
+    {
+      "id": 40,
+      "name": "Marking requirements laid down in Article 13(4)",
+      "legal_source": "BR Annex XIII 1(q)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 41,
+      "name": "Marking requirements laid down in Article 13(5)",
+      "legal_source": "BR Annex XIII 1(q)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Cadmium or lead symbol where applicable."
+    },
+    {
+      "id": 42,
+      "name": "EU declaration of conformity referred to in Article 18",
+      "legal_source": "BR Annex XIII 1(r)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Store declaration plus structured metadata and integrity proof."
+    },
+    {
+      "id": 43,
+      "name": "Information regarding prevention and management of waste batteries laid down in Article 74(1)(a)-(f)",
+      "legal_source": "BR Annex XIII 1(s)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 44,
+      "name": "Clear, understandable and readable instructions for use in a printable/downloadable/savable format",
+      "legal_source": "BR Annex XIII 1(t)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "not_displayed",
+        "INDUSTRIAL_GT_2KWH": "not_displayed"
+      },
+      "access_tier": "public",
+      "data_nature": "model_static",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Commission guidance says application provisions are on hold pending Omnibus adoption as of February 2027."
+    },
+    {
+      "id": 45,
+      "name": "Detailed composition, including materials used in the cathode, anode and electrolyte",
+      "legal_source": "BR Annex XIII 2(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_model",
+      "data_nature": "model_restricted",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Restricted model-level information."
+    },
+    {
+      "id": 46,
+      "name": "Part numbers for components",
+      "legal_source": "BR Annex XIII 2(b)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_model",
+      "data_nature": "model_restricted",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 47,
+      "name": "Contact details of sources for replacement spares",
+      "legal_source": "BR Annex XIII 2(b)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_model",
+      "data_nature": "model_restricted",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 48,
+      "name": "Dismantling information, including exploded diagrams, disassembly sequences, fastening techniques, tools, warnings, cell count and layout",
+      "legal_source": "BR Annex XIII 2(c)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_model",
+      "data_nature": "model_restricted",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 49,
+      "name": "Safety measures",
+      "legal_source": "BR Annex XIII 2(d)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_model",
+      "data_nature": "model_restricted",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 50,
+      "name": "Results of test reports proving compliance with the Batteries Regulation or delegated/implementing acts",
+      "legal_source": "BR Annex XIII 3",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "authority_only",
+      "data_nature": "model_authority",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Accessible only to notified bodies, market surveillance authorities and the Commission."
+    },
+    {
+      "id": 51,
+      "name": "Rated capacity (Ah), dynamic value",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory_dynamic",
+        "LMT": "mandatory_dynamic",
+        "INDUSTRIAL_GT_2KWH": "conditional_dynamic"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": "Same parameter family as data point 11 but now at individual-battery/lifecycle level."
+    },
+    {
+      "id": 52,
+      "name": "Capacity fade (%)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 53,
+      "name": "Power (W)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 54,
+      "name": "Power fade (%)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 55,
+      "name": "Internal resistance (Ω)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 56,
+      "name": "Internal resistance increase (%)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 57,
+      "name": "Where applicable, energy round trip efficiency (%)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 58,
+      "name": "Where applicable, energy round trip efficiency fade (%)",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 59,
+      "name": "Expected lifetime under reference conditions in cycles, except non-cycle applications",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 60,
+      "name": "Expected lifetime under reference conditions in calendar years",
+      "legal_source": "BR Annex XIII 4(a)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 61,
+      "name": "State of health: state of certified energy (SOCE)",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "not_displayed",
+        "INDUSTRIAL_GT_2KWH": "not_displayed"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": "EV mandatory; guidance says not to fill/display for LMT and industrial."
+    },
+    {
+      "id": 62,
+      "name": "State of health: remaining capacity",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 63,
+      "name": "State of health: where possible, remaining power capability",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 64,
+      "name": "State of health: where possible, remaining round trip efficiency",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 65,
+      "name": "State of health: where possible, evolution of self-discharging rates",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 66,
+      "name": "State of health: where possible, ohmic resistance",
+      "legal_source": "BR Annex XIII 4(b)",
+      "applicability_2027_02_18": {
+        "EV": "not_displayed",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 67,
+      "name": "Battery status: original, repurposed, re-used, remanufactured or waste",
+      "legal_source": "BR Annex XIII 4(c)",
+      "applicability_2027_02_18": {
+        "EV": "mandatory",
+        "LMT": "mandatory",
+        "INDUSTRIAL_GT_2KWH": "mandatory"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 68,
+      "name": "Number of charging and discharging cycles",
+      "legal_source": "BR Annex XIII 4(d)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 69,
+      "name": "Negative events, such as accidents",
+      "legal_source": "BR Annex XIII 4(d)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 70,
+      "name": "Periodically recorded operating environmental conditions, including temperature",
+      "legal_source": "BR Annex XIII 4(d)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    },
+    {
+      "id": 71,
+      "name": "Periodically recorded state of charge",
+      "legal_source": "BR Annex XIII 4(d)",
+      "applicability_2027_02_18": {
+        "EV": "conditional_if_applicable",
+        "LMT": "conditional_if_applicable",
+        "INDUSTRIAL_GT_2KWH": "conditional_if_applicable"
+      },
+      "access_tier": "legitimate_interest_item",
+      "data_nature": "item_dynamic",
+      "platform_evidence_policy": "provenance_required",
+      "note": ""
+    }
+  ]
+}

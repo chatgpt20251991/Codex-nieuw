@@ -1,0 +1,34 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      DEV_JWT_SECRET: 01234567890123456789012345678901
+      AUTH_MODE: dev
+      BATTERY_SEMANTIC_CATALOGUE_AVAILABLE: "false"
+      REGISTRY_BATTERY_SUBMISSION_AVAILABLE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema apps/api/prisma/schema.prisma
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and static tests
+        run: npm test
+      - name: Production build
+        run: npm run build

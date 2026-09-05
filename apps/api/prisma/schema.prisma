@@ -1,0 +1,653 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BatteryCategory {
+  EV
+  LMT
+  INDUSTRIAL_GT_2KWH
+}
+
+enum PassportState {
+  draft
+  data_collection
+  validation_failed
+  ready
+  published
+  registry_pending
+  registered
+  updated
+  superseded
+  recycled
+}
+
+enum ValidationStatus {
+  unvalidated
+  submitted
+  validated
+  rejected
+  superseded
+}
+
+enum EvidenceStatus {
+  pending_upload
+  uploaded
+  unverified
+  verified
+  rejected
+  superseded
+}
+
+enum SupplierRequestStatus {
+  draft
+  sent
+  opened
+  partially_submitted
+  submitted
+  accepted
+  rejected
+  expired
+  cancelled
+}
+
+enum RegistryActorType {
+  economic_operator
+  value_chain_actor
+}
+
+enum RegistryVerificationStatus {
+  unverified
+  pending
+  verified
+  expired
+  rejected
+}
+
+enum RegistryStatus {
+  draft
+  blocked
+  registry_pending
+  registered
+  rejected
+  cancelled
+}
+
+enum ExtractionStatus {
+  queued
+  processing
+  completed
+  failed
+  cancelled
+}
+
+model Organisation {
+  id                     String                  @id @default(uuid())
+  legalName              String
+  countryCode            String
+  role                   String                  @default("responsible_economic_operator")
+  verificationStatus     String                  @default("unverified")
+  registryIdentifierType String?
+  registryIdentifierValue String?
+  vatNumber              String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  users                  User[]
+  models                 BatteryModel[]
+  items                  BatteryItem[]
+  values                 PassportValue[]
+  evidence               EvidenceObject[]
+  suppliers              Supplier[]
+  supplierRequests       SupplierRequest[]
+  versions               PassportVersion[]
+  publicSnapshots        PublicPassportSnapshot[]
+  submissions            RegistrySubmission[]
+  accessGrants           AccessGrant[]
+  lifecycleEvents        LifecycleEvent[]
+  telemetry              TelemetryReading[]
+  auditEvents            AuditEvent[]
+  complianceChecks       ComplianceCheck[]
+  outgoingAuthorisations WrittenAuthorisation[]   @relation("ResponsibleOperator")
+  incomingAuthorisations WrittenAuthorisation[]   @relation("ServiceProvider")
+  extractionJobs         ExtractionJob[]
+  idempotencyRecords     IdempotencyRecord[]
+  registryIdentities     RegistryIdentity[]
+  registryEnrolmentProfile RegistryEnrolmentProfile?
+}
+
+model RegistryEnrolmentProfile {
+  id                    String       @id @default(uuid())
+  organisationId        String       @unique
+  organisation          Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  entityType            String       @default("legal_person")
+  legalName             String
+  streetAddress         String
+  postOfficeBox         String?
+  extendedAddress       String?
+  locality              String?
+  postalCode            String?
+  region                String?
+  countryOfRegistration String
+  identifierType        String
+  identifierValue       String
+  complianceEmail       String
+  compliancePhoneCountryCode String
+  compliancePhone       String
+  legalRepresentativeFirstName String
+  legalRepresentativeLastName  String
+  legalRepresentativeEmail     String
+  qsealSubjectJson      Json?
+  declarationObjectKey  String?
+  declarationSha256     String?
+  applicationStatus     String       @default("draft")
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+}
+
+model RegistryIdentity {
+  id                    String                     @id @default(uuid())
+  organisationId        String
+  organisation          Organisation               @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  actorType             RegistryActorType
+  status                RegistryVerificationStatus @default(unverified)
+  registryActorIdentifier String?
+  verificationMethod    String?
+  electronicIdExpiresAt DateTime?
+  verifiedAt            DateTime?
+  validUntil            DateTime?
+  qsealCertificateFingerprint String?
+  evidenceObjectKey     String?
+  lastCheckedAt         DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@unique([organisationId, actorType])
+  @@index([status, validUntil])
+}
+
+model User {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  externalSubject String
+  email          String
+  displayName    String?
+  role           String       @default("operator_user")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  approvedValues PassportValue[] @relation("ValueApprovedBy")
+
+  @@unique([organisationId, externalSubject])
+  @@unique([organisationId, email])
+  @@index([externalSubject])
+}
+
+model WrittenAuthorisation {
+  id                    String       @id @default(uuid())
+  responsibleOperatorId String
+  responsibleOperator   Organisation @relation("ResponsibleOperator", fields: [responsibleOperatorId], references: [id], onDelete: Cascade)
+  serviceProviderId      String
+  serviceProvider        Organisation @relation("ServiceProvider", fields: [serviceProviderId], references: [id], onDelete: Cascade)
+  scopeJson              Json
+  documentObjectKey      String
+  documentSha256         String
+  validFrom              DateTime
+  validUntil             DateTime?
+  revokedAt              DateTime?
+  createdAt              DateTime     @default(now())
+
+  @@index([responsibleOperatorId, validFrom])
+  @@index([serviceProviderId, validFrom])
+}
+
+model BatteryModel {
+  id              String          @id @default(uuid())
+  organisationId  String
+  organisation    Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  modelIdentifier String
+  category        BatteryCategory
+  name            String?
+  chemistry       String?
+  applicabilityContext Json            @default("{}")
+  lifecycleStatus String          @default("active")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  items           BatteryItem[]
+  values          PassportValue[]
+  supplierRequests SupplierRequest[]
+  complianceChecks ComplianceCheck[]
+
+  @@unique([organisationId, modelIdentifier])
+  @@index([organisationId, category])
+}
+
+model BatteryItem {
+  id                     String          @id @default(uuid())
+  organisationId         String
+  organisation           Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  modelId                String
+  model                  BatteryModel    @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  publicId               String          @unique @default(uuid())
+  serialOrItemIdentifier String
+  batchIdentifier        String?
+  upi                    String?         @unique
+  manufactureDate        DateTime?
+  lifecycleStatus        String          @default("original")
+  passportState          PassportState   @default(draft)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  values                 PassportValue[]
+  versions               PassportVersion[]
+  publicSnapshots        PublicPassportSnapshot[]
+  submissions            RegistrySubmission[]
+  accessGrants           AccessGrant[]
+  lifecycleEvents        LifecycleEvent[]
+  telemetry              TelemetryReading[]
+  complianceChecks       ComplianceCheck[]
+
+  @@unique([organisationId, serialOrItemIdentifier])
+  @@index([organisationId, modelId])
+  @@index([organisationId, passportState])
+}
+
+model RegulatoryRuleSet {
+  id             String            @id @default(uuid())
+  code           String
+  version        String
+  effectiveFrom  DateTime
+  effectiveUntil DateTime?
+  sourceUri      String?
+  sourceHash     String?
+  status         String            @default("active")
+  createdAt      DateTime          @default(now())
+  fieldDefinitions FieldDefinition[]
+  complianceChecks ComplianceCheck[]
+
+  @@unique([code, version])
+}
+
+model FieldDefinition {
+  id               String            @id @default(uuid())
+  fieldNumber      Int
+  ruleSetId        String
+  ruleSet          RegulatoryRuleSet @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  name             String
+  legalSource      String
+  accessTier       String
+  dataNature       String
+  applicabilityJson Json
+  validationSchema Json?
+  note             String?
+
+  @@unique([ruleSetId, fieldNumber])
+  @@index([fieldNumber])
+}
+
+model PassportValue {
+  id                String           @id @default(uuid())
+  organisationId    String
+  organisation      Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  modelId           String?
+  model             BatteryModel?    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  batteryItemId     String?
+  batteryItem       BatteryItem?     @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  fieldDefinitionId Int
+  valueJson         Json
+  unit              String?
+  sourceKind        String           @default("operator")
+  validationStatus  ValidationStatus @default(unvalidated)
+  approvedByUserId  String?
+  approvedBy        User?            @relation("ValueApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  validFrom         DateTime         @default(now())
+  validUntil        DateTime?
+  supersedesValueId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  evidenceLinks     EvidenceLink[]
+  extractedClaims   ExtractedClaim[]
+
+  @@index([organisationId, batteryItemId, fieldDefinitionId])
+  @@index([organisationId, modelId, fieldDefinitionId])
+}
+
+model EvidenceObject {
+  id                 String         @id @default(uuid())
+  organisationId     String
+  organisation       Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  supplierId         String?
+  supplier           Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  objectKey          String
+  originalFilename   String?
+  mimeType           String?
+  sizeBytes          BigInt?
+  sha256             String?
+  storageChecksum    String?
+  evidenceType       String
+  verificationStatus EvidenceStatus @default(pending_upload)
+  issuedAt           DateTime?
+  expiresAt          DateTime?
+  uploadedAt         DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  links              EvidenceLink[]
+  extractionJobs     ExtractionJob[]
+  supplierSubmissions SupplierSubmissionEvidence[]
+
+  @@unique([organisationId, objectKey])
+  @@index([organisationId, verificationStatus])
+  @@index([organisationId, sha256])
+}
+
+model EvidenceLink {
+  evidenceId      String
+  evidence        EvidenceObject @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  passportValueId String
+  passportValue   PassportValue  @relation(fields: [passportValueId], references: [id], onDelete: Cascade)
+  relationship    String         @default("supports")
+  locatorJson     Json?
+  createdAt       DateTime       @default(now())
+
+  @@id([evidenceId, passportValueId])
+}
+
+model ExtractionJob {
+  id              String           @id @default(uuid())
+  organisationId  String
+  organisation    Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  evidenceId      String
+  evidence        EvidenceObject   @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  provider        String
+  status          ExtractionStatus @default(queued)
+  requestJson     Json?
+  responseJson    Json?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  claims          ExtractedClaim[]
+
+  @@index([organisationId, status])
+}
+
+model ExtractedClaim {
+  id              String         @id @default(uuid())
+  extractionJobId String
+  extractionJob   ExtractionJob  @relation(fields: [extractionJobId], references: [id], onDelete: Cascade)
+  passportValueId String?
+  passportValue   PassportValue? @relation(fields: [passportValueId], references: [id], onDelete: SetNull)
+  fieldDefinitionId Int
+  proposedValue   Json
+  proposedUnit    String?
+  confidence      Float?
+  locatorJson     Json?
+  state           String         @default("suggested")
+  reviewedAt      DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([fieldDefinitionId, state])
+}
+
+model Supplier {
+  id                     String           @id @default(uuid())
+  organisationId         String
+  organisation           Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  legalName              String
+  externalReference      String?
+  countryCode            String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  contacts               SupplierContact[]
+  requests               SupplierRequest[]
+  evidence               EvidenceObject[]
+
+  @@unique([organisationId, legalName])
+}
+
+model SupplierContact {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name       String?
+  email      String
+  phone      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([supplierId, email])
+}
+
+model SupplierRequest {
+  id                 String                @id @default(uuid())
+  organisationId     String
+  organisation       Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  supplierId         String
+  supplier           Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  modelId            String
+  model              BatteryModel          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  tokenHash          String                @unique
+  status             SupplierRequestStatus @default(draft)
+  requestedBySubject String
+  message            String?
+  dueAt              DateTime?
+  expiresAt          DateTime
+  sentAt             DateTime?
+  openedAt           DateTime?
+  submittedAt        DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  fields             SupplierRequestField[]
+  submissions        SupplierSubmission[]
+
+  @@index([organisationId, status])
+  @@index([supplierId, status])
+}
+
+model SupplierRequestField {
+  id                String          @id @default(uuid())
+  supplierRequestId String
+  supplierRequest   SupplierRequest @relation(fields: [supplierRequestId], references: [id], onDelete: Cascade)
+  fieldDefinitionId Int
+  required          Boolean         @default(true)
+  note              String?
+
+  @@unique([supplierRequestId, fieldDefinitionId])
+}
+
+model SupplierSubmission {
+  id                String          @id @default(uuid())
+  supplierRequestId String
+  supplierRequest   SupplierRequest @relation(fields: [supplierRequestId], references: [id], onDelete: Cascade)
+  fieldDefinitionId Int
+  valueJson         Json
+  unit              String?
+  attestationText   String?
+  submittedAt       DateTime        @default(now())
+  evidence          SupplierSubmissionEvidence[]
+
+  @@index([supplierRequestId, fieldDefinitionId])
+}
+
+model SupplierSubmissionEvidence {
+  supplierSubmissionId String
+  supplierSubmission   SupplierSubmission @relation(fields: [supplierSubmissionId], references: [id], onDelete: Cascade)
+  evidenceId           String
+  evidence             EvidenceObject     @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@id([supplierSubmissionId, evidenceId])
+}
+
+model ComplianceCheck {
+  id             String            @id @default(uuid())
+  organisationId String
+  organisation   Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  modelId        String?
+  model          BatteryModel?     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  batteryItemId  String?
+  batteryItem    BatteryItem?      @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  ruleSetId      String?
+  ruleSet        RegulatoryRuleSet? @relation(fields: [ruleSetId], references: [id], onDelete: SetNull)
+  ruleCode       String
+  severity       String
+  status         String
+  detailsJson    Json              @default("{}")
+  checkedAt      DateTime          @default(now())
+
+  @@index([organisationId, batteryItemId, severity, status])
+}
+
+model PassportVersion {
+  id               String       @id @default(uuid())
+  organisationId   String
+  organisation     Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId    String
+  batteryItem      BatteryItem  @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  versionNo        Int
+  schemaVersion    String       @default("eubatterypassport.v2")
+  ruleSetVersion   String
+  canonicalJson    Json
+  sha256           String
+  previousVersionHash String?
+  publicationState String
+  publishedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  publicSnapshots  PublicPassportSnapshot[]
+  submissions      RegistrySubmission[]
+
+  @@unique([batteryItemId, versionNo])
+  @@index([organisationId, batteryItemId, versionNo])
+}
+
+model PublicPassportSnapshot {
+  id               String          @id @default(uuid())
+  organisationId   String
+  organisation     Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId    String
+  batteryItem      BatteryItem     @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  passportVersionId String
+  passportVersion  PassportVersion @relation(fields: [passportVersionId], references: [id], onDelete: Cascade)
+  publicId         String
+  upi              String
+  publicJson       Json
+  sha256           String
+  active           Boolean         @default(true)
+  publishedAt      DateTime        @default(now())
+
+  @@unique([passportVersionId])
+  @@index([publicId, active])
+  @@index([upi, active])
+}
+
+model RegistrySubmission {
+  id                String          @id @default(uuid())
+  organisationId    String
+  organisation      Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId     String
+  batteryItem       BatteryItem     @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  passportVersionId String?
+  passportVersion   PassportVersion? @relation(fields: [passportVersionId], references: [id], onDelete: SetNull)
+  method            String
+  correlationId     String?
+  registryUri       String?
+  status            RegistryStatus  @default(draft)
+  requestPayload    Json?
+  responsePayload   Json?
+  errorReport       Json?
+  submittedAt       DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([organisationId, status])
+  @@index([batteryItemId, createdAt])
+}
+
+model AccessGrant {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId  String?
+  batteryItem    BatteryItem? @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  granteeSubject String
+  tokenHash      String?      @unique
+  granteeRole    String
+  accessTier     String
+  purpose        String
+  validFrom      DateTime
+  validUntil     DateTime?
+  grantedBySubject String
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organisationId, granteeSubject, accessTier])
+}
+
+model LifecycleEvent {
+  id              String       @id @default(uuid())
+  organisationId  String
+  organisation    Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId   String
+  batteryItem     BatteryItem  @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  eventType       String
+  eventTime       DateTime
+  payload         Json
+  previousPassportId String?
+  integrityHash   String
+  createdAt       DateTime     @default(now())
+
+  @@index([organisationId, batteryItemId, eventTime])
+}
+
+model TelemetryReading {
+  id             BigInt       @id @default(autoincrement())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  batteryItemId  String
+  batteryItem    BatteryItem  @relation(fields: [batteryItemId], references: [id], onDelete: Cascade)
+  measuredAt     DateTime
+  metric         String
+  value          Float?
+  unit           String?
+  payload        Json?
+  source         String?
+  integrityHash  String?
+
+  @@index([organisationId, batteryItemId, measuredAt])
+}
+
+model AuditEvent {
+  id             BigInt        @id @default(autoincrement())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  actorSubject   String?
+  action         String
+  resourceType   String
+  resourceId     String?
+  beforeHash     String?
+  afterHash      String?
+  metadata       Json          @default("{}")
+  requestId      String?
+  ipHash         String?
+  createdAt      DateTime      @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model IdempotencyRecord {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  key            String
+  requestHash    String
+  responseStatus Int
+  responseJson   Json?
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  @@unique([organisationId, key])
+  @@index([expiresAt])
+}
