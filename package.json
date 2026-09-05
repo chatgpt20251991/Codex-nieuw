@@ -19,7 +19,8 @@
     "db:rls": "node --env-file-if-exists=.env scripts/apply-rls.cjs"
   },
   "devDependencies": {
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "playwright": "1.62.1"
   },
   "engines": {
     "node": ">=22.12.0"

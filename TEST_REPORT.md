@@ -1,5 +1,40 @@
 # Verification record — 5 September 2026
 
+## Gate 4 evidence follow-up
+
+PR #11 (Gate 3) is merged at `5546343`; its head revision passed GitHub Actions.
+Gate 4 adds 12 scenarios using real MinIO, a real browser, the built API and
+PostgreSQL. They cover signed browser PUT, corrupted bytes/checksums, absent
+objects, forged metadata, size mismatch, replacement before verification,
+idempotent finalization, supplier ownership, concurrent sessions, evidence expiry,
+mandatory-value provenance, suggestions-only extraction and audit events.
+
+| Check | Local result |
+|---|---|
+| Clean locked installation | PASS — 435 packages |
+| Prisma client generation and schema validation | PASS — 6.19.3 |
+| Four-workspace TypeScript checks | PASS |
+| Rule-engine unit tests | 20 / 20 PASS |
+| Source-level security/compliance checks | 43 / 43 PASS |
+| Nest and Next production builds | PASS — 13 generated pages |
+| Real PostgreSQL/API/MinIO/browser integration | 34 / 34 PASS, no skips |
+| Compose and GitHub Actions YAML parsing | PASS |
+| Git whitespace/diff check | PASS |
+
+Windows verification used Node 24.15.0, PostgreSQL 16.14, MinIO
+RELEASE.2025-09-07T16-13-09Z and headless Edge through Playwright 1.62.1.
+The clean-install and Prisma download initially hit sandbox network restrictions;
+rerunning with network permission succeeded. These were environment failures.
+CI now provisions Chromium and the MinIO fixture and runs all 34 tests; the
+GitHub PR checks are the authoritative remote result for each commit.
+
+See `codex/GATE_4_REPORT.md` for regression findings and the historical test-only
+MinIO version boundary. This verifies browser transport, not a full Next.js UI
+journey. Production storage/security, OIDC, malware scanning, the full passport
+lifecycle and live Registry integration remain separate gates. The older reports
+below describe their original revisions; Gate 4 supersedes their pending evidence
+upload test status. Next implementation work is Gate 5.
+
 ## Gate 3 review follow-up
 
 The baseline `e9ee731` also passed remote GitHub Actions, including production

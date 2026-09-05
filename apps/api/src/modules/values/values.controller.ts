@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { usableEvidence } from '../../common/storage/evidence-storage.service';
 import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
@@ -39,7 +40,7 @@ export class ValuesController {
   async validate(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     const row=await this.tenantDb.run(orgId,async tx=>{
       const value=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId},include:{evidenceLinks:{include:{evidence:true}}}});
-      const usable=value.evidenceLinks.filter(l=>l.evidence.verificationStatus==='verified');
+      const usable=value.evidenceLinks.filter(l=>usableEvidence(l.evidence));
       if(!usable.length) throw new ConflictException({code:'PROVENANCE_REQUIRED',message:'At least one verified evidence/provenance object is required before value validation.'});
       return tx.passportValue.update({where:{id},data:{validationStatus:'validated'}});
     });
