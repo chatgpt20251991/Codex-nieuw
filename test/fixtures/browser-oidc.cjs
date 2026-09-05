@@ -129,7 +129,7 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
   const key = await jose.generateKeyPair('RS256');
   const jwk = { ...await jose.exportJWK(key.publicKey), kid: 'browser-fixture', alg: 'RS256', use: 'sig' };
   const pending = new Map(), codes = new Map();
-  const events = { authorization: [], exchanges: [], logout: [], jwks: 0, unexpected: [], applicationCookieLeaks: [] };
+  const events = { authorization: [], callbacks: [], exchanges: [], logout: [], jwks: 0, unexpected: [], applicationCookieLeaks: [] };
   let issuer, appOrigin, nextFault;
   async function sign(payload) {
     return new jose.SignJWT(payload).setProtectedHeader({ alg: 'RS256', kid: jwk.kid, typ: 'JWT' }).sign(key.privateKey);
@@ -151,6 +151,11 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
       const url = new URL(req.url, issuer);
       if ((req.headers.cookie || '').split(';').some(value => value.trim().startsWith('__Host-eubp_'))) {
         events.applicationCookieLeaks.push({ method: req.method, path: url.pathname });
+      }
+      // Chromium may request the issuer page's default icon independently of
+      // the OIDC flow. Keep this explicit asset out of protocol-error events.
+      if (url.pathname === '/favicon.ico' && req.method === 'GET') {
+        res.writeHead(204, { 'cache-control': 'no-store' }).end(); return;
       }
       if (url.pathname === '/.well-known/openid-configuration') return json(res, 200, {
         issuer, authorization_endpoint: issuer + 'authorize', token_endpoint: issuer + 'oauth/token',
@@ -182,7 +187,18 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
         codes.set(code, { ...selected, actor, used: false });
         const callback = new URL(selected.params.redirect_uri);
         callback.searchParams.set('code', code); callback.searchParams.set('state', selected.params.state);
-        res.writeHead(303, { location: callback.toString(), 'cache-control': 'no-store' }).end(); return;
+        // Negative tests change the issuer's real redirect. Browser routing
+        // interception does not reliably run again for a followed redirect.
+        const destination = selected.fault?.callbackTransform
+          ? selected.fault.callbackTransform(new URL(callback)) : callback;
+        assert.equal(destination.origin, appOrigin); assert.equal(destination.pathname, '/auth/callback');
+        const held = selected.fault?.holdCallback === true;
+        events.callbacks.push({ originalUrl: callback.toString(), deliveredUrl: held ? null : destination.toString(), held });
+        if (held) {
+          res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+            .end('Callback held by the isolated issuer.'); return;
+        }
+        res.writeHead(303, { location: destination.toString(), 'cache-control': 'no-store' }).end(); return;
       }
       if (url.pathname === '/oauth/token' && req.method === 'POST') {
         const params = Object.fromEntries(await body(req));

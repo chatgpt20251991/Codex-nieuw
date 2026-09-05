@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth0Client } from './lib/auth0';
-import { hasSameOrigin, hasTrustedRequestHost, readAuth0Config } from './lib/auth-config';
+import { hasSameOrigin, hasTrustedRequestHost, readAuth0Config, trustedLogoutUrl } from './lib/auth-config';
 
 const development = process.env.NODE_ENV === 'development';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
     "font-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",
-    `form-action 'self'${authConfig ? ` https://${authConfig.domain}` : ''}`,
+    "form-action 'self'",
     "frame-ancestors 'none'",
     "frame-src 'none'",
     "worker-src 'none'",
@@ -103,10 +103,18 @@ export async function middleware(request: NextRequest) {
         // same-origin POST internally; a public GET cannot trigger logout.
         const sdkRequest = new NextRequest(request.url, { method: 'GET', headers: requestHeaders });
         response = await auth0.middleware(sdkRequest);
-        if (path === '/auth/logout' && response.headers.has('location')) {
-          const redirect = NextResponse.redirect(response.headers.get('location')!, 303);
-          for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
-          response = redirect;
+        if (path === '/auth/logout' && response.status < 400) {
+          const redirectTo = trustedLogoutUrl(response.headers.get('location'), authConfig);
+          const wantsJson = request.headers.get('accept')?.split(',')
+            .some(value => value.split(';', 1)[0].trim().toLowerCase() === 'application/json');
+          // A CORS-mode same-origin fetch preserves Origin under no-referrer.
+          // Return the validated address so the browser can navigate to the IdP
+          // without following an external redirect inside fetch or exposing JWTs.
+          const logout = redirectTo
+            ? (wantsJson ? NextResponse.json({ redirectTo }) : NextResponse.redirect(redirectTo, 303))
+            : new NextResponse('Authentication service is unavailable.', { status: 502 });
+          for (const cookie of response.cookies.getAll()) logout.cookies.set(cookie);
+          response = logout;
         }
         if (response.status >= 400) {
           const failure = new NextResponse(path === '/auth/callback' ? 'Sign-in failed. Please try again.' : 'Authentication service is unavailable.',

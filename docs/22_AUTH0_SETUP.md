@@ -56,6 +56,10 @@ this web application. [Auth0 Next.js setup](https://auth0.com/docs/quickstart/we
 
 Register exact HTTPS URLs for each staging/production application, with no wildcards:
 
+Verify that the tenant's OpenID discovery document advertises its HTTPS
+`end_session_endpoint`. The application uses OIDC logout and fails closed if
+the provider does not advertise it; it does not silently switch logout protocols.
+
 | Setting | Staging/production application |
 |---|---|
 | Allowed Callback URLs | `<https-web-origin>/auth/callback` |
@@ -206,6 +210,14 @@ or Management API scopes. Follow the repository's cookie/session settings; do no
 expose a token endpoint or copy access/refresh tokens into browser storage. Database,
 storage, scanner and HTTPS deployment settings remain required separately. Both EU
 Registry feature flags remain false.
+
+The console's sign-out button sends an explicit CORS-mode, same-origin credentialed
+POST to `/auth/logout`. It retains `Referrer-Policy: no-referrer`, while the browser
+still supplies its Origin for the strict CSRF check. The response clears the local
+session and returns only the validated provider logout URL for top-level navigation;
+it never returns an ID/access token. A plain navigation form under `no-referrer`
+can send `Origin: null` and must remain rejected. See the
+[Fetch Origin-header algorithm](https://fetch.spec.whatwg.org/#append-a-request-origin-header).
 
 ## 8. Record real-provider acceptance
 

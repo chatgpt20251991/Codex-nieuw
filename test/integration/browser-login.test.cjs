@@ -93,31 +93,36 @@ async function api(actor, path, body) {
 }
 
 async function login(ctx, actor = 'A', { fault, callbackTransform, stopAtCallback = false } = {}) {
-  issuer.setNextFault(fault);
+  issuer.setNextFault({ ...fault, callbackTransform, holdCallback: stopAtCallback });
   const page = await ctx.newPage();
-  let callbackUrl;
-  if (callbackTransform || stopAtCallback) {
-    await page.route(webProxy.origin + '/auth/callback**', async route => {
-      callbackUrl = new URL(route.request().url());
-      if (stopAtCallback) return route.fulfill({ status: 200, contentType: 'text/plain', body: 'Callback held by the isolated test.' });
-      return route.continue({ url: callbackTransform(new URL(callbackUrl)).toString() });
-    });
-  }
+  const requestIndex = webProxy.requests.length, callbackIndex = issuer.events.callbacks.length;
   const signIn = await page.goto(webProxy.origin + '/auth/login');
   assert.equal(signIn.status(), 200, `Issuer authorization page: ${await signIn.text()}`);
   const transactionCookies = (await ctx.cookies(webProxy.origin)).filter(cookie => cookie.name.startsWith('__Host-eubp_txn_'));
   assert.equal(transactionCookies.length, 1);
   const callbackPromise = stopAtCallback ? undefined : page.waitForResponse(response => new URL(response.url()).origin === webProxy.origin
     && new URL(response.url()).pathname === '/auth/callback', { timeout: 20000 });
+  const choicePromise = page.waitForResponse(response => new URL(response.url()).origin === new URL(issuer.issuer).origin
+    && new URL(response.url()).pathname === '/fixture/choose' && response.request().method() === 'POST', { timeout: 20000 });
   await page.getByRole('button', { name: `Choose tenant ${actor}`, exact: true }).click();
+  const choice = await choicePromise;
+  const issuedCallback = issuer.events.callbacks[callbackIndex];
+  assert(issuedCallback, 'The real issuer must record the selected account callback');
   if (stopAtCallback) {
-    await page.waitForURL('**/auth/callback**');
-    assert(callbackUrl, 'Expected to intercept a real issuer redirect');
-    return { page, callbackUrl, transactionCookies };
+    assert.equal(choice.status(), 200); assert.equal(issuedCallback.held, true);
+    assert.equal(issuedCallback.deliveredUrl, null);
+    assert(!webProxy.requests.slice(requestIndex).some(entry => new URL(entry.url, webProxy.origin).pathname === '/auth/callback'),
+      'A held code must not reach the application or be exchanged');
+    return { page, callbackUrl: new URL(issuedCallback.originalUrl), transactionCookies };
   }
   const callback = await callbackPromise;
+  assert.equal(choice.status(), 303);
+  const callbackUrl = new URL(issuedCallback.deliveredUrl);
+  assert(webProxy.requests.slice(requestIndex).some(entry => entry.method === 'GET' && entry.url === callbackUrl.pathname + callbackUrl.search),
+    'The browser must deliver the exact issuer callback, including deliberate state/code changes, to the web proxy');
+  if (callbackTransform) assert(issuedCallback.deliveredUrl !== issuedCallback.originalUrl, 'A negative flow must actually modify the callback');
   if (callback.status() === 303) await page.waitForURL(webProxy.origin + '/dashboard');
-  return { page, callback, callbackUrl: callbackUrl || new URL(callback.url()), transactionCookies };
+  return { page, callback, callbackUrl, transactionCookies };
 }
 
 async function successfulLogin(ctx, actor = 'A', options) {
@@ -310,7 +315,10 @@ test('Browser login: login parameter overrides and GET/cross-origin logout are r
     assert.equal((await request(sessions.A.context, '/auth/login' + query)).status, 400);
   }
   assert.equal((await request(sessions.A.context, '/auth/logout')).status, 405);
-  assert.equal((await request(sessions.A.context, '/auth/logout', { method: 'POST', headers: { origin: 'https://attacker.example.invalid' } })).status, 403);
+  for (const origin of [undefined, 'https://attacker.example.invalid', 'null']) {
+    assert.equal((await request(sessions.A.context, '/auth/logout', { method: 'POST',
+      headers: { accept: 'application/json', ...(origin === undefined ? {} : { origin }) } })).status, 403);
+  }
   assert.equal((await request(sessions.A.context, '/api/session')).data.authenticated, true);
 });
 
@@ -397,7 +405,16 @@ test('Browser login: same-origin POST logout clears the browser session and perf
     flow.page.waitForResponse(response => new URL(response.url()).pathname === '/auth/logout' && response.request().method() === 'POST'),
     flow.page.getByRole('button', { name: 'Sign out', exact: true }).click(),
   ]);
-  assert.equal(logout.status(), 303);
+  assert.equal(logout.status(), 200);
+  const result = await logout.json();
+  assert.deepEqual(Object.keys(result), ['redirectTo']);
+  const redirect = new URL(result.redirectTo);
+  assert.equal(redirect.origin, new URL(issuer.issuer).origin);
+  assert.equal(redirect.pathname, '/oidc/logout');
+  assert.equal(redirect.searchParams.has('id_token_hint'), false);
+  const logoutHeaders = await logout.request().allHeaders();
+  assert.equal(logoutHeaders.origin, webProxy.origin);
+  assert.equal(logoutHeaders.referer, undefined);
   await flow.page.getByRole('link', { name: 'Sign in', exact: true }).waitFor();
   assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
   assert.equal(sessionCookies(await ctx.cookies(webProxy.origin)).length, 0);

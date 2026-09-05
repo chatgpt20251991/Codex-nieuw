@@ -12,7 +12,7 @@ const source = readFileSync(resolve(__dirname, '../../apps/web/lib/auth-config.t
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
 const exportsObject = {};
 runInNewContext(compiled.outputText, { exports: exportsObject, URL });
-const { readAuth0Config, hasSameOrigin, hasTrustedRequestHost, assertProvisionedIdentity, ORGANISATION_CLAIM, ROLE_CLAIM } = exportsObject;
+const { readAuth0Config, hasSameOrigin, hasTrustedRequestHost, trustedLogoutUrl, assertProvisionedIdentity, ORGANISATION_CLAIM, ROLE_CLAIM } = exportsObject;
 const configured = {
   NODE_ENV: 'production', AUTH0_DOMAIN: 'identity.example.test',
   APP_BASE_URL: 'https://passport.example.test', AUTH0_CLIENT_ID: 'browser-fixture',
@@ -103,6 +103,40 @@ test('auth CSRF checks require the exact configured Origin and Host, never forwa
   ]) assert.equal(hasSameOrigin(new Headers({ host: 'passport.example.test', origin, ...patch }), origin), false);
   assert.equal(hasSameOrigin(new Headers({ host: 'passport.example.test' }), origin), false);
   assert.equal(hasSameOrigin(new Headers({ origin, 'x-forwarded-host': 'passport.example.test' }), origin), false);
+});
+
+test('logout redirects stay at the fixed issuer and application without tokens or ambiguous parameters', () => {
+  const config = readAuth0Config(configured);
+  const valid = new URL(`https://${config.domain}/oidc/logout`);
+  valid.searchParams.set('client_id', config.clientId);
+  valid.searchParams.set('post_logout_redirect_uri', config.appBaseUrl);
+  assert.equal(trustedLogoutUrl(valid.href, config), valid.href);
+  const hinted = new URL(valid);
+  hinted.searchParams.set('logout_hint', 'opaque-provider-session-id');
+  assert.equal(trustedLogoutUrl(hinted.href, config), hinted.href);
+  for (const mutate of [
+    url => { url.protocol = 'http:'; }, url => { url.hostname = 'attacker.example.test'; },
+    url => { url.port = '8443'; }, url => { url.pathname = '/v2/logout'; },
+    url => { url.username = 'user'; }, url => { url.hash = 'fragment'; },
+    url => url.searchParams.delete('client_id'), url => url.searchParams.delete('post_logout_redirect_uri'),
+    url => url.searchParams.set('client_id', 'other-client'),
+    url => url.searchParams.set('post_logout_redirect_uri', config.appBaseUrl + '/attacker'),
+    url => url.searchParams.set('post_logout_redirect_uri', 'https://attacker.example.test'),
+    url => url.searchParams.append('client_id', config.clientId),
+    url => url.searchParams.append('post_logout_redirect_uri', config.appBaseUrl),
+    url => url.searchParams.set('id_token_hint', 'synthetic.token.value'),
+    url => url.searchParams.set('state', 'unreviewed-state'), url => url.searchParams.set('federated', ''),
+    url => url.searchParams.set('unknown', 'parameter'), url => url.searchParams.set('logout_hint', ''),
+    url => url.searchParams.set('logout_hint', 'x'.repeat(1025)),
+    url => url.searchParams.set('logout_hint', 'line\nbreak'),
+    url => { url.searchParams.append('logout_hint', 'first'); url.searchParams.append('logout_hint', 'second'); },
+  ]) {
+    const invalid = new URL(valid); mutate(invalid);
+    assert.equal(trustedLogoutUrl(invalid.href, config), null, 'Unexpected logout destination must fail closed');
+  }
+  for (const invalid of [null, '', '/oidc/logout', ' ' + valid.href, valid.href + '\n', 'x'.repeat(8193)]) {
+    assert.equal(trustedLogoutUrl(invalid, config), null);
+  }
 });
 
 test('a valid provider identity cannot create an app session without explicit canonical tenant and role claims', () => {

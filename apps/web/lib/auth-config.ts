@@ -66,3 +66,24 @@ export function hasTrustedRequestHost(headers: Headers, appBaseUrl: string) {
 export function hasSameOrigin(headers: Headers, appBaseUrl: string) {
   return headers.get('origin') === appBaseUrl && hasTrustedRequestHost(headers, appBaseUrl);
 }
+
+/** Validate the SDK's logout destination before returning it to browser code. */
+export function trustedLogoutUrl(value: string | null, config: BrowserAuthConfig): string | null {
+  if (!value || value.length > 8192 || value.trim() !== value || /[\u0000-\u001f\u007f]/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    if (url.origin !== `https://${config.domain}` || url.pathname !== '/oidc/logout'
+      || url.username || url.password || url.hash) return null;
+    const allowed = new Set(['client_id', 'post_logout_redirect_uri', 'logout_hint']);
+    for (const key of url.searchParams.keys()) {
+      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1) return null;
+    }
+    if (url.searchParams.get('client_id') !== config.clientId
+      || url.searchParams.get('post_logout_redirect_uri') !== config.appBaseUrl) return null;
+    // The SDK can add its verified session's sid. This is an opaque logout hint,
+    // not an ID/access token. No token, state or user-selected redirect is allowed.
+    const hint = url.searchParams.get('logout_hint');
+    if (hint !== null && (!hint || hint.length > 1024 || /[\s\u0000-\u001f\u007f]/.test(hint))) return null;
+    return url.href;
+  } catch { return null; }
+}
