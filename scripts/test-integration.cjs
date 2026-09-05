@@ -37,6 +37,7 @@ async function main() {
   let db;
   try {
     await admin.query(readFileSync(resolve(root, 'infra/postgres/000_roles.sql'), 'utf8'));
+    await require('../test/integration/verify-migration-upgrade.cjs')(adminUrl);
     await admin.query(`CREATE DATABASE "${database}" OWNER eubp_migrator`);
     created = true;
     db = new Client({ connectionString: urlFor() });
