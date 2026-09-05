@@ -1,0 +1,126 @@
+name: security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependency audit and SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify locked installation without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate the complete lockfile SBOM
+        run: |
+          mkdir -p security-results
+          npm ls --all --json > security-results/dependency-tree.json
+          node --version > security-results/tool-versions.txt
+          npm --version >> security-results/tool-versions.txt
+          npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only --workspaces --include-workspace-root > security-results/sbom.cdx.json
+      - name: Audit production and development dependencies
+        run: npm audit --json --audit-level=high > security-results/npm-audit.json
+      - name: Retain dependency evidence, including failed audit results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-security-${{ github.sha }}
+          path: security-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  secrets:
+    name: Secret scan of complete Git history
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the checksum-pinned Gitleaks release
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks" security-results
+          archive="$RUNNER_TEMP/gitleaks/gitleaks.tar.gz"
+          curl --fail --show-error --silent --location --proto '=https' --tlsv1.2 --retry 3 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            --output "$archive"
+          printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          "$RUNNER_TEMP/gitleaks/gitleaks" version > security-results/gitleaks-version.txt
+      - name: Scan all fetched commits with redacted evidence
+        run: |
+          "$RUNNER_TEMP/gitleaks/gitleaks" git . --log-opts='--all' \
+            --redact=100 --no-banner --ignore-gitleaks-allow \
+            --report-format=json --report-path=security-results/gitleaks.json
+      - name: Retain the redacted secret-scan report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: secret-scan-${{ github.sha }}
+          path: security-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  sast:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Test fail-closed SARIF validation
+        run: node --test scripts/security/check-sarif.test.cjs
+      - name: Initialize the security-extended query suite
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+          tools: linked
+      - name: Analyze and publish results to GitHub code scanning
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          output: security-results/codeql
+          category: /language:${{ matrix.language }}
+          upload-database: false
+      - name: Block findings even when analysis itself succeeded
+        run: node scripts/security/check-sarif.cjs security-results/codeql
+      - name: Retain SARIF for review, including failed checks
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codeql-${{ matrix.language }}-${{ github.sha }}
+          path: security-results/codeql/
+          if-no-files-found: error
+          retention-days: 14

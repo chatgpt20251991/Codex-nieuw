@@ -3,12 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { HeadObjectCommand, PutObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { MalwareScannerService, type MalwareScanResult } from './malware-scanner.service';
 
 @Injectable()
 export class StorageService {
   private readonly s3: S3Client;
   private readonly bucket: string;
-  constructor(private readonly config: ConfigService) {
+  constructor(private readonly config: ConfigService, private readonly malwareScanner: MalwareScannerService) {
     this.bucket = this.config.get<string>('S3_BUCKET') || 'eubp-evidence';
     this.s3 = new S3Client({
       region: this.config.get<string>('S3_REGION') || 'eu-central-1',
@@ -21,18 +22,26 @@ export class StorageService {
   checksumBase64(sha256Hex:string){return Buffer.from(sha256Hex,'hex').toString('base64');}
   checksumHex(base64:string){return Buffer.from(base64,'base64').toString('hex');}
   async createUploadUrl(input:{objectKey:string;mimeType:string;sizeBytes:number;sha256:string}){const checksum=this.checksumBase64(input.sha256);const command=new PutObjectCommand({Bucket:this.bucket,Key:input.objectKey,ContentType:input.mimeType,ContentLength:input.sizeBytes,ChecksumSHA256:checksum,Metadata:{sha256:input.sha256},ServerSideEncryption:this.config.get('S3_ENDPOINT')?undefined:'aws:kms'});const expiresIn=Number(this.config.get('S3_UPLOAD_URL_TTL_SECONDS')||900);return {url:await getSignedUrl(this.s3,command,{expiresIn,unhoistableHeaders:new Set(['x-amz-checksum-sha256','x-amz-meta-sha256']),signableHeaders:new Set(['content-type'])}),checksumBase64:checksum,expiresIn};}
-  async createDownloadUrl(objectKey:string,expiresIn=300){return getSignedUrl(this.s3,new GetObjectCommand({Bucket:this.bucket,Key:objectKey}),{expiresIn});}
-  async head(objectKey:string){return this.s3.send(new HeadObjectCommand({Bucket:this.bucket,Key:objectKey}));}
-  async hashObject(objectKey:string,etag?:string){const result=await this.s3.send(new GetObjectCommand({Bucket:this.bucket,Key:objectKey,IfMatch:etag}));if(!result.Body)throw new Error('Object body unavailable for integrity verification');const hash=createHash('sha256');for await(const chunk of result.Body as any)hash.update(chunk);return hash.digest('hex');}
-  async verifyObjectSha256(objectKey:string,expectedHex:string,expectedSize?:number){
+  async createDownloadUrl(objectKey:string,expiresIn=300,versionId?:string|null){return getSignedUrl(this.s3,new GetObjectCommand({Bucket:this.bucket,Key:objectKey,VersionId:versionId||undefined}),{expiresIn});}
+  async head(objectKey:string,versionId?:string|null){return this.s3.send(new HeadObjectCommand({Bucket:this.bucket,Key:objectKey,VersionId:versionId||undefined}));}
+  async verifyObjectSha256(objectKey:string,expectedHex:string,expectedSize?:number,versionId?:string|null){
     try {
-      const head=await this.head(objectKey);
+      const head=await this.head(objectKey,versionId);
       if(expectedSize!==undefined&&head.ContentLength!==expectedSize)throw new ConflictException({code:'UPLOAD_SIZE_MISMATCH'});
       if(!head.ETag)throw new ConflictException({code:'UPLOAD_METADATA_REQUIRED'});
-      // Hash the actual stored bytes. Metadata or a caller-declared checksum is not proof.
-      // If-Match binds this GET to the object inspected by HEAD.
-      const actualHex=await this.hashObject(objectKey,head.ETag);
-      return {ok:actualHex.toLowerCase()===expectedHex.toLowerCase(),actualHex,head};
+      const storedVersion=head.VersionId && head.VersionId!=='null' ? head.VersionId : null;
+      if(this.config.get('MALWARE_SCANNER')==='clamav' && !storedVersion)throw new ConflictException({code:'EVIDENCE_STORAGE_VERSION_REQUIRED'});
+      // The immutable version and ETag bind HEAD, the exact stream scanned/hashed,
+      // and subsequent extractor downloads. Never scan a second, separately read body.
+      const result=await this.s3.send(new GetObjectCommand({Bucket:this.bucket,Key:objectKey,IfMatch:head.ETag,VersionId:storedVersion||undefined}));
+      if(!result.Body)throw new ConflictException({code:'UPLOAD_METADATA_REQUIRED'});
+      const hash=createHash('sha256');let size=0; const body=result.Body as any;
+      async function* measured(){for await(const input of body){const chunk=Buffer.from(input);size+=chunk.length;hash.update(chunk);yield chunk;}}
+      let scan:MalwareScanResult;
+      try{scan=await this.malwareScanner.scan(measured());}finally{if(typeof body.destroy==='function')body.destroy();}
+      if(expectedSize!==undefined&&size!==expectedSize)throw new ConflictException({code:'UPLOAD_SIZE_MISMATCH'});
+      const actualHex=hash.digest('hex');
+      return {ok:actualHex.toLowerCase()===expectedHex.toLowerCase(),actualHex,head,scan,versionId:storedVersion};
     }catch(error:any){
       if(error?.$metadata?.httpStatusCode===404)throw new ConflictException({code:'UPLOAD_NOT_FOUND'});
       if(error?.$metadata?.httpStatusCode===412)throw new ConflictException({code:'UPLOAD_CHANGED_DURING_VERIFICATION'});

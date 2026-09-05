@@ -7,7 +7,7 @@ permissions:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       DIRECT_DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
@@ -28,8 +28,10 @@ jobs:
           --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -39,6 +41,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Start isolated MinIO test fixture
         run: docker compose -f docker-compose.integration.yml up -d minio-integration
+      - name: Start isolated ClamAV test fixture
+        run: docker compose -f docker-compose.malware-integration.yml up -d --wait --wait-timeout 180
       - name: Generate Prisma client
         run: npm run db:generate
       - name: Validate Prisma schema
@@ -49,8 +53,13 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: PostgreSQL, evidence, lifecycle and Registry contract integration
+      - name: PostgreSQL, OIDC, evidence, browser and recovery integration
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: npm run test:integration
+      - name: Stop ClamAV test fixture
+        if: always()
+        run: docker compose -f docker-compose.malware-integration.yml down
       - name: Stop MinIO test fixture
         if: always()
         run: docker compose -f docker-compose.integration.yml down

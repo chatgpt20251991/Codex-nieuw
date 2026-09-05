@@ -2,11 +2,12 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { AuthService } from '../../common/auth/auth.service';
 import { Public } from '../../common/auth/public.decorator';
+import { ACTOR_ROLES } from '../../common/auth/auth-config';
 
 const DevTokenSchema = z.object({
-  subject: z.string().min(1),
+  subject: z.string().min(1).max(255).refine(value => value.trim() === value),
   organisationId: z.string().uuid(),
-  role: z.string().min(1).optional(),
+  role: z.enum(ACTOR_ROLES).optional(),
   email: z.string().email().optional(),
 });
 

@@ -31,7 +31,7 @@ ok('restricted token minimal resolver','resolve_access_grant_token' in rls)
 
 storage=(ROOT/'apps/api/src/common/storage/storage.service.ts').read_text()
 ok('S3 checksum supplied','ChecksumSHA256' in storage)
-ok('stored object bytes can be hashed','hashObject' in storage and "createHash('sha256')" in storage)
+ok('stored object bytes can be hashed','malwareScanner.scan(measured())' in storage and "createHash('sha256')" in storage)
 
 passport=(ROOT/'apps/api/src/modules/passports/passports.controller.ts').read_text()
 ok('immutable hash chain','previousVersionHash:latest?.sha256' in passport)
@@ -45,7 +45,7 @@ ok('max-100 batching','chunkForRegistry(records,100)' in registry)
 
 auth=(ROOT/'apps/api/src/common/auth/auth.service.ts').read_text(); main=(ROOT/'apps/api/src/main.ts').read_text(); tenant=(ROOT/'apps/api/src/common/tenant/tenant.guard.ts').read_text()
 ok('OIDC verification exists','createRemoteJWKSet' in auth and 'jwtVerify' in auth)
-ok('production rejects dev auth',"AUTH_MODE!=='oidc'" in main)
+ok('production rejects dev auth',"assertProductionConfig();" in main and "env.AUTH_MODE !== 'oidc'" in (ROOT/'apps/api/src/common/http/production-config.ts').read_text())
 ok('cross-tenant written authorisation gate','writtenAuthorisation.findFirst' in tenant)
 
 supplier=(ROOT/'apps/api/src/modules/suppliers/suppliers.controller.ts').read_text()

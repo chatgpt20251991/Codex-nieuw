@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
 import { EvidenceStorageService, EvidenceUploadSchema } from '../../common/storage/evidence-storage.service';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
 import type { Actor } from '../../common/auth/auth.types';
@@ -34,6 +34,9 @@ export class EvidenceController {
       await tx.evidenceObject.findFirstOrThrow({where:{id:b.evidenceId,organisationId:orgId}});
       const value=await tx.passportValue.findFirstOrThrow({where:{id:b.passportValueId,organisationId:orgId}});
       await lockValueOwner(tx,orgId,value);
+      await tx.$queryRaw`SELECT "id" FROM "EvidenceObject" WHERE "id" = ${b.evidenceId} AND "organisationId" = ${orgId} FOR UPDATE`;
+      const evidence=await tx.evidenceObject.findFirstOrThrow({where:{id:b.evidenceId,organisationId:orgId}});
+      if(['rejected','superseded'].includes(evidence.verificationStatus))throw new ConflictException({code:'EVIDENCE_NOT_READY'});
       const row=await tx.evidenceLink.upsert({where:{evidenceId_passportValueId:{evidenceId:b.evidenceId,passportValueId:b.passportValueId}},
         create:{evidenceId:b.evidenceId,passportValueId:b.passportValueId,relationship:b.relationship||'supports',locatorJson:b.locatorJson},
         update:{relationship:b.relationship||'supports',locatorJson:b.locatorJson}});

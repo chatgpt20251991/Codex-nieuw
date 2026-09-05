@@ -25,7 +25,7 @@ ok('supplier token minimal resolver', rls.includes('resolve_supplier_request_tok
 ok('restricted token minimal resolver', rls.includes('resolve_access_grant_token'));
 const storage = read('apps/api/src/common/storage/storage.service.ts');
 ok('S3 checksum supplied', storage.includes('ChecksumSHA256'));
-ok('stored object bytes can be hashed', storage.includes('hashObject') && storage.includes("createHash('sha256')"));
+ok('stored object bytes can be hashed', storage.includes('malwareScanner.scan(measured())') && storage.includes("createHash('sha256')"));
 const passport = read('apps/api/src/modules/passports/passports.controller.ts');
 ok('immutable hash chain', passport.replace(/\s/g, '').includes('previousVersionHash:latest?.sha256'));
 const projection = read('apps/api/src/modules/passports/passport-projection.ts');
@@ -38,7 +38,7 @@ ok('registry requires HTTPS UPI', registryContract.includes("startsWith('https:/
 ok('max-100 batching', registryContract.replace(/\s/g, '').includes('chunkForRegistry(group,100)'));
 const auth = read('apps/api/src/common/auth/auth.service.ts');
 ok('OIDC verification exists', auth.includes('createRemoteJWKSet') && auth.includes('jwtVerify'));
-ok('production rejects dev auth', read('apps/api/src/main.ts').includes("AUTH_MODE!=='oidc'"));
+ok('production rejects dev auth', read('apps/api/src/main.ts').includes('assertProductionConfig();') && read('apps/api/src/common/http/production-config.ts').includes("env.AUTH_MODE !== 'oidc'"));
 ok('cross-tenant written authorisation gate', read('apps/api/src/common/tenant/tenant.guard.ts').includes('writtenAuthorisation.findFirst'));
 const supplier = read('apps/api/src/modules/suppliers/suppliers.controller.ts');
 ok('supplier token is hashed', supplier.includes('sha256Hex(raw)'));

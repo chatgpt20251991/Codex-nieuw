@@ -47,6 +47,9 @@ module.exports = async function verifyMigrationUpgrade(adminUrl) {
     await deploy(join(schemaDir, 'schema.prisma'));
     prisma = new PrismaClient({ datasources: { db: { url: urlFor() } } });
     const org = await prisma.organisation.create({ data: { legalName: 'Synthetic upgrade fixture', countryCode: 'NL' } });
+    const legacyEvidenceId = require('node:crypto').randomUUID();
+    await db.query('INSERT INTO "EvidenceObject" ("id", "organisationId", "objectKey", "evidenceType", "verificationStatus", "sha256", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,NOW())',
+      [legacyEvidenceId, org.id, 'legacy-unscanned-fixture', 'test', 'verified', 'a'.repeat(64)]);
     const model = await prisma.batteryModel.create({ data: { organisationId: org.id, modelIdentifier: 'upgrade', category: 'EV' } });
     const item = await prisma.batteryItem.create({ data: { organisationId: org.id, modelId: model.id,
       serialOrItemIdentifier: 'upgrade-fixture', passportState: 'published' } });
@@ -63,8 +66,11 @@ module.exports = async function verifyMigrationUpgrade(adminUrl) {
 
     await deploy(join(root, 'apps/api/prisma/schema.prisma'));
     await db.query(policies); await db.query(grants);
-    assert.equal((await db.query('SELECT count(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL')).rows[0].count, 2);
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM "_prisma_migrations" WHERE finished_at IS NOT NULL')).rows[0].count, 3);
     assert.deepEqual(await prisma.passportVersion.findUniqueOrThrow({ where: { id: original.id } }), original);
+    const legacyEvidence = await prisma.evidenceObject.findUniqueOrThrow({ where: { id: legacyEvidenceId } });
+    assert.equal(legacyEvidence.verificationStatus, 'verified');
+    for (const field of ['malwareScanSha256', 'malwareScannedAt', 'malwareScannerVersion', 'storageVersionId']) assert.equal(legacyEvidence[field], null, 'Upgrade must not fabricate scan evidence');
     for (const permission of ['UPDATE', 'DELETE']) {
       assert.equal((await db.query(`SELECT has_table_privilege('eubp_runtime', '"PassportVersion"', $1) AS allowed`, [permission])).rows[0].allowed, false);
     }
