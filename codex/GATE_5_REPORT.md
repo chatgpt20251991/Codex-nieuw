@@ -1,10 +1,12 @@
-# Gate 5 — Local implementation, verification pending
+# Gate 5 — Passport lifecycle verified
 
-Base: Gate 4 commit `0bcfa4def8245bc2af9dfeec15ce9cf7e5071e69`, PR #12.
-Branch: `fix/gate-5-passport-lifecycle`. PR #12 is still open; Gate 5 is not merged,
-pushed, deployed or integration-verified. Do not mark this gate complete.
+Base: Gate 4 PR #12, merged at `e388103a91592c29328eefa258543762786cbc79`.
+Branch: `fix/gate-5-passport-lifecycle`; review in
+[PR #13](https://github.com/chatgpt20251991/Codex-nieuw/pull/13).
+Implementation and integration verification are complete. This report does not
+claim PR merge or deployment; inspect the current PR revision and its checks.
 
-## Code review findings and prepared changes
+## Code review findings and changes
 
 - Publication previously validated outside the transaction that read and
   serialized values. It now locks the model and item, validates those same values
@@ -24,7 +26,7 @@ pushed, deployed or integration-verified. Do not mark this gate complete.
   array holes and Date values. Four executable unit tests cover JSON round trips,
   ordering and invalid roots. This is not a claim that all historical passport
   hashes were wrong; old rows and stored hashes are left untouched.
-- Lifecycle predecessor IDs were only checked for UUID shape. The prepared API
+- Lifecycle predecessor IDs were only checked for UUID shape. The API
   requires the latest published version of the same item and tenant. Missing,
   invented, unrelated, foreign or stale predecessors fail. Cross-item/operator
   transfer is outside this route's current supported scope.
@@ -41,7 +43,7 @@ pushed, deployed or integration-verified. Do not mark this gate complete.
   (`re-used` is accepted as the spelling of `reused`). A lifecycle event does not
   auto-validate this field: an operator must supply and validate its evidence.
 
-## Tests prepared and checks performed
+## Tests and verification evidence
 
 The 14 new real PostgreSQL/MinIO/API scenarios cover:
 
@@ -67,30 +69,41 @@ Local schema/type checks, 21 rule tests, four canonical JSON tests and 43 source
 checks pass. Nest/Next production builds also pass, with 13 generated pages.
 No dependency versions were changed; installing new packages is unnecessary.
 
-The local PostgreSQL/MinIO startup command was rejected by the execution approval
-policy because `sandbox_approval` is false. The integration runner failed at its
-initial PostgreSQL connection (`ECONNREFUSED 127.0.0.1:55433`). Neither the 48
-integration tests nor the new migration has been executed on this revision.
-There is no measured baseline regression count or green Gate 5 CI result.
+[GitHub Actions run 33988585085](https://github.com/chatgpt20251991/Codex-nieuw/actions/runs/33988585085)
+passed on `a2386e122521ae8b6d7979cacc23f1818c1a78e2`: clean locked installation,
+Prisma generation/schema, all typechecks, unit/static tests, production builds
+and all 48 integration tests, with zero failures or skips. CI uses Node 22,
+PostgreSQL 16, the Gate 4 MinIO fixture and headless Chromium on Ubuntu. Local
+test-service startup remained blocked by execution policy; the actual integration
+results come from this isolated CI environment. No pre-fix regression count was
+measured for Gate 5.
 
-## Required completion and rollout
+Before the fresh-install suite, a mandatory upgrade check deploys only the initial
+migration into a separate generated database and stores a published fixture.
+It restores the prior runtime UPDATE/DELETE grants, deploys the new migration,
+reapplies policies/grants, and verifies that the original version is unchanged.
+The check confirms revoked runtime privileges and rejects administrator updates
+and parent-cascade deletion through the trigger. It passes, followed by a clean
+deployment of both migrations and all 48 scenarios. The generated databases and
+MinIO fixture are cleaned up. Denied-write errors in the logs are expected tests.
 
-1. In an environment permitted to write GitHub, merge the already-green PR #12
-   with expected head `0bcfa4d`; retain Gate 4's security boundaries.
-2. In an environment permitted to start the dedicated services, run the existing
-   integration Compose setup and install/use the documented Chromium browser.
-   Run the complete typecheck, unit/static, build and integration sequence. Fix
-   failures without reducing the required 48 scenarios.
-3. Exercise both migrations on a fresh database and the new migration on a copy
-   of the prior schema. Reapply `db:rls`/the runtime grant pack after deployment.
-   Verify table-owner and cascading-delete behavior, not only revoked grants.
-4. Inspect the local draft, publish its branch/PR, and require GitHub CI on its
-   exact revision. Only then treat Gate 5 as complete and start Gate 6.
+## Review and rollout
+
+1. Review PR #13 and require green GitHub checks on its current revision before
+   merging. The report's linked run records the verified implementation; later
+   commits must retain the same complete checks.
+2. At rollout, pause writes and replace old API workers so every writer follows
+   the locking protocol. Deploy migrations and reapply `db:rls`/the runtime grant
+   pack before resuming writes. The automated upgrade check covers the prior
+   schema, not every possible production dataset.
+3. After the Gate 5 PR is integrated, start Gate 6: official-document-based
+   JSON/XML Registry adapter fixtures, max-100 batch validation and persisted
+   correlation/results. Keep live submission and registration disabled until an
+   actual successful official integration is verified.
 
 The new migration prevents future rewrites; it does not rewrite or certify old
 versions. Owners performing maintenance must account for the deletion trigger.
-Roll out during a write pause so old API workers cannot bypass the new locking
-protocol. Review historical field-67 mismatches and lineage records explicitly;
+Review historical field-67 mismatches and lineage records explicitly;
 do not silently change immutable snapshots or assert old UUID links are verified.
 The synthetic evidence is a test fixture, not a legal attestation. Production
 OIDC, malware scanning, storage retention/continuity and legal review remain open.

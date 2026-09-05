@@ -7,16 +7,21 @@ Gate 4 adds real MinIO/browser evidence integrity coverage: 34 integration tests
 (14 isolation, 8 disclosure, 12 evidence scenarios), with no skips. Read
 TEST_REPORT.md and codex/GATE_4_REPORT.md for verification scope and remaining
 gates. The original generation notes below are historical.
-Next implementation work starts at Gate 5: the complete passport lifecycle.
+Gate 4 is merged through PR #12 at `e388103`.
 
-Gate 5 is prepared locally on `fix/gate-5-passport-lifecycle`, based on Gate 4
-commit `0bcfa4d`. PR #12 remains open: the GitHub connector rejected its merge
-with HTTP 403, and this session blocks the authenticated CLI's network access.
-Local test-service startup was also rejected by the execution approval policy.
-Read `codex/GATE_5_REPORT.md` before continuing. Gate 5 is NOT complete: the new
-migration and all 48 planned integration tests still need a permitted environment
-and a green remote CI run. Do not proceed to Gate 6 on the basis of unit/build
-results alone.
+Gate 5 is implemented and verified in PR #13 on
+`fix/gate-5-passport-lifecycle`. GitHub Actions run `33988585085` on `a2386e1`
+passed clean installation, schema/type checks, 21 rule tests, four canonical JSON
+tests, 43 source checks, production builds and all 48 integration scenarios
+without skips. A separate old-schema migration upgrade preserved an existing
+published version and enforced grants and cascade protection. Read
+`codex/GATE_5_REPORT.md` for evidence, API boundaries and rollout requirements.
+Local integration startup remained blocked; the actual integration and migration
+verification ran in GitHub's isolated PostgreSQL/MinIO/Chromium environment.
+
+Next: review and merge PR #13 after checking its current revision's CI, then
+start Gate 6, the Registry adapter contract. Gate 6 has not been implemented by
+this change. Both live Registry flags remain false.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.

@@ -64,7 +64,7 @@ Creating future migrations with db:migrate also needs a separately configured di
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
 
-## Gate 2–4 integration tests
+## Gate 2–5 integration tests
 
 ```bash
 docker compose -f docker-compose.integration.yml up -d --wait
@@ -104,7 +104,7 @@ from the API, uploads across origins and finalizes it. The suite checks missing,
 corrupt and replaced bytes, checksum headers, size, supplier ownership, evidence
 verification/expiry, value provenance and suggestions-only extraction. It is a
 browser transport test; it does not click through the complete Next.js workspace.
-Only its randomly named test bucket is emptied and removed. All 34 integration
+Only its randomly named test bucket is emptied and removed. All 48 integration
 tests are required; missing PostgreSQL, MinIO or a browser fails the suite.
 
 CI installs Chromium with `npx playwright install --with-deps chromium`. To use
@@ -118,13 +118,16 @@ exposes it only on loopback and keeps its data in temporary memory. This fixture
 is not a production storage recommendation or a storage security certification.
 See `codex/GATE_4_REPORT.md` for the version boundary and remaining production work.
 
-## Production gates before first real customer
+Gate 5 adds 14 lifecycle scenarios to the prior 34 integration tests and four
+canonical JSON unit tests. GitHub Actions run `33988585085` on `a2386e1` passes
+all 48 scenarios without skips. Before the fresh-install suite, the integration
+command also upgrades a separate database from the prior schema, preserving an
+existing published version while enforcing the new immutability protections.
+Both generated databases are removed after their checks. See
+`codex/GATE_5_REPORT.md` and PR #13 for migration/rollout requirements, API changes
+and the current review status. Gate 4 is merged; Gate 6 is next after PR #13.
 
-Gate 5 is currently a local, unverified integration change. It adds 14 lifecycle
-scenarios to the prior 34 integration tests, plus canonical-JSON unit tests.
-The command above now requires all 48 integration scenarios. The Gate 4 green
-result does not certify this changed revision. See `codex/GATE_5_REPORT.md` for
-execution status, migration/rollout requirements and lifecycle API changes.
+## Production gates before first real customer
 
 1. Run a full `npm install`, Prisma validation/migration generation and full compile in CI.
 2. Use separate migration and runtime PostgreSQL roles; runtime role must not own tables or have BYPASSRLS.
