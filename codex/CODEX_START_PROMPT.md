@@ -2,12 +2,14 @@
 
 Work from the repository root and read `AGENTS.md` and `CODEX_HANDOFF.md` before touching code.
 
-Follow the current status in `CODEX_HANDOFF.md` and execute `codex/NEXT_TASKS.md` in order. Gates 1–5 have verification reports; retain their clean-install, schema, build, tenant-isolation, disclosure, real MinIO/browser evidence, lifecycle and migration-upgrade checks. The next implementation gate is Gate 6: the Registry adapter contract with live submission disabled. Do not skip earlier checks to expand product features.
+Follow the current status in `CODEX_HANDOFF.md` and execute `codex/NEXT_TASKS.md` in order. Gates 1–5 and Gate 6's internal Registry preparation have verification reports; retain their clean-install, schema, build, tenant-isolation, disclosure, real MinIO/browser evidence, lifecycle, Registry contract and migration-upgrade checks. The next implementation gate is Gate 7: production launch blockers, starting with OIDC provider integration tests. Do not skip earlier checks to expand product features.
 
 Do not weaken any truth gate merely to make tests pass. In particular, do not fake EU Registry success, do not auto-validate extracted/supplier data, and do not route canonical/restricted passport data through the public resolver.
 
-Read `codex/GATE_5_REPORT.md` and inspect PR #13 before starting Gate 6. Gate 5
-passed 48 integration tests and the migration-upgrade check in GitHub Actions;
-verify the PR's latest checks and merge status. Its rollout requires a write pause,
-migrations and reapplication of the runtime grant pack. Do not rewrite historical
-snapshots or enable either live Registry flag on the basis of these tests.
+PR #13 is merged. Read `codex/GATE_6_REPORT.md` and inspect PR #14's current
+checks and merge status before starting Gate 7. Gate 6 passes 65 integration tests,
+32 unit tests and the migration-upgrade check. The JSON/XML contract is explicitly
+internal and not uploadable; obtain and verify official templates/semantic assets
+before implementing real Registry mapping or response ingestion. Do not enable
+either live flag based on internal fixtures. Retain Gate 5's rollout write pause,
+migrations and grant-pack reapplication without rewriting historical snapshots.

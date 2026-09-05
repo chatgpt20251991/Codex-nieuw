@@ -64,7 +64,7 @@ Creating future migrations with db:migrate also needs a separately configured di
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
 
-## Gate 2–5 integration tests
+## Gate 2–6 integration tests
 
 ```bash
 docker compose -f docker-compose.integration.yml up -d --wait
@@ -104,7 +104,7 @@ from the API, uploads across origins and finalizes it. The suite checks missing,
 corrupt and replaced bytes, checksum headers, size, supplier ownership, evidence
 verification/expiry, value provenance and suggestions-only extraction. It is a
 browser transport test; it does not click through the complete Next.js workspace.
-Only its randomly named test bucket is emptied and removed. All 48 integration
+Only its randomly named test bucket is emptied and removed. All 65 integration
 tests are required; missing PostgreSQL, MinIO or a browser fails the suite.
 
 CI installs Chromium with `npx playwright install --with-deps chromium`. To use
@@ -125,7 +125,21 @@ command also upgrades a separate database from the prior schema, preserving an
 existing published version while enforcing the new immutability protections.
 Both generated databases are removed after their checks. See
 `codex/GATE_5_REPORT.md` and PR #13 for migration/rollout requirements, API changes
-and the current review status. Gate 4 is merged; Gate 6 is next after PR #13.
+and the current review status. Gate 5 is merged through PR #13 at `6972b2e`.
+
+Gate 6 adds 17 Registry preparation scenarios and seven contract unit tests.
+All 65 integration tests pass in Actions run `33990468657` on `df8b1a5`.
+The `/v1/registry/export-json` and `/export-xml` routes accept 1..1000 unique
+`itemIds`, validate the complete candidate request, group compatible publications
+and create internal files of at most 100 records. Responses mark them
+`uploadable: false` and `officialSchema: null`. They contain preparation metadata,
+not full passport values. Local correlations and blocked/rejected outcomes are
+persisted and available through `/v1/registry/exports/:correlationId` under tenant
+isolation. No external request or registration occurs, even with enabled flags.
+See `codex/GATE_6_REPORT.md`, the official-source ledger in
+`docs/16_REGISTRY_CONTRACT_2026-09-05.md`, and PR #14's current checks. Official
+upload-template mapping and live integration remain future work. Gate 7 follows
+review and merge of PR #14.
 
 ## Production gates before first real customer
 

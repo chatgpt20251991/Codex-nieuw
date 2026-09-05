@@ -1,10 +1,5 @@
-export interface PreparedRegistryRecord {
-  batteryItemId:string;
-  passportVersionId:string;
-  upi:string;
-  productIdentifier:string;
-  schemaStatus:'draft-pending-battery-semantic-catalogue'|'ready';
-}
+import type { PreparedRegistryRecord } from './registry-contract';
+export type { PreparedRegistryRecord } from './registry-contract';
 export interface RegistryAdapter {
   readonly name:string;
   submit(records:PreparedRegistryRecord[]):Promise<{correlationId?:string;registryUri?:string;raw?:unknown}>;
