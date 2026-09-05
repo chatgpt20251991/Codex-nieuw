@@ -12,8 +12,7 @@ let web, browser, base, logs = '';
 const root = resolve(__dirname, '../..');
 const api = new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1');
 
-function documentPolicy(response, body = '') {
-  assert.equal(response.status, 200, `Unexpected document status ${response.status}; body=${body.slice(0, 3000)}; Next logs=${logs.slice(-8000)}`);
+function assertEnforcedPolicy(response) {
   const policy = response.headers.get('content-security-policy');
   assert(policy, 'Missing enforced CSP');
   const nonce = /'nonce-([A-Za-z0-9+/]{43}=)'/.exec(policy)?.[1];
@@ -31,6 +30,11 @@ function documentPolicy(response, body = '') {
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   assert.match(response.headers.get('permissions-policy'), /camera=\(\)/);
   return { policy, nonce };
+}
+
+function documentPolicy(response, body = '') {
+  assert.equal(response.status, 200, `Unexpected document status ${response.status}; body=${body.slice(0, 3000)}; Next logs=${logs.slice(-8000)}`);
+  return assertEnforcedPolicy(response);
 }
 
 async function fetchDocument(path, options) {
@@ -122,7 +126,7 @@ test('Gate 7 web: repeated documents receive fresh nonces and reject caller-supp
   assert(!second.body.includes('attacker-controlled-nonce'));
 });
 
-test('Gate 7 web: inconsistent router prefetch metadata is rejected with a closed, uncacheable response', async () => {
+test('Gate 7 web: inconsistent router prefetch metadata is rejected with enforced CSP and no-store', async () => {
   const response = await fetch(`${base}/suppliers`, { headers: {
     'x-nonce': 'attacker-controlled-nonce',
     'content-security-policy': "script-src 'unsafe-inline'",
@@ -130,18 +134,18 @@ test('Gate 7 web: inconsistent router prefetch metadata is rejected with a close
   } });
   const body = await response.text();
   assert.equal(response.status, 400, `Unexpected prefetch status ${response.status}; body=${body.slice(0, 3000)}; Next logs=${logs.slice(-8000)}`);
+  const rejection = assertEnforcedPolicy(response);
   assert.equal(body, 'Invalid prefetch request.');
-  assert.equal(response.headers.get('content-security-policy'), "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'");
-  assert.match(response.headers.get('cache-control'), /no-store/);
-  assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
-  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
-  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+  assert.match(response.headers.get('content-type'), /^text\/plain;/);
+  assert(!rejection.policy.includes('attacker-controlled-nonce'));
+  assert(!body.includes('attacker-controlled-nonce'));
 
   // Real Next router prefetches pair the Flight header with RSC: 1. The
   // rejection rule must preserve that supported path and its security headers.
   const prefetch = await fetch(`${base}/suppliers`, { headers: { rsc: '1', 'next-router-prefetch': '1' } });
   const prefetchBody = await prefetch.text();
-  documentPolicy(prefetch, prefetchBody);
+  const validPrefetch = documentPolicy(prefetch, prefetchBody);
+  assert.notEqual(validPrefetch.nonce, rejection.nonce);
   assert.match(prefetch.headers.get('content-type'), /^text\/x-component/);
   assert(prefetchBody.length > 0, 'Expected a real router prefetch payload');
 });

@@ -26,7 +26,11 @@ are same-origin. No external analytics or third-party script origins are added.
 The middleware covers HTML, React Server Component navigation and prefetch
 requests. Sending a client-controlled prefetch header does not bypass it.
 Router-prefetch metadata without the accompanying `RSC: 1` marker is rejected
-with a generic 400 response, a closed CSP and no-store headers before rendering.
+with a generic 400 plain-text response, the enforced nonce CSP and no-store
+headers before HTML rendering. This response also retains `nosniff`, frame/object
+blocking and the ban on unnonced inline scripts and event handlers. Next preserves
+middleware response headers when sending a route handler's response, so the
+middleware remains the single owner of CSP for this rejection.
 The installed Next router includes that marker on genuine prefetch requests.
 Next 15 hides Flight headers from middleware and restores them afterwards, so
 this validation uses a supported `beforeFiles` rewrite to a small rejection
@@ -75,8 +79,9 @@ The six scenarios verify:
    scripts and enforced CSP/no-store/security headers.
 2. Repeated requests receive distinct nonces, and supplied nonce/CSP headers
    cannot select the document policy, including browser document prefetches.
-3. Inconsistent router-prefetch metadata returns a closed, uncacheable 400 response;
-   genuine RSC prefetches retain their successful Flight response and security headers.
+3. Inconsistent router-prefetch metadata returns a plain-text, uncacheable 400
+   response with the full enforced nonce CSP; forged values are absent. Genuine
+   RSC prefetches retain their successful Flight response and security headers.
 4. `connect-src` contains only the application and explicitly configured service
    origins.
 5. A real production page hydrates, handles form state and a submit click, makes
