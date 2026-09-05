@@ -36,7 +36,12 @@ export function readAuth0Config(env: NodeJS.ProcessEnv = process.env): BrowserAu
   try {
     const domain = new URL(env.AUTH0_DOMAIN!.includes('://') ? env.AUTH0_DOMAIN! : `https://${env.AUTH0_DOMAIN}`);
     const app = new URL(env.APP_BASE_URL!);
-    if (domain.protocol !== 'https:' || domain.username || domain.password || domain.pathname !== '/' || domain.search || domain.hash) return null;
+    if (domain.protocol !== 'https:' || domain.username || domain.password || domain.port || domain.pathname !== '/' || domain.search || domain.hash) return null;
+    // Auth0 SDK custom domains are DNS hostnames on HTTPS/443. Its constructor
+    // rejects IP, localhost and mDNS names even for a correctly trusted certificate.
+    if (domain.hostname.includes(':') || /^\d+\.\d+\.\d+\.\d+$/.test(domain.hostname)
+      || domain.hostname === 'localhost' || domain.hostname.startsWith('localhost.')
+      || domain.hostname.endsWith('.localhost') || domain.hostname.endsWith('.local')) return null;
     if (app.username || app.password || app.pathname !== '/' || app.search || app.hash) return null;
     const localDevelopment = env.NODE_ENV === 'development' && app.protocol === 'http:'
       && ['localhost', '127.0.0.1', '[::1]'].includes(app.hostname);

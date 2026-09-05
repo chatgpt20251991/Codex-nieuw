@@ -42,8 +42,32 @@ test('production auth rejects insecure origins, userinfo, paths and redirect-bea
     { APP_BASE_URL: 'https://passport.example.test/?next=https://attacker.test' }, { APP_BASE_URL: 'https://passport.example.test/#fragment' },
     { AUTH0_DOMAIN: 'http://identity.example.test' }, { AUTH0_DOMAIN: 'https://user:secret@identity.example.test' },
     { AUTH0_DOMAIN: 'https://identity.example.test/path' }, { AUTH0_DOMAIN: 'https://identity.example.test/?issuer=other' },
+    { AUTH0_DOMAIN: 'https://identity.example.test:8443/' }, { AUTH0_DOMAIN: 'identity.example.test:8443' },
+    { AUTH0_DOMAIN: 'https://127.0.0.1/' }, { AUTH0_DOMAIN: 'https://[::1]/' },
+    { AUTH0_DOMAIN: 'https://localhost/' }, { AUTH0_DOMAIN: 'https://identity.local/' },
   ]) assert.equal(readAuth0Config({ ...configured, ...patch }), null, Object.keys(patch)[0]);
   assert(readAuth0Config({ ...configured, AUTH0_DOMAIN: 'https://identity.example.test/' }));
+  assert(readAuth0Config({ ...configured, AUTH0_DOMAIN: 'https://identity.example.test:443/' }));
+});
+
+test('actual Auth0 SDK accepts the application factory settings and reads an empty session without network I/O', async () => {
+  const sdk = await import('@auth0/nextjs-auth0/server');
+  const next = require('next/server');
+  const factorySource = readFileSync(resolve(__dirname, '../../apps/web/lib/auth0.ts'), 'utf8');
+  const factoryCode = ts.transpileModule(factorySource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
+  const factoryExports = {};
+  const modules = {
+    '@auth0/nextjs-auth0/server': sdk,
+    'next/server': next,
+    './auth-config': { ...exportsObject, readAuth0Config: () => readAuth0Config(configured) },
+  };
+  runInNewContext(factoryCode.outputText, { exports: factoryExports, URL,
+    require: name => { assert(Object.hasOwn(modules, name), 'Unexpected factory dependency'); return modules[name]; } });
+  const client = factoryExports.getAuth0Client();
+  assert(client instanceof sdk.Auth0Client);
+  assert.equal(client, factoryExports.getAuth0Client());
+  const request = new next.NextRequest(configured.APP_BASE_URL + '/api/session', { headers: { host: 'passport.example.test' } });
+  assert.equal(await client.getSession(request), null);
 });
 
 test('only explicit local development may use an HTTP application origin; issuer TLS is always mandatory', () => {

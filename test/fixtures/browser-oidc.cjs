@@ -9,6 +9,7 @@ const { once } = require('node:events');
 const { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require('node:fs');
 const { tmpdir, homedir } = require('node:os');
 const { join, resolve, relative, isAbsolute, basename } = require('node:path');
+const issuerHostname = 'eubp-oidc.example.invalid';
 
 function command(name, args, options = {}) {
   return execFileSync(name, args, { windowsHide: true, timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'], ...options });
@@ -23,18 +24,27 @@ function createBrowserTrust() {
   const identifier = `eubp-browser-${randomBytes(12).toString('hex')}`;
   const trustedPath = `/usr/local/share/ca-certificates/${identifier}.crt`;
   const nssDirectory = join(homedir(), '.pki', 'nssdb');
-  let systemTrusted = false, browserTrusted = false;
+  let systemTrusted = false, browserTrusted = false, hostsChanged = false, portStartChanged = false;
+  let originalHosts, originalPortStart;
+  const replaceHosts = bytes => command('sudo', ['tee', '/etc/hosts'], { input: bytes, stdio: ['pipe', 'ignore', 'pipe'] });
   const cleanup = () => {
-    if (browserTrusted) command('certutil', ['-D', '-d', `sql:${nssDirectory}`, '-n', identifier]);
-    if (systemTrusted) {
+    const failures = [];
+    const attempt = action => { try { action(); } catch (error) { failures.push(error); } };
+    if (hostsChanged) attempt(() => replaceHosts(originalHosts));
+    if (portStartChanged) attempt(() => command('sudo', ['sysctl', '-w', `net.ipv4.ip_unprivileged_port_start=${originalPortStart}`]));
+    if (browserTrusted) attempt(() => command('certutil', ['-D', '-d', `sql:${nssDirectory}`, '-n', identifier]));
+    if (systemTrusted) attempt(() => {
       assert.match(trustedPath, /^\/usr\/local\/share\/ca-certificates\/eubp-browser-[a-f0-9]{24}\.crt$/);
       command('sudo', ['rm', '--', trustedPath]);
       command('sudo', ['update-ca-certificates']);
-    }
-    const inside = relative(resolve(tmpdir()), resolve(directory));
-    assert(inside && !inside.startsWith('..') && !isAbsolute(inside));
-    assert(basename(directory).startsWith('eubp-browser-oidc-'));
-    rmSync(directory, { recursive: true, force: true });
+    });
+    attempt(() => {
+      const inside = relative(resolve(tmpdir()), resolve(directory));
+      assert(inside && !inside.startsWith('..') && !isAbsolute(inside));
+      assert(basename(directory).startsWith('eubp-browser-oidc-'));
+      rmSync(directory, { recursive: true, force: true });
+    });
+    if (failures.length) throw new AggregateError(failures, 'Isolated browser trust cleanup failed');
   };
   try {
     const openssl = args => command('openssl', args, { cwd: directory });
@@ -45,7 +55,7 @@ function createBrowserTrust() {
       '-keyout', 'server-key.pem', '-out', 'server.csr']);
     writeFileSync(join(directory, 'server-extensions.cnf'), [
       'basicConstraints=critical,CA:FALSE', 'keyUsage=critical,digitalSignature,keyEncipherment',
-      'extendedKeyUsage=serverAuth', 'subjectAltName=IP:127.0.0.1,DNS:localhost', '',
+      'extendedKeyUsage=serverAuth', `subjectAltName=IP:127.0.0.1,IP:127.0.0.2,DNS:localhost,DNS:${issuerHostname}`, '',
     ].join('\n'), { mode: 0o600 });
     openssl(['x509', '-req', '-in', 'server.csr', '-CA', 'ca-cert.pem', '-CAkey', 'ca-key.pem',
       '-CAcreateserial', '-days', '2', '-sha256', '-extfile', 'server-extensions.cnf', '-out', 'server-cert.pem']);
@@ -57,6 +67,19 @@ function createBrowserTrust() {
     catch { command('certutil', ['-N', '--empty-password', '-d', `sql:${nssDirectory}`]); }
     command('certutil', ['-A', '-d', `sql:${nssDirectory}`, '-n', identifier, '-t', 'C,,', '-i', join(directory, 'ca-cert.pem')]);
     browserTrusted = true;
+    // The production Auth0 SDK accepts DNS hosts on HTTPS/443, not an IP with
+    // an ephemeral port. Keep those real constraints in this isolated fixture.
+    originalHosts = readFileSync('/etc/hosts');
+    hostsChanged = true;
+    replaceHosts(Buffer.concat([originalHosts, Buffer.from(`\n127.0.0.2 ${issuerHostname} # ${identifier}\n`)]));
+    const configuredPortStart = command('sysctl', ['-n', 'net.ipv4.ip_unprivileged_port_start']).toString().trim();
+    assert.match(configuredPortStart, /^\d{1,5}$/);
+    originalPortStart = Number(configuredPortStart);
+    assert(originalPortStart <= 65535);
+    if (originalPortStart > 443) {
+      portStartChanged = true;
+      command('sudo', ['sysctl', '-w', 'net.ipv4.ip_unprivileged_port_start=443']);
+    }
     return { directory, caFile: join(directory, 'ca-cert.pem'), cleanup };
   } catch (error) { cleanup(); throw error; }
 }
@@ -68,9 +91,9 @@ function tlsOptions() {
   return { key: readFileSync(join(directory, 'server-key.pem')), cert: readFileSync(join(directory, 'server-cert.pem')) };
 }
 
-async function listen(server) {
-  server.listen(0, '127.0.0.1'); await once(server, 'listening');
-  return `https://127.0.0.1:${server.address().port}`;
+async function listen(server, hostname = '127.0.0.1', port = 0) {
+  server.listen(port, hostname); await once(server, 'listening');
+  return `https://${hostname}${server.address().port === 443 ? '' : ':' + server.address().port}`;
 }
 
 async function close(server) {
@@ -106,7 +129,7 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
   const key = await jose.generateKeyPair('RS256');
   const jwk = { ...await jose.exportJWK(key.publicKey), kid: 'browser-fixture', alg: 'RS256', use: 'sig' };
   const pending = new Map(), codes = new Map();
-  const events = { authorization: [], exchanges: [], logout: [], jwks: 0, unexpected: [] };
+  const events = { authorization: [], exchanges: [], logout: [], jwks: 0, unexpected: [], applicationCookieLeaks: [] };
   let issuer, appOrigin, nextFault;
   async function sign(payload) {
     return new jose.SignJWT(payload).setProtectedHeader({ alg: 'RS256', kid: jwk.kid, typ: 'JWT' }).sign(key.privateKey);
@@ -126,6 +149,9 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
   const server = createServer(tlsOptions(), (req, res) => {
     Promise.resolve().then(async () => {
       const url = new URL(req.url, issuer);
+      if ((req.headers.cookie || '').split(';').some(value => value.trim().startsWith('__Host-eubp_'))) {
+        events.applicationCookieLeaks.push({ method: req.method, path: url.pathname });
+      }
       if (url.pathname === '/.well-known/openid-configuration') return json(res, 200, {
         issuer, authorization_endpoint: issuer + 'authorize', token_endpoint: issuer + 'oauth/token',
         jwks_uri: issuer + '.well-known/jwks.json', end_session_endpoint: issuer + 'oidc/logout',
@@ -190,7 +216,10 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
       json(res, 404, { error: 'unsupported_fixture_endpoint' });
     }).catch(error => { events.unexpected.push({ error: error.message }); json(res, 400, { error: 'invalid_fixture_request' }); });
   });
-  issuer = await listen(server) + '/';
+  // A separate loopback IP is a distinct browser site and cookie host. The
+  // callback must therefore work with real cross-site SameSite=Lax semantics.
+  await listen(server, '127.0.0.2', 443);
+  issuer = `https://${issuerHostname}/`;
   return { issuer, jwksUrl: issuer + '.well-known/jwks.json', events, codes, accessToken,
     setAppOrigin: value => { appOrigin = value; }, setNextFault: value => { nextFault = value; }, close: () => close(server) };
 }

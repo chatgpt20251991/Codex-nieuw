@@ -11,6 +11,9 @@ const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 const { createHttpsProxy, createOidcIssuer } = require('../fixtures/browser-oidc.cjs');
 
+// These real browser/TLS/OIDC exchanges exercise the application and SDK with a
+// synthetic issuer. They do not attest to a provisioned or live Auth0 tenant.
+
 const root = resolve(__dirname, '../..');
 const tenants = { A: randomUUID(), B: randomUUID() }, models = {}, sessions = {}, children = [], contexts = [];
 const clientId = 'eubp-browser-protocol-fixture';
@@ -30,12 +33,35 @@ async function start(args, env, readiness) {
   children.push(child);
   child.process.stdout.on('data', data => { child.logs = (child.logs + data).slice(-12000); });
   child.process.stderr.on('data', data => { child.logs = (child.logs + data).slice(-12000); });
+  let lastReadiness = { status: null, body: '', cause: '' }, deterministicFailures = 0;
   for (let attempt = 0; attempt < 180; attempt++) {
     if (child.process.exitCode !== null || child.process.signalCode !== null) throw new Error(`Browser fixture service exited: ${child.logs}`);
-    try { if ((await fetch(readiness, { signal: AbortSignal.timeout(1000) })).ok) return child; } catch {}
+    try {
+      const response = await fetch(readiness, { signal: AbortSignal.timeout(1000) });
+      if (response.ok) return child;
+      const text = await response.text();
+      // Readiness happens before login. Print only explicitly safe application
+      // diagnostics, never arbitrary provider bodies, tokens or configuration.
+      let body = '[response body omitted]';
+      try {
+        const data = JSON.parse(text);
+        if (typeof data.configured === 'boolean' && typeof data.authenticated === 'boolean') {
+          body = JSON.stringify({ configured: data.configured, authenticated: data.authenticated });
+        } else if (data.message === 'Request origin is not allowed.') body = data.message;
+      } catch {
+        if (text === 'Web security configuration is incomplete.' || text === 'Fixture upstream unavailable') body = text;
+      }
+      lastReadiness = { status: response.status, body: body.slice(0, 200), cause: '' };
+      deterministicFailures = [403, 503].includes(response.status) ? deterministicFailures + 1 : 0;
+    } catch (error) {
+      const code = error?.cause?.code || error?.code;
+      lastReadiness = { status: null, body: '', cause: typeof code === 'string' && /^[A-Z0-9_]{1,80}$/.test(code) ? code : 'REQUEST_FAILED' };
+      deterministicFailures = 0;
+    }
+    if (deterministicFailures >= 6) throw new Error(`Browser fixture readiness rejected: ${JSON.stringify(lastReadiness)}; logs=${child.logs}`);
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw new Error(`Browser fixture service unavailable: ${child.logs}`);
+  throw new Error(`Browser fixture service unavailable: ${JSON.stringify(lastReadiness)}; logs=${child.logs}`);
 }
 
 async function context() {
@@ -163,9 +189,13 @@ after(async () => {
 });
 
 test('Browser login: genuine HTTPS authorization-code flows enforce state, nonce, PKCE S256 and confidential client authentication', async () => {
+  assert.equal(new URL(issuer.issuer).hostname, 'eubp-oidc.example.invalid');
+  assert.equal(new URL(issuer.issuer).port, '');
+  assert.equal(new URL(webProxy.origin).hostname, '127.0.0.1');
   assert.equal(issuer.events.authorization.length, 2);
   assert.equal(issuer.events.exchanges.length, 2);
   assert(issuer.events.jwks > 0, 'Real API verification must fetch the HTTPS issuer JWKS');
+  assert.deepEqual(issuer.events.applicationCookieLeaks, [], 'Application session/transaction cookies must never reach the issuer site');
   const [first, second] = issuer.events.authorization;
   assert.notEqual(first.state, second.state); assert.notEqual(first.nonce, second.nonce);
   assert.notEqual(first.code_challenge, second.code_challenge);
@@ -353,8 +383,8 @@ test('Browser login: tampered and expired encrypted sessions are rejected while 
 });
 
 test('Browser login: expired access tokens require a fresh login and never trigger an offline refresh', async () => {
-  const ctx = await context(); await successfulLogin(ctx, 'A', { fault: { expiresIn: 1 } });
-  await new Promise(resolve => setTimeout(resolve, 2100));
+  const ctx = await context(); await successfulLogin(ctx, 'A', { fault: { expiresIn: 3 } });
+  await new Promise(resolve => setTimeout(resolve, 4100));
   const beforeCount = issuer.events.exchanges.length;
   assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
   assert.equal((await request(ctx, '/api/backend/organisations/current')).status, 401);
@@ -363,11 +393,16 @@ test('Browser login: expired access tokens require a fresh login and never trigg
 
 test('Browser login: same-origin POST logout clears the browser session and performs OIDC logout without token URLs', async () => {
   const ctx = await context(), flow = await successfulLogin(ctx, 'A');
-  await flow.page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await flow.page.waitForURL(webProxy.origin + '/dashboard');
+  const [logout] = await Promise.all([
+    flow.page.waitForResponse(response => new URL(response.url()).pathname === '/auth/logout' && response.request().method() === 'POST'),
+    flow.page.getByRole('button', { name: 'Sign out', exact: true }).click(),
+  ]);
+  assert.equal(logout.status(), 303);
+  await flow.page.getByRole('link', { name: 'Sign in', exact: true }).waitFor();
   assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
   assert.equal(sessionCookies(await ctx.cookies(webProxy.origin)).length, 0);
   assert(issuer.events.logout.length > 0);
   assert.equal((await request(ctx, '/api/backend/organisations/current')).status, 401);
   assert.deepEqual(issuer.events.unexpected, []);
+  assert.deepEqual(issuer.events.applicationCookieLeaks, []);
 });

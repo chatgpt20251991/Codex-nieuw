@@ -122,6 +122,13 @@ export async function middleware(request: NextRequest) {
   } else {
     response = NextResponse.next({ request: { headers: requestHeaders } });
   }
+  if (path === '/auth/callback' && response.status >= 400 && authConfig) {
+    // SDK callback hooks can fail before its normal transaction cleanup runs.
+    // Clear only the fixed transaction cookie, preserving any existing session.
+    response.cookies.set(authConfig.secure ? '__Host-eubp_txn_' : 'eubp_dev_txn_', '', {
+      httpOnly: true, secure: authConfig.secure, sameSite: 'lax', path: '/', maxAge: 0, expires: new Date(0),
+    });
+  }
   response.headers.set('Content-Security-Policy', policy);
   return secureHeaders(response, request);
 }

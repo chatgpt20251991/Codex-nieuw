@@ -5,6 +5,11 @@ This is an administrator runbook and a tested Action template. No Auth0 tenant,
 application, subscription, secret or real-user account was created by these files.
 Successful local/CI fixtures do not establish real-provider acceptance.
 
+This runbook targets a production build of the console served over HTTPS in staging
+or production. `next dev` deliberately retains the development-token panel and
+direct development API requests. Adding Auth0 settings to that development mode
+does not exercise the console's complete Auth0 login and server-proxy flow.
+
 ## 1. Select the tenant and administrators
 
 Use a dedicated Auth0 tenant for each environment and choose **Europe (EU)** when
@@ -49,18 +54,32 @@ Provision accounts through administrators. Configure authorization code as the
 login grant; password, implicit and client-credentials grants are unnecessary for
 this web application. [Auth0 Next.js setup](https://auth0.com/docs/quickstart/webapp/nextjs)
 
-Register exact URLs, with no wildcards:
+Register exact HTTPS URLs for each staging/production application, with no wildcards:
 
-| Setting | Local development application | Staging/production application |
-|---|---|---|
-| Allowed Callback URLs | `http://localhost:3000/auth/callback` | `<https-web-origin>/auth/callback` |
-| Allowed Logout URLs | `http://localhost:3000` | `<https-web-origin>` |
-| Allowed Web Origins | `http://localhost:3000` | `<https-web-origin>` |
+| Setting | Staging/production application |
+|---|---|
+| Allowed Callback URLs | `<https-web-origin>/auth/callback` |
+| Allowed Logout URLs | `<https-web-origin>` |
+| Allowed Web Origins | `<https-web-origin>` |
 
 Replace `<https-web-origin>` with the deployed console origin. Do not put localhost
 callbacks on the production application. The callback belongs to the Next.js web
 server, not the Nest API. Application Client Secret and session-encryption secret
 remain on the server and must never use a `NEXT_PUBLIC_` name.
+
+Run the built console on a self-hosted Next.js **Node.js runtime**, behind an HTTPS
+reverse proxy. This implementation needs server-side sessions and API forwarding;
+a static export or an Edge-only runtime is not the deployment target. Keep the
+Auth0 SDK as an external server dependency, as configured in the repository, so
+its Node.js dependencies remain available in the deployed installation.
+
+Configure the reverse proxy to preserve the public `Host` matching `APP_BASE_URL`
+exactly, including a non-default port if used. The application checks that host and
+does not select its origin from arbitrary forwarded headers. Restrict direct
+access to the internal Next.js port. Confirm the external browser connection,
+callback and cookies use HTTPS. For a production-style preview, use this same
+HTTPS and Node.js setup with staging credentials and synthetic users; do not use
+`next dev` as real-provider acceptance evidence.
 
 ## 4. Provision the tenant and role mapping
 
@@ -172,7 +191,7 @@ must be supplied by the administrator/deployment operator.
 | Next.js server | `AUTH0_SECRET` | Separate cryptographically random 32-byte session key, encoded as 64 hex characters |
 | Next.js server | `APP_BASE_URL` | Exact console origin registered above |
 | Next.js server | `AUTH0_AUDIENCE` | Exact API Identifier from step 2 |
-| Next.js server | `API_BASE_URL` | Configured HTTPS API base URL including `/v1`; loopback HTTP only for local development |
+| Next.js server | `API_BASE_URL` | Configured HTTPS API base URL including `/v1` for this staging/production flow |
 | Nest API | `AUTH_MODE` | `oidc` |
 | Nest API | `OIDC_ISSUER` | Actual tenant HTTPS issuer, including its trailing `/` |
 | Nest API | `OIDC_JWKS_URL` | That issuer's `.well-known/jwks.json` URL |
@@ -190,8 +209,9 @@ Registry feature flags remain false.
 
 ## 8. Record real-provider acceptance
 
-Perform these checks against the deployed staging console and the actual Auth0
-tenant. Retain timestamps, configuration versions and redacted request/Action IDs;
+Perform these checks against an HTTPS staging deployment of the production build
+and the actual Auth0 tenant. Record the Node.js deployment and preserved public
+Host configuration. Retain timestamps, configuration versions and redacted request/Action IDs;
 never paste complete tokens, cookies or secrets into issues, screenshots or logs.
 
 - Login completes through Universal Login, MFA and `/auth/callback`; logout removes
