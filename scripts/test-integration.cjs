@@ -55,7 +55,7 @@ async function main() {
     env.TEST_BROWSER_TLS_DIRECTORY = browserTrust.directory;
     env.NODE_EXTRA_CA_CERTS = browserTrust.caFile;
     delete env.NODE_TLS_REJECT_UNAUTHORIZED;
-    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs', 'test/integration/passport-lifecycle.test.cjs', 'test/integration/registry-contract.test.cjs', 'test/integration/oidc-auth.test.cjs', 'test/integration/malware-scanning.test.cjs', 'test/integration/web-security.test.cjs', 'test/integration/browser-login.test.cjs', 'test/integration/supplier-review-security.test.cjs']);
+    await run(['--test', '--test-concurrency=1', 'test/integration/tenant-isolation.test.cjs', 'test/integration/passport-disclosure.test.cjs', 'test/integration/evidence-integrity.test.cjs', 'test/integration/passport-lifecycle.test.cjs', 'test/integration/registry-contract.test.cjs', 'test/integration/oidc-auth.test.cjs', 'test/integration/malware-scanning.test.cjs', 'test/integration/web-security.test.cjs', 'test/integration/browser-login.test.cjs', 'test/integration/supplier-review-security.test.cjs', 'test/integration/runtime-database-security.test.cjs']);
   } finally {
     try {
       if (db) await db.end();

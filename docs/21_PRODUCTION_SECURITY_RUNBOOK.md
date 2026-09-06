@@ -5,6 +5,57 @@ synthetic identity, storage, scanner and recovery fixtures. No real provider,
 gateway, monitoring destination, backup schedule or production environment has
 been configured by this runbook. Keep both Registry live flags false.
 
+## Database owner: verify runtime privileges before accepting traffic
+
+Use separate provisioning, migration and API runtime identities. The production
+API connects with `DATABASE_URL` and performs a read-only database catalog check
+before opening its HTTP listener. It rejects an unsafe or unverifiable runtime
+connection, closes that connection and reports a generic startup error without
+database URLs, credentials or catalog details. There is no production bypass
+setting and no automatic permission repair.
+
+The guard checks privileged role attributes and memberships, application object
+ownership and enabled/forced RLS on tenant tables. The check uses the database's
+reported permissions, rather than assuming that an account named `eubp_runtime`
+is safe. PostgreSQL superusers and BYPASSRLS roles can bypass row policies;
+ownership also grants control over those policies. See the official
+[row-security rules](https://www.postgresql.org/docs/16/ddl-rowsecurity.html) and
+[role/privilege inquiry functions](https://www.postgresql.org/docs/16/functions-info.html).
+
+This deployment contract uses PostgreSQL 16+ and the committed `public` schema.
+The guard checks the 27 named tenant tables and the expected policy names,
+commands and role scopes, including the isolated resolver policies. Additional
+policies or schema changes require a reviewed guard update and integration
+evidence. Role checks include privileges inherited after `SET ROLE`, membership
+administration and predefined `pg_` roles, as well as schema/database creation
+and table TRUNCATE/TRIGGER privileges. A stricter or differently structured
+deployment is not automatically treated as equivalent to the tested contract.
+
+Before starting staging or production:
+
+1. Provision the approved identities with unique credentials. The local role
+   script contains disposable development passwords and must not be used as
+   production credential provisioning.
+2. Deploy committed Prisma migrations in the migration context, then apply
+   `infra/postgres/001_rls.sql` and `infra/postgres/002_runtime_grants.sql` in the
+   authorized administrative context. Follow the existing rollout write pause
+   and preserve published history. Do not grant administrative permissions to
+   the runtime to make migration commands succeed.
+3. Supply only the restricted runtime database URL to the API and start with
+   `NODE_ENV=production`. If startup is rejected, inspect role attributes,
+   memberships, ownership and RLS privately with the database administrator.
+   Correct the configuration and restart; do not switch to development mode.
+4. Preserve a sanitized acceptance record of the deployed commit, catalog
+   checks, successful restricted-role startup and the two-tenant tests. Never
+   attach database credentials, full environment dumps or customer rows.
+
+This is a startup check, not continuous privilege monitoring or proof that every
+policy expression, grant and SECURITY DEFINER function is correct. Keep the
+existing isolation, public disclosure, upgrade and restore tests. Restrict and
+audit later administrator changes; restart and repeat acceptance after changing
+database security. Scanner/storage readiness and provider acceptance remain
+separate. The health route is a liveness response, not a complete readiness test.
+
 ## Identity owner: prove the real provider contract
 
 Register the API as its own resource/audience with the chosen provider. Set
@@ -214,6 +265,7 @@ Read `docs/18_MALWARE_SCANNING.md`, `docs/19_BACKUP_RESTORE_DRILL.md` and
 Use synthetic records for hostile-input tests unless the assessor's approved
 scope explicitly requires otherwise. Do not restore over a live database, rewrite
 published history, weaken a gate or enable the EU Registry to complete this
-record. Unresolved provider selection, backup objectives, audit delivery or
-penetration-test findings remain named launch blockers with an accountable
-owner, rather than being counted as completed Gate 7 work.
+record. Incomplete identity-provider configuration and acceptance, backup
+objectives, audit delivery or penetration-test findings remain named launch
+blockers with an accountable owner, rather than being counted as completed
+Gate 7 work.

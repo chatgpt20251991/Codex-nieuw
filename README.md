@@ -62,16 +62,58 @@ separate policy/grant script. Never configure the API with the administrator URL
 For production browser login, follow [the Auth0 setup runbook](docs/22_AUTH0_SETUP.md).
 `next dev` retains isolated development authentication; production builds use
 the official Auth0 SDK and the same-origin server API proxy. Provider tokens are
-encrypted in HttpOnly cookies and never returned to browser JavaScript. The actual
-Auth0 EU tenant, trusted user provisioning and deployment secrets still require
-administrator setup and real-provider acceptance; no account is created by the
-repository. Next.js reads its environment from the web workspace or deployment
+encrypted in HttpOnly cookies and never returned to browser JavaScript. As of
+6 September 2026, the EU-2 Development tenant, staging web application and API are
+configured, and the claim Action has passed four Auth0 sandbox cases. Version 1
+is deployed and bound to the live Post Login flow. Remaining
+administrator/deployment setup and real-provider acceptance
+are tracked in the runbook; no account is created by the repository.
+Next.js reads its environment from the web workspace or deployment
 environment, not automatically from the root `.env` used by administrative scripts.
 Docker creates these roles only on a fresh volume. Existing databases need explicit
 role provisioning and credential migration; do not delete a volume containing data.
 Creating future migrations with db:migrate also needs a separately configured disposable
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
+
+## Preparing an HTTPS staging environment
+
+Keep web build settings, web runtime secrets, API runtime credentials and
+database-administration credentials in separate deployment contexts. Choose
+the actual hosting environment and register its exact HTTPS origins in Auth0
+before real-provider acceptance. No hosting or Auth0 account is provisioned
+by this repository.
+
+Supply `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN` when
+building the web application. Next.js embeds public settings into the build;
+changing only the running server's environment does not replace those values.
+Use the same clean installation, Prisma generation, typecheck, test and build
+sequence as CI. Keep the generated Prisma client, workspace dependencies and
+build output together in the target Node.js installation. Preserve the external
+Auth0 SDK dependency. [Next.js self-hosting](https://nextjs.org/docs/15/app/guides/self-hosting).
+
+Apply committed migrations using the dedicated migration context, then the
+RLS and grant pack using the separate administrative context. Start the
+services only after both steps succeed. For each service set `NODE_ENV=production`
+and its own port and environment; the existing start commands are:
+
+```bash
+npm run start --workspace @eubp/api
+npm run start --workspace @eubp/web
+```
+
+Run those as separate supervised services behind the configured HTTPS gateway.
+The API gets only its restricted `DATABASE_URL`; administrator/migrator
+credentials do not belong in either running application. The production API
+checks its database privileges and tenant RLS configuration before listening.
+Follow the database section of [the production runbook](docs/21_PRODUCTION_SECURITY_RUNBOOK.md)
+when this check rejects a deployment. The check does not apply migrations or
+repair permissions. Keep the internal listeners private, preserve the public
+web Host, and use the configured HTTPS API address for the server proxy.
+
+Actual provider login/MFA, storage/scanner, ingress, monitoring and encrypted
+recovery acceptance remain required. A successful startup is not evidence of
+all those external controls.
 
 ## Gate 2–6 integration tests
 
