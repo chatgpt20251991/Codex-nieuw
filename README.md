@@ -73,6 +73,45 @@ Creating future migrations with db:migrate also needs a separately configured di
 Prisma shadow database or a development-only role allowed to create it. The runtime
 role must never receive that privilege; normal startup uses db:deploy.
 
+## Preparing an HTTPS staging environment
+
+Keep web build settings, web runtime secrets, API runtime credentials and
+database-administration credentials in separate deployment contexts. Choose
+the actual hosting environment and register its exact HTTPS origins in Auth0
+before real-provider acceptance. No hosting or Auth0 account is provisioned
+by this repository.
+
+Supply `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN` when
+building the web application. Next.js embeds public settings into the build;
+changing only the running server's environment does not replace those values.
+Use the same clean installation, Prisma generation, typecheck, test and build
+sequence as CI. Keep the generated Prisma client, workspace dependencies and
+build output together in the target Node.js installation. Preserve the external
+Auth0 SDK dependency. [Next.js self-hosting](https://nextjs.org/docs/15/app/guides/self-hosting).
+
+Apply committed migrations using the dedicated migration context, then the
+RLS and grant pack using the separate administrative context. Start the
+services only after both steps succeed. For each service set `NODE_ENV=production`
+and its own port and environment; the existing start commands are:
+
+```bash
+npm run start --workspace @eubp/api
+npm run start --workspace @eubp/web
+```
+
+Run those as separate supervised services behind the configured HTTPS gateway.
+The API gets only its restricted `DATABASE_URL`; administrator/migrator
+credentials do not belong in either running application. The production API
+checks its database privileges and tenant RLS configuration before listening.
+Follow the database section of [the production runbook](docs/21_PRODUCTION_SECURITY_RUNBOOK.md)
+when this check rejects a deployment. The check does not apply migrations or
+repair permissions. Keep the internal listeners private, preserve the public
+web Host, and use the configured HTTPS API address for the server proxy.
+
+Actual provider login/MFA, storage/scanner, ingress, monitoring and encrypted
+recovery acceptance remain required. A successful startup is not evidence of
+all those external controls.
+
 ## Gate 2–6 integration tests
 
 ```bash

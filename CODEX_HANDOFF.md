@@ -46,6 +46,14 @@ The real tenant, application credentials, deployment URLs and MFA acceptance
 are still to be supplied and verified. Do not mark Gate 7 closed or advance
 to Gate 8 before the documented production acceptance evidence is complete.
 
+PR #16 is merged at `e151ef2`. The merged revision passes 76 unit tests,
+43 source checks, all 116 integration scenarios, the upgrade/restore checks,
+production builds and all four security scans. Main CI run `33999361812` and
+security run `33999361767` record that result. The follow-up database startup
+guard checks the actual production connection before the API listens; read
+the database acceptance section in `docs/21_PRODUCTION_SECURITY_RUNBOOK.md`.
+No Auth0 account, hosting environment or deployment secrets were provisioned.
+
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.
 
