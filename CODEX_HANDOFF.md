@@ -1,4 +1,4 @@
-# Codex Handoff — 5 September 2026
+# Codex Handoff — 6 September 2026
 
 ## Current engineering status
 Gates 1 and 2 are verified locally and in GitHub Actions on `e9ee731`.
@@ -38,13 +38,12 @@ four security scans pass on 293a0f9. Main requires all five CI/security checks.
 Read codex/GATE_7_REPORT.md and docs/17 through docs/21 for execution evidence.
 Real-provider login, production storage/scanner/WAF, encrypted recovery and
 external penetration testing remain required before go-live.
-PR #15 is merged at `f164e60`. Auth0 has been selected for browser login, using
-an EU tenant when the administrator creates it. The browser-login follow-up
-adds the official Next SDK, a server-side API proxy, protected cookie sessions
-and an administrator-controlled claim Action. Read `docs/22_AUTH0_SETUP.md`.
-The real tenant, application credentials, deployment URLs and MFA acceptance
-are still to be supplied and verified. Do not mark Gate 7 closed or advance
-to Gate 8 before the documented production acceptance evidence is complete.
+PR #15 is merged at `f164e60`. Auth0 is the selected browser-login provider.
+The merged browser-login work adds the official Next SDK, a server-side API
+proxy, protected cookie sessions and an administrator-controlled claim Action.
+Read `docs/22_AUTH0_SETUP.md` for configuration and the dated external setup
+record. Do not mark Gate 7 closed or advance to Gate 8 before the documented
+production acceptance evidence is complete.
 
 PR #16 is merged at `e151ef2`. The merged revision passes 76 unit tests,
 43 source checks, all 116 integration scenarios, the upgrade/restore checks,
@@ -52,7 +51,23 @@ production builds and all four security scans. Main CI run `33999361812` and
 security run `33999361767` record that result. The follow-up database startup
 guard checks the actual production connection before the API listens; read
 the database acceptance section in `docs/21_PRODUCTION_SECURITY_RUNBOOK.md`.
-No Auth0 account, hosting environment or deployment secrets were provisioned.
+PR #17 remains open. Its last validated code revision, `4f6a9e1`, passes all
+required checks, including 80 unit tests, 124 integration scenarios and 43 source
+checks. These counts are separate from the historical PR #16 results above.
+
+As of 6 September 2026, administrator setup in the existing Auth0 account has
+configured an EU-2 Development tenant, a staging Regular Web Application using
+only Authorization Code, and an RS256 API with audience
+`https://api.eubatterypassport.nl` and token lifetimes no greater than 3600 seconds.
+Only the console has user-delegated API access; M2M and offline access are disabled.
+The claim Action passed four Auth0 sandbox cases. Version 1, using Node.js 22,
+is deployed and bound as the only Action in the live Post Login flow. MFA and
+real browser/API acceptance remain pending. The administrator's Yourhosting
+account shows the domain registered but no webhosting or VPS packages. Callback
+URLs remain empty until a suitable deployment and exact HTTPS staging origin
+are established.
+Hosting and deployment secrets are not provisioned by this repository; actual
+server configuration and trusted test-user provisioning remain acceptance work.
 
 ## Mission
 Turn this V2.1 pre-release into a reproducibly deployable design-partner release without weakening its compliance/security truth gates.

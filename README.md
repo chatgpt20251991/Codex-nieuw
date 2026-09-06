@@ -62,10 +62,13 @@ separate policy/grant script. Never configure the API with the administrator URL
 For production browser login, follow [the Auth0 setup runbook](docs/22_AUTH0_SETUP.md).
 `next dev` retains isolated development authentication; production builds use
 the official Auth0 SDK and the same-origin server API proxy. Provider tokens are
-encrypted in HttpOnly cookies and never returned to browser JavaScript. The actual
-Auth0 EU tenant, trusted user provisioning and deployment secrets still require
-administrator setup and real-provider acceptance; no account is created by the
-repository. Next.js reads its environment from the web workspace or deployment
+encrypted in HttpOnly cookies and never returned to browser JavaScript. As of
+6 September 2026, the EU-2 Development tenant, staging web application and API are
+configured, and the claim Action has passed four Auth0 sandbox cases. Version 1
+is deployed and bound to the live Post Login flow. Remaining
+administrator/deployment setup and real-provider acceptance
+are tracked in the runbook; no account is created by the repository.
+Next.js reads its environment from the web workspace or deployment
 environment, not automatically from the root `.env` used by administrative scripts.
 Docker creates these roles only on a fresh volume. Existing databases need explicit
 role provisioning and credential migration; do not delete a volume containing data.

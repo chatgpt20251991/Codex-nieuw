@@ -265,6 +265,7 @@ Read `docs/18_MALWARE_SCANNING.md`, `docs/19_BACKUP_RESTORE_DRILL.md` and
 Use synthetic records for hostile-input tests unless the assessor's approved
 scope explicitly requires otherwise. Do not restore over a live database, rewrite
 published history, weaken a gate or enable the EU Registry to complete this
-record. Unresolved provider selection, backup objectives, audit delivery or
-penetration-test findings remain named launch blockers with an accountable
-owner, rather than being counted as completed Gate 7 work.
+record. Incomplete identity-provider configuration and acceptance, backup
+objectives, audit delivery or penetration-test findings remain named launch
+blockers with an accountable owner, rather than being counted as completed
+Gate 7 work.
