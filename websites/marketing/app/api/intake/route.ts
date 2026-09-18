@@ -1,6 +1,7 @@
 import{env}from"cloudflare:workers";
 import{intakeSchema}from"@/lib/intake-validation";
 import{intakeDb}from"@/lib/intake-db";
+import{workerReady}from"@/lib/intake-delivery";
 const allowedOrigins=new Set(["https://eubatterypassport.nl","https://www.eubatterypassport.nl","https://eubatterypassport.ll33555555.chatgpt.site"]);
 function json(body:unknown,status=200){return Response.json(body,{status,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}})}
 type Saved={company:string;email:string;application:string;message:string};
@@ -10,7 +11,7 @@ export async function POST(request:Request){
  const origin=request.headers.get("origin");
  if(!origin||(!allowedOrigins.has(origin)&&!(process.env.NODE_ENV==="development"&&/^http:\/\/127\.0\.0\.1:\d+$/.test(origin))))return json({error:"Deze aanvraag komt niet van de website."},403);
  const configuration=env as unknown as Record<string,string|undefined>;
- if(configuration.INTAKE_ENABLED!=="true"||!configuration.RATE_LIMIT_SALT)return json({error:"Het intakeformulier is tijdelijk niet beschikbaar. Probeer het later opnieuw."},503);
+ if(configuration.INTAKE_ENABLED!=="true"||configuration.INTAKE_WORKER_ENABLED!=="true"||!configuration.INTAKE_WORKER_TOKEN_SHA256||!configuration.RATE_LIMIT_SALT)return json({error:"Het intakeformulier is tijdelijk niet beschikbaar. Je kunt contact opnemen via info@eubatterypassport.nl."},503);
  if(!request.headers.get("content-type")?.startsWith("application/json"))return json({error:"Ongeldig aanvraagformaat."},415);
  if(Number(request.headers.get("content-length")||0)>16000)return json({error:"Je bericht is te lang."},413);
  let raw;try{raw=JSON.parse(await boundedBody(request))}catch(e){return json({error:e instanceof RangeError?"Je bericht is te lang.":"De aanvraag kon niet worden gelezen."},e instanceof RangeError?413:400)}
@@ -20,8 +21,10 @@ export async function POST(request:Request){
  const repeated=(saved:Saved)=>same(saved,data)?json({reference}):json({error:"Deze aanvraag is al verzonden. Open een nieuwe intake voor een andere vraag."},409);
  try{
  const db=intakeDb();
- await db.prepare("DELETE FROM intakes WHERE created_at < ?").bind(now-90*86400000).run();
+ // Unprocessed requests must survive outages; cleanup must never discard an unsent intake.
+ await db.prepare("DELETE FROM intakes WHERE delivery_status='accepted' AND accepted_at < ?").bind(now-90*86400000).run();
  const previous=await db.prepare("SELECT company,email,application,message FROM intakes WHERE id = ?").bind(data.requestId).first<Saved>();if(previous)return repeated(previous);
+ if(!await workerReady(db,now))return json({error:"Het intakeformulier is tijdelijk niet beschikbaar. Je kunt contact opnemen via info@eubatterypassport.nl."},503);
  const ip=request.headers.get("cf-connecting-ip")||"unknown";
  const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(configuration.RATE_LIMIT_SALT+":"+new Date(now).toISOString().slice(0,10)+":"+ip));
  const hash=Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -30,4 +33,3 @@ export async function POST(request:Request){
  return json({reference},201);
  }catch{console.error("Intake storage operation failed");return json({error:"Versturen is niet gelukt. Je gegevens blijven in het formulier staan. Probeer het later opnieuw."},503)}
 }
-
