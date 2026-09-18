@@ -1,5 +1,9 @@
-import type { Metadata } from "next";
+import type {Metadata} from "next";
+import {headers} from "next/headers";
+import {translate} from "@/lib/i18n";
 import "./globals.css";
-export const metadata: Metadata = {metadataBase:new URL("https://eubatterypassport.nl"),title:{default:"EUBatteryPassport: Elke batterij. Eén helder paspoort.",template:"%s | EUBatteryPassport"},description:"Van batterijdata en bewijsstukken tot het opstellen en beheren van digitale batterijpaspoorten. Voor fabrikanten, importeurs en distributeurs.",icons:{icon:"/images/favicon-v6.png"}};
-export default function RootLayout({children}:Readonly<{children:React.ReactNode}>){return <html lang="nl"><body><a className="skip-link" href="#main">Naar de inhoud</a>{children}</body></html>;}
-
+export const metadata: Metadata = {metadataBase: new URL("https://eubatterypassport.nl"), title: {default: "EUBatteryPassport", template: "%s | EUBatteryPassport"}, icons: {icon: "/images/favicon-v6.png"}};
+export default async function RootLayout({children}: Readonly<{children: React.ReactNode}>) {
+ const locale = (await headers()).get("x-site-locale") === "en" ? "en" : "nl";
+ return <html lang={locale}><body><a className="skip-link" href="#main">{translate(locale,"Naar de inhoud")}</a>{children}</body></html>;
+}
