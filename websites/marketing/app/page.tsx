@@ -17,7 +17,7 @@ const questions = [
 export default function Home() {
   return <><SiteHeader /><main id="main">
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero-art"><img src="/images/hero-v5.webp" srcSet="/images/hero-v5-640.webp 640w, /images/hero-v5-960.webp 960w, /images/hero-v5.webp 1672w" sizes="(max-width: 700px) 855px, 100vw" alt="Accu met een fysiek Battery Passport-label, tegen de verlichte horizon van Europa. Conceptbeeld met voorbeeldgegevens." width="1672" height="941" fetchPriority="high" /></div><div className="hero-inner shell"><div className="hero-copy"><p className="eyebrow hero-kicker">Digitale batterijpaspoorten</p>
+      <div className="hero-art"><img src="/images/hero-v6.webp" srcSet="/images/hero-v6-640.webp 640w, /images/hero-v6-960.webp 960w, /images/hero-v6.webp 1672w" sizes="(max-width: 700px) 855px, 100vw" alt="Accu met een Battery Passport-label met voorbeeldgegevens: EX-120, LFP, 120 kWh, 200 Ah en 600 V. Europa op de achtergrond." width="1672" height="941" fetchPriority="high" /></div><div className="hero-inner shell"><div className="hero-copy">
         <h1 id="hero-title">Elke batterij.<br />Eén <em>helder</em><br />paspoort.</h1>
         <p className="hero-intro">Wij verbinden productgegevens en bewijsstukken tot een digitaal batterijpaspoort. Van voorbereiding en opstellen tot beheer, met vooraf duidelijke afspraken.</p>
         <div className="hero-actions"><Button asChild className="glow-button"><a href="/intake">Start online intake <ArrowUpRight size={20} /></a></Button><a className="text-link" href="/voorbeeld">Bekijk het voorbeeld <ArrowRight size={18} /></a></div>

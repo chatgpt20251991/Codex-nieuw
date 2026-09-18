@@ -1,3 +1,35 @@
+# Brand and passport detail update V6 — September 19, 2026
+
+The user requested a new unified logo with the European flag, battery and green
+leaf, a populated hanging passport label, and removal of decorative strokes.
+The approved example passport page and its artwork are preserved exactly.
+
+- Replaced the metallic monogram and HTML wordmark with one generated transparent
+  lockup reading EUbatterypassport.nl. The battery outline contains the blue flag
+  and twelve gold stars, with an integrated green leaf. A matching favicon is used.
+- Edited the existing hero image to include ID DEMO-EBP-001, model EX-120, LFP,
+  120 kWh, 200 Ah and 600 V on the hanging metal Battery Passport. The domain and
+  EXAMPLE DATA remain explicit. The battery and Europe composition are preserved.
+- Removed the complete Digitale batterijpaspoorten eyebrow, the hero accent line,
+  card-top gradient accents, closing accent and em dashes in title/accessible name.
+  Functional borders and product identifiers are preserved.
+- Responsive source files preserve mobile product visibility. The complete logo
+  fits at 320, 360, 390, 430, 768, 1024 and 1440px without horizontal overflow.
+- Browser checks confirm removed pseudo-element strokes, mobile menu operation,
+  example navigation and unchanged example artwork/content. TypeScript, all 13
+  existing intake/worker tests and production build pass.
+
+Exactly two built-in image calls were used. Hero native resolution is 1672x941.
+Logo source is 2161x728 RGBA, trimmed to 2191x243 including transparent margin;
+800x89 and 400x44 exports plus a cropped 64px favicon are ordinary optimizations.
+Full prompts and original images are retained in outputs/redesign-v6/assets outside
+this checkout. No native 4K claim, EU endorsement or certification claim is made.
+
+Dependencies, runtime flags, intake/backend logic and platform code are unchanged.
+Publish the exact reviewed GitHub revision following GITHUB_PUBLISHING.md.
+
+The V5 record below documents the preserved earlier design.
+
 # Premium website experience — September 18, 2026
 
 This revision replaces the V4 presentation while preserving the marketing site's
