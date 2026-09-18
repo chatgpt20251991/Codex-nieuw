@@ -1,43 +1,50 @@
-# Enterprise design review — September 18, 2026
+# Premium website experience — September 18, 2026
 
-This revision is a design proposal, not a production release. The public Site remains
-on version 3 until the new design is reviewed and its exact GitHub revision published.
+This revision replaces the V4 presentation while preserving the marketing site's
+existing stack, online intake gates and all regulated-platform truth rules.
 
-## Direction
+## Design
 
-- Retain the battery with its physical passport tag, blue European horizon and landscape.
-- Use a continuous EUbatterypassport.nl wordmark, locally hosted Manrope, editorial serif headings,
-  restrained green actions and a deep navy background.
-- Explain the service through structuring, preparing and maintaining passport information.
-- Use professional Dutch address and describe agreed scope without promising regulatory approval.
+- Custom generated E/U emblem beside the complete continuous EUbatterypassport.nl
+  wordmark; the full domain remains explicit in the accessible name and footer.
+- Cinematic battery/Europe opening, a physical metal Battery Passport illustration,
+  and a newly generated Alpine background. The mobile opening shows the battery
+  and passport tag in the first viewport, using a distinct right-aligned crop.
+- Rebuilt /voorbeeld with the generated product artwork and readable semantic
+  product fields, source/evidence context and version-management explanation.
+- EX-120, DEMO-EBP-001, 200 Ah, 600 V and 120 kWh are fictional example values.
+  Nominal energy and nominal capacity use their correct units. No live registry,
+  certificate, evidence document, or actual product history is implied.
+- WebP responsive sources, lazy loading below the opening, local fonts, a trimmed
+  transparent 256px logo and matching 64px favicon keep transfers appropriate.
 
-The full domain is written as one continuous wordmark so EU is unambiguously part
-of the name. Manrope is distributed under the bundled SIL Open Font License.
-The landscape is reused. The battery image has an edited English BATTERY PASSPORT
-label with six illustrative fields, the full domain, an illustrative QR motif and
-an EXAMPLE DATA footer. It is not a registered passport or official certification.
-Model EX-120, 200 Ah, 600 V and 120 kWh are fictional, internally consistent values.
-The field categories are informed by Annex XIII of Regulation (EU) 2023/1542:
-https://eur-lex.europa.eu/eli/reg/2023/1542/2025-07-31/eng/
+## Image provenance and resolution
 
-## Responsive verification
+Four original assets were generated with the built-in image tool. Full prompts
+and source PNGs are retained outside the website in outputs/redesign-v5/assets.
+The requested native 3840 x 2160 output was not supplied by the tool: all three
+wide originals are 1672 x 941. They are not 4K and have not been upscaled.
+The symbol original is 1254 x 1254. 960px/640px web variants are downscaled from
+originals; the symbol is transparently cropped and resized for web use.
 
-Browser checks of the actual local website:
+## Verification
 
-- Homepage widths 320, 360, 390, 430, 768, 1024 and 1440: no page or element horizontal overflow.
-- All seven service/FAQ disclosures expanded at 320: no horizontal overflow.
-- Mobile menu opens, closes and closes after anchor navigation.
-- Example link and intake link reach the intended routes.
-- Example, intake and privacy pages at 320: no horizontal overflow.
-- Logo, battery and landscape images load; locally hosted fonts load.
-- Desktop and mobile screenshots are retained in the task's external output folder.
+- Real browser review of the desktop and mobile homepage and example page.
+- No horizontal overflow at 320, 360, 390, 430, 768, 1024 and 1440px.
+- Mobile opening contains the loaded battery image; the entire hanging label fits.
+- Mobile navigation opens and closes after anchor navigation.
+- All seven home disclosures expand without overflow at 320px.
+- Example, intake and privacy routes fit at 320px; example and intake links work.
+- All artwork loads, including the deferred landscape when scrolling into view.
+- TypeScript check and all 13 existing intake/worker tests pass. The production
+  build passes; GitHub CI performs the clean install, build and security checks.
+- Independent source/content review found no blocking issues. Landscape source
+  sizing was increased for its tall mobile crop to avoid a low-resolution choice.
 
-TypeScript check, all 13 existing intake/worker tests and the production build passed.
-No runtime flags, mail delivery behavior, data model or regulated platform code changed.
-The intake availability gate and explicit fictitious example status remain intact.
+No mail delivery, runtime flags, dependency versions, data model, platform code,
+or DNS settings changed. Intake availability remains independently gated.
 
 ## Publication
 
-Use GITHUB_PUBLISHING.md after design review. Do not treat a preview, a draft PR or
-passing CI as a live release. Intake activation still depends on the separate mail
-processing handoff; this design proposal does not activate it.
+Publish the exact reviewed GitHub revision following GITHUB_PUBLISHING.md.
+Release IDs and live checks are recorded outside the website checkout.
