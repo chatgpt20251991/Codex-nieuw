@@ -1,0 +1,93 @@
+name: marketing-site
+
+on:
+  push:
+    paths:
+      - 'websites/marketing/**'
+      - '.github/workflows/marketing-site.yml'
+  pull_request:
+    paths:
+      - 'websites/marketing/**'
+      - '.github/workflows/marketing-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketing-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  website:
+    name: Marketing website build and checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: websites/marketing
+    env:
+      INTAKE_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: websites/marketing/package-lock.json
+      - name: Install the website's own locked dependencies
+        run: npm run install:ci
+      - name: Typecheck
+        run: node node_modules/typescript/bin/tsc --noEmit
+      - name: Validate intake input boundaries
+        run: node --experimental-strip-types --test test/*.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Check the Sites deployment contract
+        run: |
+          test -s dist/server/index.js
+          test -s dist/.openai/hosting.json
+          test -s dist/.openai/drizzle/0000_fat_sabretooth.sql
+          node -e "const fs=require('node:fs'); const a=JSON.parse(fs.readFileSync('.openai/hosting.json')); const b=JSON.parse(fs.readFileSync('dist/.openai/hosting.json')); if(a.project_id!==b.project_id||b.d1!=='DB')process.exit(1)"
+      - name: Retain website build for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: marketing-site-${{ github.sha }}
+          path: websites/marketing/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  dependencies:
+    name: Marketing website dependency audit and SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: websites/marketing
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Generate website lockfile SBOM
+        run: |
+          mkdir -p security-results
+          npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only --workspaces=false > security-results/sbom.cdx.json
+      - name: Audit website dependencies
+        run: npm audit --package-lock-only --workspaces=false --json --audit-level=high > security-results/npm-audit.json
+      - name: Retain website security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: marketing-security-${{ github.sha }}
+          path: websites/marketing/security-results/
+          if-no-files-found: error
+          retention-days: 14
+
