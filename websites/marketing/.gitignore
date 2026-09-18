@@ -49,3 +49,5 @@ next-env.d.ts
 /.dev.vars*
 /.vite/
 /security-results/
+/ops/mail-worker/config.php
+/ops/mail-worker/state/

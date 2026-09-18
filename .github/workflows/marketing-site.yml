@@ -46,6 +46,10 @@ jobs:
         run: node node_modules/typescript/bin/tsc --noEmit
       - name: Validate intake input boundaries
         run: node --experimental-strip-types --test test/*.test.mjs
+      - name: Validate private PHP mail worker
+        run: |
+          php -l ops/mail-worker/worker.php
+          php ops/mail-worker/test.php
       - name: Production build
         run: npm run build
       - name: Check the Sites deployment contract
