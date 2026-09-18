@@ -38,6 +38,8 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: websites/marketing/package-lock.json
+      - name: Use the lockfile's npm version
+        run: npm install --global npm@10.9.8 --ignore-scripts --no-audit --no-fund
       - name: Install the website's own locked dependencies
         run: npm run install:ci
       - name: Typecheck
@@ -76,6 +78,8 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - name: Use the lockfile's npm version
+        run: npm install --global npm@10.9.8 --ignore-scripts --no-audit --no-fund
       - name: Generate website lockfile SBOM
         run: |
           mkdir -p security-results
@@ -90,4 +94,3 @@ jobs:
           path: websites/marketing/security-results/
           if-no-files-found: error
           retention-days: 14
-

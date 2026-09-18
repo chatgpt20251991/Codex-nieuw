@@ -6,7 +6,8 @@ lockfile; it is intentionally outside the platform's npm workspaces.
 
 ## Edit and check
 
-Use a branch and pull request. From this directory, with Node 22.13 or newer:
+Use a branch and pull request. From this directory, with Node 22.13 or newer
+and npm 10.9.8 (the declared packageManager, also pinned in CI):
 
 ```sh
 npm run install:ci
