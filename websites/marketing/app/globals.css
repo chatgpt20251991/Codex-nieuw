@@ -19,3 +19,4 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 
 .skip-link{position:fixed;top:12px;left:12px;z-index:100;background:#b7f58c;color:#04111e;padding:10px 16px;transform:translateY(-180%)}.skip-link:focus{transform:translateY(0)}
+.brand-text strong{white-space:nowrap;letter-spacing:-.055em}.brand-text strong>.brand-eu{color:#44b6ff}.brand-text strong>.brand-tld{color:#64c8ed}.brand-text strong{font-size:1.5rem}@media(max-width:1100px){.brand-text strong{font-size:1.35rem}}@media(max-width:700px){.brand-text strong{font-size:clamp(1rem,5.15vw,1.45rem)}.brand{max-width:calc(100% - 48px)}}

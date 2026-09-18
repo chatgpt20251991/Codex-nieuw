@@ -6,14 +6,19 @@ on version 3 until the new design is reviewed and its exact GitHub revision publ
 ## Direction
 
 - Retain the battery with its physical passport tag, blue European horizon and landscape.
-- Use a consistent EU monogram, locally hosted Manrope, editorial serif headings,
+- Use a continuous EUbatterypassport.nl wordmark, locally hosted Manrope, editorial serif headings,
   restrained green actions and a deep navy background.
 - Explain the service through structuring, preparing and maintaining passport information.
 - Use professional Dutch address and describe agreed scope without promising regulatory approval.
 
-The generated EU monogram is an original design concept, not an official EU emblem
-or certification. Manrope is distributed under the bundled SIL Open Font License.
-The existing illustrative battery and landscape assets are reused.
+The full domain is written as one continuous wordmark so EU is unambiguously part
+of the name. Manrope is distributed under the bundled SIL Open Font License.
+The landscape is reused. The battery image has an edited English BATTERY PASSPORT
+label with six illustrative fields, the full domain, an illustrative QR motif and
+an EXAMPLE DATA footer. It is not a registered passport or official certification.
+Model EX-120, 200 Ah, 600 V and 120 kWh are fictional, internally consistent values.
+The field categories are informed by Annex XIII of Regulation (EU) 2023/1542:
+https://eur-lex.europa.eu/eli/reg/2023/1542/2025-07-31/eng/
 
 ## Responsive verification
 

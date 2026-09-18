@@ -23,7 +23,7 @@ export default function Home() {
         <div className="hero-actions"><Button asChild className="glow-button"><a href="/intake">Start online intake <ArrowUpRight size={20} /></a></Button><a className="text-link" href="/voorbeeld">Bekijk het voorbeeld <ArrowRight size={18} /></a></div>
         <p className="hero-caption">Gegevens. Onderbouwing. Continuïteit.</p>
       </div>
-      <div className="hero-art"><img src="/images/battery-passport.webp" alt="Accu met een fysiek batterijpaspoort aan een koord, met Europa op de achtergrond" width="1122" height="1402" fetchPriority="high" /><div className="art-caption"><span>Van product naar inzicht</span><span>EUBatteryPassport</span></div></div>
+      <div className="hero-art"><img src="/images/battery-passport-en-v4.jpg" alt="Illustratie van een accu met een Battery Passport-label met voorbeeldgegevens en een QR-code, met Europa op de achtergrond" width="1122" height="1402" fetchPriority="high" /><div className="art-caption"><span>Van product naar inzicht</span><span>EUBatteryPassport</span></div></div>
     </section>
     <section className="audience-strip shell" id="voor-wie" aria-label="Voor wie"><p className="eyebrow">Voor de hele batterijketen</p><ul><li>Fabrikanten</li><li>Importeurs</li><li>Distributeurs</li></ul></section>
     <section className="approach shell section-space" id="aanpak" aria-labelledby="approach-title">
