@@ -1,44 +1,123 @@
 import { translate, localeHref, type Locale } from "@/lib/i18n";
-import { ArrowRight, ArrowUpRight, Check, Database, Files, RefreshCw, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, CalendarDays, Check, ChevronDown, FileCheck2, FileText, Leaf, MessageSquareText, RefreshCw, Settings2, UsersRound } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-export function HomePage({ locale = "nl" }: {
-    locale?: Locale;
-}) {
-    const t = (text: string) => translate(locale, text);
-    const steps = [
-        { number: "01", Icon: Database, title: t("Structureren."), label: t("Van losse gegevens naar \u00E9\u00E9n dossier"), text: t("Breng productgegevens, leveranciersinformatie en bewijsstukken samen. Maak zichtbaar wat beschikbaar is en wat nog ontbreekt."), detail: t("Uw batterijtype, toepassing en rol in de keten vormen het vertrekpunt. Gegevens blijven verbonden met hun bron en de vragen die nog openstaan.") },
-        { number: "02", Icon: Files, title: t("Opstellen."), label: t("Van dossier naar digitaal paspoort"), text: t("Werk vanuit onderbouwde informatie aan het digitale batterijpaspoort. Met vooraf duidelijke afspraken over controles en levering."), detail: t("We bepalen welke informatie, onderbouwing en controles voor uw traject nodig zijn. Het paspoort brengt die informatie in samenhang bij elkaar.") },
-        { number: "03", Icon: RefreshCw, title: t("Beheren."), label: t("Informatie die actueel blijft"), text: t("Batterijen, leveranciers en gegevens veranderen. Maak wijzigingen, actualisering en verantwoordelijkheden onderdeel van het beheer."), detail: t("We leggen vast wie gegevens aanlevert, wie wijzigingen beoordeelt en hoe het dossier wordt bijgewerkt. Zo krijgt beheer een vaste plek in het proces.") },
-    ];
-    const questions = [
-        [t("Waar beginnen we als onze gegevens nog niet compleet zijn?"), t("Begin met wat u al heeft: het batterijtype, de toepassing en de beschikbare productinformatie. In de intake kunt u ook aangeven wat nog onbekend is. Zo ontstaat een concreet vertrekpunt voor het dossier.")],
-        [t("Verzorgen jullie ook het digitale batterijpaspoort?"), t("De dienstverlening omvat het traject van productgegevens en bewijsstukken tot het opstellen en beheren van digitale batterijpaspoorten. Welke onderdelen, controles en levering bij uw organisatie passen, leggen we vooraf vast.")],
-        [t("Is een batterijpaspoort hetzelfde als een keurmerk?"), t("Een digitaal batterijpaspoort is een informatiedossier. Het is op zichzelf geen keurmerk of garantie dat een product aan alle toepasselijke eisen voldoet.")],
-        [t("Wat gebeurt er na de online intake?"), t("We bekijken uw vraag en de beschikbare informatie. Vervolgens maken we de scope, benodigde gegevens en vervolgstappen voor uw organisatie concreet. De intake verplicht u tot niets.")],
-    ];
-    return <><SiteHeader locale={locale}/><main id="main">
-    <section className="hero" aria-labelledby="hero-title">
-      <div className="hero-art"><img src="/images/hero-v6.webp" srcSet="/images/hero-v6-640.webp 640w, /images/hero-v6-960.webp 960w, /images/hero-v6.webp 1672w" sizes="(max-width: 700px) 855px, 100vw" alt={t("Accu met een Battery Passport-label met voorbeeldgegevens: EX-120, LFP, 120 kWh, 200 Ah en 600 V. Europa op de achtergrond.")} width="1672" height="941" fetchPriority="high"/></div><div className="hero-inner shell"><div className="hero-copy">
-        <h1 id="hero-title">{t("Elke batterij.")}<br />{"" + t("E\u00E9n") + " "}<em>{t("helder")}</em><br />{t("paspoort.")}</h1>
-        <p className="hero-intro">{t("Wij verbinden productgegevens en bewijsstukken tot een digitaal batterijpaspoort. Van voorbereiding en opstellen tot beheer, met vooraf duidelijke afspraken.")}</p>
-        <div className="hero-actions"><Button asChild className="glow-button"><a href={localeHref(locale, "/intake")}>{"" + t("Start online intake") + " "}<ArrowUpRight size={20}/></a></Button><a className="text-link" href={localeHref(locale, "/voorbeeld")}>{"" + t("Bekijk het voorbeeld") + " "}<ArrowRight size={18}/></a></div>
-        <p className="hero-caption">{t("Van de eerste bron tot de volgende versie.")}</p>
-      </div>
-    <div className="hero-product-note"><span className="eyebrow">{t("Product. Herkomst. Levenscyclus.")}</span><span>{t("Informatie die verbonden blijft.")}</span></div></div>
-    </section>
-    <section className="audience-strip shell" id="voor-wie" aria-label={t("Voor wie")}><p className="eyebrow">{t("Voor de hele batterijketen")}</p><ul><li>{t("Fabrikanten")}</li><li>{t("Importeurs")}</li><li>{t("Distributeurs")}</li></ul></section>
-    <section className="approach shell section-space" id="aanpak" aria-labelledby="approach-title">
-      <div className="section-heading"><div><p className="eyebrow">{t("E\u00E9n samenhangend traject")}</p><h2 id="approach-title">{t("Complexe ketens.")}<br /><span>{t("Heldere informatie.")}</span></h2></div><p>{t("Van de eerste brongegevens tot het beheer van uw paspoort. Iedere stap bouwt voort op dezelfde onderbouwing.")}</p></div>
-      <div className="service-grid">{steps.map(({ number, Icon, title, label, text, detail }) => <article className="service-card" key={number}><div className="step-top"><span>{number}</span><Icon size={28} strokeWidth={1.3}/></div><h3>{title}</h3><p className="service-label">{label}</p><p>{text}</p><details><summary>{"" + t("Meer over deze stap") + " "}<Plus size={17}/></summary><p>{detail}</p></details></article>)}</div>
-    </section>
-    <section className="passport-story shell" aria-labelledby="passport-story-title">
-      <div className="passport-story-art"><img src="/images/passport-v5.webp" srcSet="/images/passport-v5-640.webp 640w, /images/passport-v5-960.webp 960w, /images/passport-v5.webp 1672w" sizes="(max-width: 700px) 670px, (max-width: 1100px) 1050px, 1100px" alt={t("Illustratie van een batterij met een fysiek voorbeeldpaspoort")} width="1672" height="941" loading="lazy"/><span className="image-label">{"" + t("Het paspoort in beeld") + " "}<span>01 / EX-120</span></span></div>
-      <div className="vision-copy"><p className="eyebrow">{t("Meer dan een code op een batterij")}</p><h2 id="passport-story-title">{t("Een identiteit.")}<br /><em>{t("Een dossier.")}</em><br />{t("Een helder geheel.")}</h2><p>{t("Batterijgegevens ontstaan bij engineering, inkoop, kwaliteit en leveranciers. Het paspoort brengt ze bij elkaar, met hun bronnen en de vragen die nog openstaan.")}</p><ul>{[t("Productgegevens in samenhang"), t("Onderbouwing bij de informatie"), t("Zicht op wijzigingen en beheer")].map(text => <li key={text}><Check size={18}/><span>{text}</span></li>)}</ul><a className="text-link" href={localeHref(locale, "/voorbeeld")}>{"" + t("Ontdek het voorbeeldpaspoort") + " "}<ArrowUpRight size={18}/></a></div>
-    </section>
-    <section className="vision" aria-labelledby="vision-title"><img className="vision-background" src="/images/landscape-v5.webp" srcSet="/images/landscape-v5-640.webp 640w, /images/landscape-v5-960.webp 960w, /images/landscape-v5.webp 1672w" sizes="(max-width: 700px) 1500px, 100vw" alt={t("Alpenlandschap met een rivier in het avondlicht")} width="1672" height="941" loading="lazy"/><div className="vision-inner shell"><p className="eyebrow">{t("Informatie die verder brengt")}</p><h2 id="vision-title">{t("Vandaag inzicht.")}<br /><em>{t("Morgen verder.")}</em></h2><p>{t("Een paspoort is zo sterk als de informatie erachter. Daarom begint een bruikbaar dossier bij bronnen, verantwoordelijkheden en aandacht voor wat verandert.")}</p><div className="vision-principles"><div><span>{t("01 / HERKOMST")}</span><p>{t("Elke waarde heeft een bron.")}</p></div><div><span>{t("02 / SAMENHANG")}</span><p>{t("Van losse data naar overzicht.")}</p></div><div><span>{t("03 / CONTINU\u00CFTEIT")}</span><p>{t("Beheer vanaf het begin.")}</p></div></div></div></section>
-    <section className="closing shell" aria-labelledby="closing-title"><div><p className="eyebrow">{t("Uw volgende stap")}</p><h2 id="closing-title">{t("Maak uw batterijdata")}<br /><em>{t("werkbaar.")}</em></h2></div><div className="closing-cta"><p>{t("Vertel ons welke batterijen u levert, welke gegevens beschikbaar zijn en waar ondersteuning nodig is.")}</p><Button asChild className="glow-button"><a href={localeHref(locale, "/intake")}>{"" + t("Start online intake") + " "}<ArrowUpRight size={20}/></a></Button><span className="closing-note">{t("Een helder vertrekpunt voor uw organisatie.")}</span></div></section>
-    <section className="faq shell section-space" id="vragen" aria-labelledby="questions-title"><div><p className="eyebrow">{t("Goed om te weten")}</p><h2 id="questions-title">{t("Uw vragen.")}<br />{t("Helder beantwoord.")}</h2></div><div className="faq-list">{questions.map(([q, a]) => <details key={q}><summary>{q}<Plus size={20}/></summary><p>{a}</p></details>)}</div></section>
-  </main><SiteFooter locale={locale}/></>;
+
+export function HomePage({ locale = "nl" }: { locale?: Locale }) {
+  const t = (text: string) => translate(locale, text);
+  const intakeHref = localeHref(locale, "/intake");
+  const exampleHref = localeHref(locale, "/voorbeeld");
+  const topics = [
+    { Icon: UsersRound, title: t("Voor wie"), description: t("Ondersteuning voor fabrikanten, importeurs en distributeurs."), href: intakeHref },
+    { Icon: FileCheck2, title: t("Het batterijpaspoort"), description: t("Productgegevens en bewijsstukken in één samenhangend dossier."), href: "#batterijpaspoort" },
+    { Icon: Settings2, title: t("Onze aanpak"), description: t("Structureren, opstellen en blijven actualiseren."), href: "#aanpak" },
+    { Icon: MessageSquareText, title: t("Veelgestelde vragen"), description: t("Heldere antwoorden op uw eerste vragen."), href: "#vragen" },
+  ];
+  const steps = [
+    { title: t("Gegevens structureren"), text: t("Productgegevens, leveranciersinformatie en bewijsstukken samenbrengen.") },
+    { title: t("Het paspoort opstellen"), text: t("Gegevens en onderbouwing verbinden.") },
+    { title: t("Informatie beheren"), text: t("Wijzigingen, versies en verantwoordelijkheden vastleggen.") },
+  ];
+  const questions = [
+    [t("Waar beginnen we als gegevens ontbreken?"), t("Begin met wat u al heeft: het batterijtype, de toepassing en de beschikbare productinformatie. In de intake kunt u ook aangeven wat nog onbekend is. Zo ontstaat een concreet vertrekpunt voor het dossier.")],
+    [t("Verzorgen jullie ook het digitale batterijpaspoort?"), t("De dienstverlening omvat het traject van productgegevens en bewijsstukken tot het opstellen en beheren van digitale batterijpaspoorten. Welke onderdelen, controles en levering bij uw organisatie passen, leggen we vooraf vast.")],
+    [t("Wat gebeurt er na de online intake?"), t("We bekijken uw vraag en de beschikbare informatie. Vervolgens maken we de scope, benodigde gegevens en vervolgstappen voor uw organisatie concreet. De intake verplicht u tot niets.")],
+  ];
+
+  return (
+    <>
+      <SiteHeader locale={locale} />
+      <main id="main" className="v12-page">
+        <section className="v12-hero" aria-labelledby="hero-title">
+          <div className="v12-shell v12-hero-grid">
+            <div className="v12-hero-copy">
+              <h1 id="hero-title"><span>{t("Elke batterij.")}</span><span>{t("Eén helder paspoort.")}</span></h1>
+              <p className="v12-hero-intro">{t("Wij verbinden productgegevens en bewijsstukken tot een digitaal batterijpaspoort. Van voorbereiding en opstellen tot beheer, met vooraf duidelijke afspraken.")}</p>
+              <div className="v12-actions">
+                <a className="v12-button" href={intakeHref}>{t("Start online intake")}<ArrowRight size={20} aria-hidden="true" /></a>
+                <a className="v12-button v12-button-outline" href={exampleHref}>{t("Bekijk het voorbeeld")}<ArrowRight size={20} aria-hidden="true" /></a>
+              </div>
+            </div>
+            <div className="v12-hero-art">
+              <img src="/images/hero-v12.webp" srcSet="/images/hero-v12-640.webp 640w, /images/hero-v12-960.webp 960w, /images/hero-v12.webp 1536w" sizes="(max-width: 760px) 100vw, (max-width: 1360px) 52vw, 690px" alt={t("Accu met een Battery Passport-label met fictieve voorbeeldgegevens, met Europa op de achtergrond.")} width="1536" height="1024" fetchPriority="high" />
+              <ul className="v12-hero-facts" aria-label={t("In het batterijpaspoort")}>
+                <li><FileCheck2 size={24} aria-hidden="true" /><span>{t("Productgegevens")}</span></li>
+                <li><Leaf size={24} aria-hidden="true" /><span>{t("Herkomst en onderbouwing")}</span></li>
+                <li><RefreshCw size={24} aria-hidden="true" /><span>{t("Wijzigingen en beheer")}</span></li>
+              </ul>
+            </div>
+            <p className="v12-audience">{t("Voor fabrikanten, importeurs en distributeurs.")}</p>
+          </div>
+        </section>
+
+        <div className="v12-shell v12-content">
+          <aside className="v12-notice" aria-label={t("Een samenhangend traject")}>
+            <span className="v12-notice-icon"><CalendarDays size={30} strokeWidth={1.8} aria-hidden="true" /></span>
+            <div><h2>{t("Van voorbereiding en opstellen tot beheer.")}</h2><p>{t("Een samenhangend traject, met vooraf duidelijke afspraken.")}</p></div>
+            <a href="#aanpak" className="v12-inline-link">{t("Onze aanpak")}<ArrowRight size={20} aria-hidden="true" /></a>
+          </aside>
+
+          <section className="v12-topics" id="voor-wie" aria-labelledby="topics-title">
+            <h2 id="topics-title">{t("Direct naar de belangrijkste onderwerpen")}</h2>
+            <div className="v12-topic-grid">
+              {topics.map(({ Icon, title, description, href }) => (
+                <a className="v12-topic-card" key={title} href={href}>
+                  <Icon className="v12-topic-icon" size={36} strokeWidth={1.65} aria-hidden="true" />
+                  <div><h3>{title}</h3><p>{description}</p></div>
+                  <ArrowRight className="v12-topic-arrow" size={21} aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+          </section>
+
+          <section className="v12-example" id="batterijpaspoort" aria-labelledby="passport-story-title">
+            <h2 id="passport-story-title">{t("Het batterijpaspoort in beeld.")}</h2>
+            <figure className="v12-example-art">
+              <img src="/images/passport-v5.webp" srcSet="/images/passport-v5-640.webp 640w, /images/passport-v5-960.webp 960w, /images/passport-v5.webp 1672w" sizes="(max-width: 760px) calc(100vw - 40px), (max-width: 1360px) 52vw, 680px" alt={t("Illustratie van een batterij met een fysiek voorbeeldpaspoort")} width="1672" height="941" loading="lazy" />
+              <figcaption>{t("Fictief voorbeeld")}</figcaption>
+            </figure>
+            <div className="v12-example-copy">
+              <h3>{t("Een identiteit. Een dossier. Een helder geheel.")}</h3>
+              <p>{t("Bekijk hoe productgegevens, herkomst en bewijsstukken samenkomen in een voorbeeldpaspoort.")}</p>
+              <ul className="v12-check-list">
+                {[t("Productgegevens in samenhang"), t("Onderbouwing bij de informatie"), t("Zicht op wijzigingen en beheer")].map(text => <li key={text}><span><Check size={14} strokeWidth={3} aria-hidden="true" /></span>{text}</li>)}
+              </ul>
+              <a className="v12-button" href={exampleHref}>{t("Bekijk het voorbeeldpaspoort")}<ArrowRight size={20} aria-hidden="true" /></a>
+            </div>
+          </section>
+
+          <section className="v12-process" id="aanpak" aria-labelledby="approach-title">
+            <h2 id="approach-title">{t("Van losse gegevens naar een samenhangend dossier")}</h2>
+            <ol className="v12-steps">
+              {steps.map(({ title, text }, index) => (
+                <li key={title}>
+                  <span className="v12-step-number" aria-hidden="true">{index + 1}</span>
+                  <div><h3>{title}</h3><p>{text}</p></div>
+                  {index < steps.length - 1 && <ArrowRight className="v12-step-arrow" size={29} strokeWidth={1.5} aria-hidden="true" />}
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <div className="v12-bottom-grid">
+            <section className="v12-faq" id="vragen" aria-labelledby="questions-title">
+              <h2 id="questions-title">{t("Veelgestelde vragen")}</h2>
+              <div className="v12-faq-list">
+                {questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={19} aria-hidden="true" /></summary><p>{answer}</p></details>)}
+              </div>
+            </section>
+            <section className="v12-closing" aria-labelledby="closing-title">
+              <div className="v12-closing-copy">
+                <h2 id="closing-title">{t("Maak uw batterijdata werkbaar.")}</h2>
+                <p>{t("Vertel ons welke batterijen u levert, welke gegevens beschikbaar zijn en waar ondersteuning nodig is.")}</p>
+                <a className="v12-button" href={intakeHref}>{t("Start online intake")}<ArrowRight size={20} aria-hidden="true" /></a>
+              </div>
+              <div className="v12-closing-art" aria-hidden="true"><FileText size={98} strokeWidth={1.1} /><Leaf size={48} strokeWidth={1.4} /></div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <SiteFooter locale={locale} />
+    </>
+  );
 }
