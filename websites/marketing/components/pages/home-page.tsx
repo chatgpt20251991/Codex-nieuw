@@ -73,7 +73,7 @@ export function HomePage({ locale = "nl" }: { locale?: Locale }) {
           <section className="v12-example" id="batterijpaspoort" aria-labelledby="passport-story-title">
             <h2 id="passport-story-title">{t("Het batterijpaspoort in beeld.")}</h2>
             <figure className="v12-example-art">
-              <img src="/images/passport-v5.webp" srcSet="/images/passport-v5-640.webp 640w, /images/passport-v5-960.webp 960w, /images/passport-v5.webp 1672w" sizes="(max-width: 760px) calc(100vw - 40px), (max-width: 1360px) 52vw, 680px" alt={t("Illustratie van een batterij met een fysiek voorbeeldpaspoort")} width="1672" height="941" loading="lazy" />
+              <img src="/images/passport-v13.webp" srcSet="/images/passport-v13-640.webp 640w, /images/passport-v13-960.webp 960w, /images/passport-v13.webp 1774w" sizes="(max-width: 760px) calc(100vw - 40px), (max-width: 1360px) 52vw, 680px" alt={t("Illustratie van een batterij met een fysiek voorbeeldpaspoort")} width="1774" height="887" loading="lazy" />
               <figcaption>{t("Fictief voorbeeld")}</figcaption>
             </figure>
             <div className="v12-example-copy">

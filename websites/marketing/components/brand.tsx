@@ -19,7 +19,10 @@ export function Brand({locale = "nl", inverse = false}: {locale?: Locale; invers
         <path d="M31 89c5-7 12-13 21-19" fill="none" />
       </g>
       <text className="ebp-brand-name" x="101" y="62" fontFamily="Manrope,Arial,Helvetica,sans-serif" fontSize="36" fontWeight="800" letterSpacing="-1.1"><tspan className="ebp-brand-eu">EU</tspan><tspan>BatteryPassport.nl</tspan></text>
-      <text className="ebp-brand-tagline" x="102" y="88" fontFamily="Manrope,Arial,Helvetica,sans-serif" fontSize="17" fontWeight="400" letterSpacing="-.15">{translate(locale, "Gegevens. Onderbouwing. Continuïteit.")}</text>
+      <text className="ebp-brand-tagline" fontFamily="Manrope,Arial,Helvetica,sans-serif" fontSize="19" fontWeight="400" letterSpacing="-.15">
+        <tspan x="102" y="86">{translate(locale, "Elke batterij een identiteit.")}</tspan>
+        <tspan x="102" y="108">{translate(locale, "Elke keten inzicht.")}</tspan>
+      </text>
     </svg>
   </a>;
 }

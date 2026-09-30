@@ -62,8 +62,8 @@
 .v12-example-copy { grid-column: 1; padding-top: 9px; }
 .v12-page .v12-example-copy h3 { font-size: 1.0625rem; letter-spacing: -.02em; }
 .v12-example-copy > p { margin-top: 8px; max-width: 480px; font-size: .9375rem; }
-.v12-example-art { position: relative; grid-column: 2; grid-row: 1 / 3; margin: 0; align-self: stretch; min-width: 0; min-height: 292px; background: #082131; border: 1px solid #d5e3ec; border-radius: 5px; overflow: hidden; }
-.v12-example-art img { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; object-position: 50% center; }
+.v12-example-art { position: relative; grid-column: 2; grid-row: 1 / 3; margin: 0; align-self: center; min-width: 0; width: 100%; aspect-ratio: 2; background: #edf6fc; border: 1px solid #d5e3ec; border-radius: 5px; overflow: hidden; }
+.v12-example-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .v12-example-art figcaption { position: absolute; right: 13px; top: 13px; padding: 4px 10px; font-size: .75rem; font-weight: 700; line-height: 1.7; background: #fff; color: var(--v12-navy); border-radius: 4px; }
 .v12-check-list { display: grid; gap: 8px; margin-block: 19px 21px; }
 .v12-check-list li { display: flex; align-items: center; gap: 12px; font-size: .875rem; color: var(--v12-copy); }
@@ -151,7 +151,7 @@
   .v12-topic-card p { font-size: .875rem; }
   .v12-example { display: flex; flex-direction: column; gap: 0; padding-block: 29px; }
   .v12-example > h2 { margin-top: 0; }
-  .v12-example-art { margin-top: 15px; align-self: stretch; aspect-ratio: 1.777; min-height: 0; }
+  .v12-example-art { margin-top: 15px; align-self: stretch; }
   .v12-example-art figcaption { right: 10px; top: 10px; font-size: .7rem; padding: 3px 8px; }
   .v12-example-copy { padding-top: 15px; width: 100%; }
   .v12-page .v12-example-copy h3 { font-size: 1.0625rem; line-height: 1.4; }
