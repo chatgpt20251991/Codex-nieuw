@@ -1,14 +1,17 @@
+@font-face{font-family:"Source Sans 3";font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/source-sans-3-regular.woff2) format("woff2")}
+@font-face{font-family:"Source Sans 3";font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/source-sans-3-semibold.woff2) format("woff2")}
 .ebp-header{position:relative;z-index:30;background:#fff;color:#092653;border-bottom:1px solid #d8e3ed}
 .ebp-masthead{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:122px}
 .ebp-brand{display:block;min-width:0;width:460px;max-width:100%;align-self:start;line-height:1}
 .ebp-brand-art{display:block;width:100%;height:auto;overflow:visible}
 .ebp-brand-banner{fill:#064c84}
+.ebp-brand-art text,.ebp-brand-art tspan{font-family:"Source Sans 3",Arial,Helvetica,sans-serif}
 .ebp-brand-name{fill:#071d49}
 .ebp-brand-eu{fill:#0866ac}
 .ebp-brand-tagline{fill:#314b6f}
 .ebp-brand--inverse .ebp-brand-name,.ebp-brand--inverse .ebp-brand-tagline{fill:#fff}
 .ebp-brand--inverse .ebp-brand-eu{fill:#bfddf5}
-.ebp-brand--inverse .ebp-brand-banner{fill:#064271}
+.ebp-brand--inverse .ebp-brand-banner,.ebp-brand--inverse .ebp-brand-banner-edge{display:none}
 .ebp-header-languages{display:flex;align-items:center;gap:10px;justify-self:start;font-size:.8125rem;font-weight:600}
 .ebp-language-divider{color:#8192a8;font-weight:400}
 .ebp-language-switch{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:56px;color:inherit;font-size:.8125rem;font-weight:600;white-space:nowrap;line-height:1}
