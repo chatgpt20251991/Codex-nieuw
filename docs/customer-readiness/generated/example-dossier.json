@@ -1,0 +1,96 @@
+{
+  "schema": "eubp.fictional-dossier.v1",
+  "profile": "eubp.customer-assessment.2026-10-01",
+  "fictional": true,
+  "status": "draft",
+  "model": "EX-120",
+  "item": "DEMO-EBP-001",
+  "category": "INDUSTRIAL_GT_2KWH",
+  "scope": {
+    "finished_battery": "assumed for fictional exercise",
+    "shared_bms": "unknown",
+    "responsible_operator": "fictional, not verified",
+    "market_date": null
+  },
+  "illustration_values": {
+    "energy_kwh": 120,
+    "capacity_ah": 200,
+    "voltage_v": 600,
+    "chemistry": "LFP"
+  },
+  "values": [
+    {
+      "fieldId": 1,
+      "value": "DEMO-EBP-001",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 6,
+      "value": "industrial",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 7,
+      "value": "EX-120",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 11,
+      "value": 200,
+      "unit": "Ah",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 12,
+      "value": "LFP",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 27,
+      "value": 600,
+      "unit": "V",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 67,
+      "value": "original",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    }
+  ],
+  "evidence": [],
+  "update_plan": {
+    "mode": "service_based",
+    "review_status": "proposal_not_approved",
+    "owner": null,
+    "triggers": [
+      "service event",
+      "status change considered",
+      "material correction"
+    ],
+    "field_schedule": []
+  },
+  "registry": {
+    "environment": null,
+    "submission_available": false,
+    "uploadable": false,
+    "status": "not_submitted",
+    "external_registration_id": null,
+    "reason": "No authenticated official integration; guide v1.03 still states battery registration unavailable"
+  },
+  "public_example_url": "https://eubatterypassport.nl/voorbeeld",
+  "public_example_is_item_resolver": false
+}

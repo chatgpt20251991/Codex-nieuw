@@ -53,6 +53,10 @@ jobs:
         run: npm run typecheck
       - name: Unit and static tests
         run: npm test
+      - name: Reproduce customer assessment checklists and fictional dossier
+        run: |
+          node scripts/customer-readiness.cjs
+          git diff --exit-code -- docs/customer-readiness/generated
       - name: Production build
         run: npm run build
       - name: PostgreSQL, OIDC, evidence, browser and recovery integration
