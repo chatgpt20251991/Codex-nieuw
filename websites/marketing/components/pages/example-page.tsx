@@ -28,6 +28,7 @@ export function ExamplePage({ locale = "nl" }: {
         <div className="passport-keyfacts"><div><span>Chemistry</span><strong>LFP</strong></div><div><span>Capacity</span><strong>200 Ah</strong></div><div><span>Voltage</span><strong>600 V</strong></div></div>
         <div className="passport-id"><Fingerprint size={20}/><div><span>Unique product identifier</span><strong>DEMO-EBP-001</strong></div></div>
         <p className="example-notice">{t("U bekijkt fictieve voorbeeldgegevens. Dit paspoort is niet uitgegeven of geregistreerd.")}</p>
+        <div className="example-qr"><img src="/images/example-qr-v15.svg" width="120" height="120" alt={locale === "nl" ? "QR-code naar dit fictieve voorbeeld" : "QR code linking to this fictional example"}/><p>{locale === "nl" ? "Scan het voorbeeld" : "Scan the example"}<br/><a href="https://eubatterypassport.nl/voorbeeld">eubatterypassport.nl/voorbeeld</a><br/><small>{locale === "nl" ? "Demonstratielink, geen geregistreerde batterij-identificatie." : "Demonstration link, not a registered battery identifier."}</small></p></div>
       </article>
     </section>
     <section className="passport-information shell section-space" aria-labelledby="data-heading">

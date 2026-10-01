@@ -1,0 +1,40 @@
+// Reproducible internal working papers. No network, credentials, registrations or mail.
+const fs=require('node:fs');
+const path=require('node:path');
+const {createHash}=require('node:crypto');
+const assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const source=fs.readFileSync(path.join(root,'docs/02_71_DATA_POINTS.json'),'utf8').replace(/\r\n/g,'\n');
+const baseline=JSON.parse(source);
+assert.deepEqual(baseline.fields.map(f=>f.id),Array.from({length:71},(_,i)=>i+1));
+const runtime=JSON.parse(fs.readFileSync(path.join(root,'packages/rules/src/data-points.json'),'utf8'));
+assert.deepEqual(baseline.fields,runtime.fields,'Review any documentation/runtime mapping divergence before producing checklists');
+const output=path.join(root,'docs/customer-readiness/generated');fs.mkdirSync(output,{recursive:true});
+const hash=createHash('sha256').update(source).digest('hex');
+const categories=['EV','LMT','INDUSTRIAL_GT_2KWH'];
+const packs=categories.map(category=>({
+  category,profile:'eubp.customer-assessment.2026-10-01',source_sha256:hash,review_status:'requires_case_review',
+  fields:baseline.fields.map(f=>({field_id:f.id,name:f.name,legal_source:f.legal_source,baseline_requirement:f.applicability_2027_02_18[category],access_tier:f.access_tier,data_nature:f.data_nature,applicability_decision:null,applicability_reason:null,effective_date_review:null,value:null,unit:null,evidence:[],supplier:null,reviewer:null,reviewed_at:null,status:'not_reviewed',norm_review:category==='EV'&&[31,32,50].includes(f.id)?'Review EN 18060:2025 scope and test report; no conformity inferred':null}))
+}));
+const example={
+  schema:'eubp.fictional-dossier.v1',profile:'eubp.customer-assessment.2026-10-01',fictional:true,status:'draft',model:'EX-120',item:'DEMO-EBP-001',
+  category:'INDUSTRIAL_GT_2KWH',scope:{finished_battery:'assumed for fictional exercise',shared_bms:'unknown',responsible_operator:'fictional, not verified',market_date:null},
+  illustration_values:{energy_kwh:120,capacity_ah:200,voltage_v:600,chemistry:'LFP'},
+  values:[{fieldId:1,value:'DEMO-EBP-001'},{fieldId:6,value:'industrial'},{fieldId:7,value:'EX-120'},{fieldId:11,value:200,unit:'Ah'},{fieldId:12,value:'LFP'},{fieldId:27,value:600,unit:'V'},{fieldId:67,value:'original'}].map(v=>({...v,validated:false,evidenceIds:[],source:'fictional illustration; not a supplier or laboratory record'})),
+  evidence:[],update_plan:{mode:'service_based',review_status:'proposal_not_approved',owner:null,triggers:['service event','status change considered','material correction'],field_schedule:[]},
+  registry:{environment:null,submission_available:false,uploadable:false,status:'not_submitted',external_registration_id:null,reason:'No authenticated official integration; guide v1.03 still states battery registration unavailable'},
+  public_example_url:'https://eubatterypassport.nl/voorbeeld',public_example_is_item_resolver:false,
+};
+assert.equal(example.illustration_values.capacity_ah*example.illustration_values.voltage_v/1000,example.illustration_values.energy_kwh);
+assert.ok(example.values.every(v=>!v.validated&&v.evidenceIds.length===0));
+assert.equal(example.registry.external_registration_id,null);
+const publicIds=new Set(baseline.fields.filter(f=>f.access_tier==='public').map(f=>f.id));
+const publicExample={fictional:true,status:'draft',model:example.model,values:example.values.filter(v=>publicIds.has(v.fieldId))};
+assert.ok(!publicExample.values.some(v=>v.fieldId===67),'Restricted lifecycle field must stay out of the sample public projection');
+const write=(name,data)=>fs.writeFileSync(path.join(output,name),JSON.stringify(data,null,2)+'\n');
+write('checklists.json',{generated_from:'docs/02_71_DATA_POINTS.json',source_sha256:hash,checklists:packs});
+write('example-dossier.json',example);write('example-public-projection.json',publicExample);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const prospects=JSON.parse(fs.readFileSync(path.join(root,'docs/customer-readiness/prospects.json'),'utf8'));
+fs.writeFileSync(path.join(output,'werkpakket.html'),`<!doctype html><html lang="nl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EUBatteryPassport klantwerkpakket</title><style>body{margin:0;background:#eef3f7;color:#173550;font:16px/1.65 Arial,sans-serif}main{max-width:1060px;margin:auto;background:white;padding:40px}h1,h2,h3{line-height:1.2;color:#064b83}section{margin:34px 0}a{color:#064b83;overflow-wrap:anywhere}.note{padding:18px;background:#fff5d2}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #d1dfe9;overflow-wrap:anywhere}th{background:#eaf3fa}details{margin:20px 0}summary{font-weight:bold;cursor:pointer}.scroll{overflow:auto}footer{font-size:12px;margin-top:30px}@media(max-width:600px){main{padding:20px}table{min-width:750px}}@media print{body{background:white}main{padding:0}.scroll{overflow:visible}table{font-size:10px}a{color:black}}</style><main><h1>Klantwerkpakket batterijpaspoorten</h1><p>Stand 1 oktober 2026. Begin met één model, bepaal de opdracht en leg ontbrekende informatie vast.</p><p class="note">Intern werkdocument. De voorbeeldbatterij en waarden zijn fictief. Geen certificering, geen geslaagde officiële registratie en geen verzonden offertes.</p><section><h2>Van intake tot opdracht</h2><ol><li>Bevestig bedrijfsgegevens, rol, batterijcategorie en productafbakening.</li><li>Vraag modelinformatie, systeemtekening en beschikbare bewijsstukken op.</li><li>Beoordeel de toepasselijkheid per veld en wijs een gegevenseigenaar aan.</li><li>Maak een offerte voor beoordeling, modelinrichting, aantallen en beheer.</li><li>Leg machtiging, wijzigingen, gegevensverwerking en exportafspraken vast.</li><li>Doorloop technische acceptatie vóór feitelijke levering.</li></ol><p><a href="../README.md">Volledige werkwijze en conceptbericht</a> · <a href="../REGULATORY_REVIEW.md">Bronnen en open punten</a></p></section><section><h2>Fictief dossier EX-120</h2><p>120 kWh · 200 Ah · 600 V · LFP. De rekenkundige samenhang is gecontroleerd. Bewijsstukken en juridische productafbakening ontbreken bewust.</p><p><a href="example-dossier.json">Intern voorbeelddossier</a> · <a href="example-public-projection.json">Afzonderlijke openbare voorbeeldselectie</a></p></section><section><h2>Checklist per batterijcategorie</h2><p>71 velden per categorie. Beoordeel voorwaarden en bewijs per klant. Een leeg veld is geen vrijstelling. De vereisten hieronder zijn de bestaande configuratie; geen nieuw gecertificeerd EU-datamodel.</p>${packs.map(p=>`<details><summary>${esc(p.category)} · ${p.fields.length} velden</summary><div class="scroll"><table><thead><tr><th>Nr.</th><th>Gegeven</th><th>Basiseis</th><th>Toegang</th><th>Bron</th><th>Beoordeling</th></tr></thead><tbody>${p.fields.map(f=>`<tr><td>${f.field_id}</td><td>${esc(f.name)}</td><td>${esc(f.baseline_requirement)}</td><td>${esc(f.access_tier)}</td><td>${esc(f.legal_source)}</td><td>Open</td></tr>`).join('')}</tbody></table></div></details>`).join('')}<a href="checklists.json">Gestructureerde checklist met invulvelden</a></section><section><h2>Te kwalificeren bedrijven</h2><p>Geen vastgestelde behoefte of verantwoordelijkheid. Er is niemand benaderd.</p><div class="scroll"><table><tr><th>Bedrijf</th><th>Prioriteit</th><th>Eerst vaststellen</th><th>Bron</th></tr>${prospects.prospects.map(p=>`<tr><td>${esc(p.company)}</td><td>${esc(p.priority)}</td><td>${esc(p.next_step)}</td><td><a href="${esc(p.source)}">Bedrijfswebsite</a></td></tr>`).join('')}</table></div></section><footer>Bronbestand SHA-256: ${hash}<br>Gegevensmodel: ${esc(baseline.source_guidance)}<br>Genereer opnieuw met scripts/customer-readiness.cjs na een beoordeelde bronwijziging.</footer></main></html>`);
+console.log(JSON.stringify({checklists:packs.length,fieldsPerChecklist:71,source_sha256:hash,example_status:example.status,registry:example.registry.status,publicProjectionFields:publicExample.values.length,output}));

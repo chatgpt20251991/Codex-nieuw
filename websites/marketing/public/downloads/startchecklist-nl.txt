@@ -1,0 +1,53 @@
+EUBatteryPassport.nl
+Startchecklist batterijpaspoort
+Bijgewerkt: 1 oktober 2026
+
+Begin met één batterijmodel. Noteer wat bekend is; laat onbekende gegevens als onbekend staan. Dit is een inventarisatie, geen verklaring van conformiteit.
+
+1. Uw organisatie
+Officiële bedrijfsnaam:
+Contactpersoon en zakelijk e-mailadres:
+Uw rol (fabrikant, importeur, distributeur, integrator of anders):
+Wie brengt de complete batterij op de markt?
+In welke landen levert u?
+
+2. Uw batterij
+Model en varianten:
+Toepassing en batterijcategorie:
+Complete batterij, losse cellen/modules of samengesteld systeem:
+Kunnen de pakketten zelfstandig en veilig functioneren?
+Welke BMS of andere onderdelen delen de pakketten?
+Energie van de complete batterij in kWh:
+Aantallen modellen en individuele batterijen per jaar:
+Verwachte datum van marktintroductie of ingebruikname:
+
+3. Beschikbare informatie
+Productspecificaties en systeemtekening:
+Fabrikant en leveranciers:
+Beschikbare testverslagen en gebruikte normen:
+EU-conformiteitsverklaring en handleidingen:
+Samenstelling, veiligheidsinformatie en demontage-informatie:
+Bronhouder en datum/revisie per document:
+Ontbrekende documenten of gegevens:
+
+4. Opstellen en beheer
+Wie levert gegevens aan en beoordeelt correcties?
+Beschikbare identifiers en serienummers:
+Gewenste import uit spreadsheet, eigen systeem of API:
+Updates handmatig, bij onderhoud of via BMS/API:
+Wie beheert wijzigingen en statusovergangen?
+Bestaande paspoortleverancier of Registry-account:
+
+5. Opdracht afbakenen
+Eerste model voor de beoordeling:
+Gewenste uitkomst en planning:
+Afzonderlijke afspraken over modelinrichting, aantallen en beheer:
+Schriftelijke machtiging, verantwoordelijkheden en verwerking van gegevens:
+
+Gebruik de online intake of info@eubatterypassport.nl voor een korte eerste vraag. Stuur nog geen vertrouwelijke technische documenten, identiteitsbewijzen of wachtwoorden. Spreek eerst een passende overdrachtsroute af.
+
+Een modeldossier kan gegevens voor meerdere batterijen leveren. Een individuele batterij en het model zijn niet hetzelfde. Opstellen, publiceren en registreren blijven afzonderlijke stappen.
+
+Bronnen:
+https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en
+https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en

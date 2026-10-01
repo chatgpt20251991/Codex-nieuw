@@ -16,11 +16,22 @@ Marketing site based on the user-approved September 2026 design: midnight blue, 
 
 ## Operational state
 
-The public design is approved. Domain DNS and mailbox provisioning require access to the user's Yourhosting account. Do not claim `info@eubatterypassport.nl` works before provisioning and delivery verification.
+The public design and custom domain are active. The existing Vimexx mailbox
+`info@eubatterypassport.nl` passed a real inbound/reply roundtrip on 18 September
+2026. That evidence does not verify form delivery through the private PHP worker.
 
-Keep intake disabled until a working processing/notification path exists and company/controller details have been confirmed. `RATE_LIMIT_SALT` must be a production secret; preserve it on ordinary deployments. No mail notifications are implemented in this version. D1 records are private and contain business contact details. There is no public listing endpoint.
+Keep intake disabled until private worker configuration, cron, actual delivery,
+error notification and company/controller details have been verified. The worker
+is implemented under `ops/mail-worker`; production activation remains incomplete.
+`RATE_LIMIT_SALT` must be a production secret; preserve it on ordinary deployments.
+D1 records are private and contain business contact details. There is no public
+listing endpoint. Additional optional scoping answers are stored in the existing
+bounded message field as unreviewed customer declarations.
 
-D1 migrations own the schema. Runtime cleanup removes older than 90 days on subsequent enabled submissions; this is NOT a scheduled retention guarantee. Arrange operational cleanup before activation. Hosted storage is not guaranteed EU-only.
+D1 migrations own the schema. Runtime cleanup removes accepted requests older
+than 90 days on subsequent enabled submissions; unsent requests are retained.
+This is not a scheduled retention guarantee. Arrange operational cleanup before
+activation. Hosted storage is not guaranteed EU-only.
 
 The operational battery-passport application remains separately maintained in Codex-nieuw. This marketing site does not enable registration, upload handling or passport issuance in that application.
 

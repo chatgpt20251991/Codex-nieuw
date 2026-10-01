@@ -1,0 +1,51 @@
+{
+  "fictional": true,
+  "status": "draft",
+  "model": "EX-120",
+  "values": [
+    {
+      "fieldId": 1,
+      "value": "DEMO-EBP-001",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 6,
+      "value": "industrial",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 7,
+      "value": "EX-120",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 11,
+      "value": 200,
+      "unit": "Ah",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 12,
+      "value": "LFP",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    },
+    {
+      "fieldId": 27,
+      "value": 600,
+      "unit": "V",
+      "validated": false,
+      "evidenceIds": [],
+      "source": "fictional illustration; not a supplier or laboratory record"
+    }
+  ]
+}

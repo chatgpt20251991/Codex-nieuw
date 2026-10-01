@@ -2,11 +2,13 @@ import { translate, localeHref, type Locale } from "@/lib/i18n";
 import { ArrowRight, CalendarDays, Check, ChevronDown, FileCheck2, FileText, Leaf, MessageSquareText, RefreshCw, Settings2, UsersRound } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { customerReadiness, readinessSources } from "@/lib/customer-readiness";
 
 export function HomePage({ locale = "nl" }: { locale?: Locale }) {
   const t = (text: string) => translate(locale, text);
   const intakeHref = localeHref(locale, "/intake");
   const exampleHref = localeHref(locale, "/voorbeeld");
+  const readiness = customerReadiness[locale];
   const topics = [
     { Icon: UsersRound, title: t("Voor wie"), description: t("Ondersteuning voor fabrikanten, importeurs en distributeurs."), href: intakeHref },
     { Icon: FileCheck2, title: t("Het batterijpaspoort"), description: t("Productgegevens en bewijsstukken in één samenhangend dossier."), href: "#batterijpaspoort" },
@@ -19,6 +21,7 @@ export function HomePage({ locale = "nl" }: { locale?: Locale }) {
     { title: t("Informatie beheren"), text: t("Wijzigingen, versies en verantwoordelijkheden vastleggen.") },
   ];
   const questions = [
+    ...readiness.faq,
     [t("Waar beginnen we als gegevens ontbreken?"), t("Begin met wat u al heeft: het batterijtype, de toepassing en de beschikbare productinformatie. In de intake kunt u ook aangeven wat nog onbekend is. Zo ontstaat een concreet vertrekpunt voor het dossier.")],
     [t("Verzorgen jullie ook het digitale batterijpaspoort?"), t("De dienstverlening omvat het traject van productgegevens en bewijsstukken tot het opstellen en beheren van digitale batterijpaspoorten. Welke onderdelen, controles en levering bij uw organisatie passen, leggen we vooraf vast.")],
     [t("Wat gebeurt er na de online intake?"), t("We bekijken uw vraag en de beschikbare informatie. Vervolgens maken we de scope, benodigde gegevens en vervolgstappen voor uw organisatie concreet. De intake verplicht u tot niets.")],
@@ -99,12 +102,18 @@ export function HomePage({ locale = "nl" }: { locale?: Locale }) {
             </ol>
           </section>
 
+          <section className="readiness-section" id="voorbereiden" aria-labelledby="readiness-title">
+            <h2 id="readiness-title">{readiness.heading}</h2><p>{readiness.intro}</p>
+            <div className="readiness-grid">{readiness.steps.map(([title,copy])=><article key={title}><h3>{title}</h3><p>{copy}</p></article>)}</div>
+            <a className="readiness-download" href={readiness.downloadPath} download>{readiness.download}</a>
+          </section>
           <div className="v12-bottom-grid">
             <section className="v12-faq" id="vragen" aria-labelledby="questions-title">
               <h2 id="questions-title">{t("Veelgestelde vragen")}</h2>
               <div className="v12-faq-list">
                 {questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={19} aria-hidden="true" /></summary><p>{answer}</p></details>)}
               </div>
+              <details className="readiness-sources"><summary>{readiness.sourceLabel}</summary><p>{readiness.sourceNote}</p><ul><li><a href={readinessSources.faq}>European Commission Battery Passport FAQ</a></li><li><a href={readinessSources.guidance}>Battery Passport data points</a></li><li><a href={readinessSources.registry}>DPP Registry User Guide v1.03 (PDF)</a></li></ul></details>
             </section>
             <section className="v12-closing" aria-labelledby="closing-title">
               <div className="v12-closing-copy">
