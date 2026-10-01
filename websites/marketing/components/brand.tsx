@@ -6,7 +6,7 @@ export function Brand({locale = "nl", inverse = false}: {locale?: Locale; invers
   return <a className={`ebp-brand${inverse ? " ebp-brand--inverse" : ""}`} href={localeHref(locale, "/")} aria-label="EUBatteryPassport.nl homepage">
     <svg className="ebp-brand-art" viewBox="0 0 464 122" width="464" height="122" aria-hidden="true" focusable="false">
       <path className="ebp-brand-banner" d="M0 0h84v116H0z" />
-      <path d="M82 0h2v116h-2z" fill="#227abb" opacity=".4" />
+      <path className="ebp-brand-banner-edge" d="M82 0h2v116h-2z" fill="#227abb" opacity=".4" />
       {Array.from({length: 12}, (_, index) => {
         const angle = (index * 30 - 90) * Math.PI / 180;
         return <polygon key={index} points={starPoints} transform={`translate(${42 + Math.cos(angle) * 29} ${49 + Math.sin(angle) * 29})`} fill="#ffdc4a" />;
@@ -18,11 +18,8 @@ export function Brand({locale = "nl", inverse = false}: {locale?: Locale; invers
         <path d="M32 88c-1-16 9-23 27-23-2 15-11 24-27 23Z" fill="#5baf4f" />
         <path d="M31 89c5-7 12-13 21-19" fill="none" />
       </g>
-      <text className="ebp-brand-name" x="101" y="62" fontFamily="Manrope,Arial,Helvetica,sans-serif" fontSize="36" fontWeight="800" letterSpacing="-1.1"><tspan className="ebp-brand-eu">EU</tspan><tspan>BatteryPassport.nl</tspan></text>
-      <text className="ebp-brand-tagline" fontFamily="Manrope,Arial,Helvetica,sans-serif" fontSize="19" fontWeight="400" letterSpacing="-.15">
-        <tspan x="102" y="86">{translate(locale, "Elke batterij een identiteit.")}</tspan>
-        <tspan x="102" y="108">{translate(locale, "Elke keten inzicht.")}</tspan>
-      </text>
+      <text className="ebp-brand-name" x="101" y="62" fontFamily="Source Sans 3,Arial,Helvetica,sans-serif" fontSize="39" fontWeight="600" letterSpacing="-.7"><tspan className="ebp-brand-eu">EU</tspan><tspan>BatteryPassport.nl</tspan></text>
+      <text className="ebp-brand-tagline" x="102" y="90" fontFamily="Source Sans 3,Arial,Helvetica,sans-serif" fontSize="22" fontWeight="400">{translate(locale, "Inzicht in elke batterij.")}</text>
     </svg>
   </a>;
 }
