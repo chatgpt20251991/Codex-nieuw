@@ -10,6 +10,47 @@ or production. `next dev` deliberately retains the development-token panel and
 direct development API requests. Adding Auth0 settings to that development mode
 does not exercise the console's complete Auth0 login and server-proxy flow.
 
+## External setup record — 6 September 2026
+
+Administrator setup has been performed in the existing Auth0 account. An EU-2
+tenant marked **Development** and a staging **Regular Web Application** are
+configured. The application enables only **Authorization Code**. The API uses
+**RS256**, audience `https://api.eubatterypassport.nl`, and access-token lifetimes
+no greater than **3600 seconds**. User-delegated API access is limited to the
+console; machine-to-machine and offline access remain disabled.
+
+Four synthetic cases passed in the Auth0 Action sandbox:
+
+| Case | Observed result |
+|---|---|
+| Approved metadata and verified email | Exactly four custom-claim commands: organisation and role on each of the access and ID tokens |
+| Missing provisioning metadata | `EUBP_ACCESS_NOT_PROVISIONED` |
+| Unverified supplied email | `EUBP_VERIFIED_EMAIL_REQUIRED` |
+| Another API audience | No commands and no EUBP claims |
+
+Action **Version 1**, using **Node.js 22**, was successfully deployed; the
+Dashboard reported **Action is up to date**. It was then bound as the only Action
+between Start and Token Issued in the Post Login flow and the change was applied.
+The flow reported **All changes are live**, with Apply disabled and the Action
+present in the flow. This verifies deployment and binding; a real login through
+that flow still requires the acceptance checks below.
+
+The administrator's Yourhosting account was checked: the domain is active, its
+detail page reports no hosting/redirect, and both the webhosting and VPS lists
+report no packages. No hosting purchase or DNS change was made. Callback URLs
+remain empty until a suitable deployment and exact HTTPS staging origin are
+established. Server configuration, trusted
+test-user provisioning, MFA and the real browser/API acceptance checks in
+section 8 remain pending. Tenant identifiers, user details and credentials are
+kept out of this public setup record. The steps below remain the reusable setup
+procedure; inspect existing staging resources before creating additional ones.
+
+The MFA page currently shows all factors disabled and policy **Never**. OTP and
+recovery codes are labelled **PRO MFA**; FIDO factors are labelled **ENTERPRISE
+MFA**. Subscription entitlement and the intended ongoing plan still require
+resolution before enabling and accepting MFA. No plan was purchased, and no MFA
+enrollment or recovery success is claimed.
+
 ## 1. Select the tenant and administrators
 
 Use a dedicated Auth0 tenant for each environment and choose **Europe (EU)** when
@@ -28,9 +69,9 @@ sessions as a migration; do not mix domains in one environment.
 
 Open **Applications → APIs → Create API**. Name it `EUBatteryPassport API` and select
 **RS256**. Choose one stable API Identifier and reuse it exactly everywhere below.
-`https://api.eubatterypassport.nl` is the proposed identifier; an identifier is not
-proof that this URL is deployed. It must differ from the web application's Client
-ID and from the Auth0 Management API audience.
+`https://api.eubatterypassport.nl` is the configured staging identifier. An
+identifier is not proof that this URL is deployed. It must differ from the web
+application's Client ID and from the Auth0 Management API audience.
 
 Set **Maximum Access Token Lifetime** to **3600 seconds or less**. The repository
 checks issuer, audience, asymmetric signature, expiry and a maximum token age of
