@@ -1,6 +1,14 @@
 # Codex Handoff — 6 September 2026
 
 ## Current engineering status
+
+Customer-readiness follow-up (1 October 2026): see docs/customer-readiness/README.md
+and REGULATORY_REVIEW.md for the reviewed FAQ, v1.03 Registry guide, internal
+checklists, fictional dossier, offer scope and researched prospects. This does
+not close Gate 7/8 or verify external Registry registration. Live flags stay false.
+Marketing intake activation still requires real worker delivery and controller
+identity confirmation; a working mailbox alone is insufficient.
+
 Gates 1 and 2 are verified locally and in GitHub Actions on `e9ee731`.
 Gate 3 was merged through PR #11 at `5546343` after passing GitHub Actions.
 Gate 4 adds real MinIO/browser evidence integrity coverage: 34 integration tests

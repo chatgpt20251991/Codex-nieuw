@@ -1,0 +1,13 @@
+{
+  "checked_on": "2026-10-01",
+  "purpose": "Internal qualification list, no outreach sent, no known customer need or legal responsibility inferred",
+  "prospects": [
+    {"company":"ESTG","segment":"Distributor of energy products","source":"https://www.estg.eu/nl-nl/over-estg/over-ons","observed":"Distributor with energy storage in its range","priority":"A","hypothesis":"Ask whether the company imports finished batteries and coordinates supplier data","next_step":"Identify product/compliance owner and existing passport arrangements","contact_status":"not_contacted"},
+    {"company":"Alius","segment":"Wholesaler and energy solutions specialist","source":"https://alius.nl/","observed":"Lists battery storage and home batteries","priority":"A","hypothesis":"Qualify responsibility and multi-supplier documentation needs","next_step":"Ask whether documentation coordination is central or manufacturer-led","contact_status":"not_contacted"},
+    {"company":"Libra Energy","segment":"Energy storage supplier","source":"https://www.libra.energy/nl/categorie/energieopslag/batterijen","observed":"Lists residential batteries across several brands","priority":"A","hypothesis":"Qualify importer/distributor role and finished-battery boundaries per product","next_step":"Identify person responsible for storage product documentation","contact_status":"not_contacted"},
+    {"company":"VDH Solar","segment":"Energy equipment supplier","source":"https://vdh-solar.nl/index.php","observed":"Lists energy storage among supplied product groups","priority":"B","hypothesis":"Possible multi-brand data coordination need, not established","next_step":"Reconfirm current entity and range before approaching","contact_status":"not_contacted"},
+    {"company":"Sessy / Charged","segment":"Dutch home-battery manufacturer","source":"https://www.sessy.nl/over-ons/","observed":"Describes its own battery development and production","priority":"B","hypothesis":"Potential manufacturer-level dossier project; may already have a solution","next_step":"Ask about existing implementation before proposing duplicate work","contact_status":"not_contacted"},
+    {"company":"Alfen","segment":"Industrial energy storage","source":"https://alfen.com/nl-nl/energieopslag","observed":"Offers TheBattery storage systems","priority":"C","hypothesis":"Later enterprise prospect; procurement complexity is our assumption","next_step":"Approach only with a demonstrable reference process and security evidence","contact_status":"not_contacted"}
+  ],
+  "excluded":[{"company":"Solarclarity","source":"https://www.solarclarity.com/?___store=en","reason":"Official site announces a bankruptcy application. Do not include as an active sales prospect without renewed verification."}]
+}

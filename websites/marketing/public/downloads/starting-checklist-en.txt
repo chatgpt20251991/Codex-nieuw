@@ -1,0 +1,53 @@
+EUBatteryPassport.nl
+Battery passport starting checklist
+Updated: 1 October 2026
+
+Start with one battery model. Record what is known and keep unknown information marked as unknown. This is an inventory, not a declaration of conformity.
+
+1. Your organisation
+Legal business name:
+Contact person and business email:
+Your role (manufacturer, importer, distributor, integrator or other):
+Who places the finished battery on the market?
+Countries supplied:
+
+2. Your battery
+Model and variants:
+Application and battery category:
+Finished battery, separate cells/modules or assembled system:
+Can the packs function independently and safely?
+Which BMS or other components are shared?
+Energy of the finished battery in kWh:
+Number of models and individual batteries per year:
+Expected date of market placement or putting into service:
+
+3. Available information
+Product specifications and system diagram:
+Manufacturer and suppliers:
+Available test reports and standards used:
+EU declaration of conformity and instructions:
+Composition, safety and dismantling information:
+Document owner and date/revision:
+Missing information or documents:
+
+4. Preparation and ongoing management
+Who supplies data and reviews corrections?
+Existing identifiers and serial numbers:
+Preferred import from spreadsheet, own system or API:
+Manual updates, servicing updates or BMS/API integration:
+Who manages changes and status transitions?
+Existing passport provider or Registry account:
+
+5. Define the assignment
+First model to assess:
+Required deliverable and timing:
+Separate arrangements for model setup, quantities and management:
+Written authorisation, responsibilities and data processing:
+
+Use the online intake or info@eubatterypassport.nl for a short initial enquiry. Do not send confidential technical documents, identity documents or passwords at this stage. Agree on a suitable transfer route first.
+
+A model dossier can supply information for multiple batteries. An individual battery is distinct from its model. Preparation, publication and registration remain separate steps.
+
+Sources:
+https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en
+https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en

@@ -1,5 +1,10 @@
 # EUBatteryPassport.nl Platform V2.1
 
+The public marketing website is maintained separately in
+[websites/marketing](websites/marketing/README.md), with its own dependency
+lockfile and GitHub Actions checks. See its
+[publication guide](websites/marketing/GITHUB_PUBLISHING.md) for website updates.
+
 Production-minded pre-release codebase for a managed EU Battery Digital Product Passport platform.
 
 ## What V2 implements
