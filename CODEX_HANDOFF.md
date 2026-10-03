@@ -2,6 +2,13 @@
 
 ## Current engineering status
 
+Production follow-up (3 October 2026): PR 17 database startup protection is merged
+at `9f639425e383693c8a75f45dc36c0303dad0d33f` after current-main checks passed.
+See `docs/23_PRODUCTION_OPERATIONS.md` for the reproducible deployment image,
+read-only infrastructure preflight and explicit target-environment acceptance.
+No new paid hosting, real customer login, recovery drill or independent pen test
+has been completed by those repository additions. Gate 7 remains open.
+
 Customer-readiness follow-up (1 October 2026): see docs/customer-readiness/README.md
 and REGULATORY_REVIEW.md for the reviewed FAQ, v1.03 Registry guide, internal
 checklists, fictional dossier, offer scope and researched prospects. This does

@@ -5,6 +5,31 @@ on:
 permissions:
   contents: read
 jobs:
+  container-build:
+    name: Production image build and startup gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build exact production image with synthetic public origins
+        run: >-
+          docker build -f infra/deployment/Dockerfile -t eubp-acceptance:local
+          --build-arg NEXT_PUBLIC_API_URL=https://api.example/v1
+          --build-arg NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN=https://bucket.s3.eu-central-1.amazonaws.com .
+      - name: Verify runtime dependencies and non-root identity
+        run: |
+          docker run --rm eubp-acceptance:local node -e "if(process.getuid()===0)process.exit(1);require('@prisma/client');require('@auth0/nextjs-auth0/server');require('./.ops/auth-config.js');require('./apps/api/dist/prisma/runtime-database-security.js');"
+      - name: Missing deployment configuration must prevent serving traffic
+        run: |
+          for service in api web; do
+            set +e
+            timeout 30s docker run --rm eubp-acceptance:local node scripts/ops/start-service.cjs "$service"
+            code=$?
+            set -e
+            test "$code" -eq 1
+          done
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30

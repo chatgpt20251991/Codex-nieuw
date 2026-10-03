@@ -1,0 +1,22 @@
+# Allowlist: local credentials, website assets, evidence, Git and outputs never enter the build context.
+**
+!package.json
+!package-lock.json
+!tsconfig.base.json
+!apps/
+!apps/**
+!packages/
+!packages/**
+!scripts/
+!scripts/ops/
+!scripts/ops/**
+!infra/
+!infra/deployment/
+!infra/deployment/**
+**/node_modules
+**/dist
+**/.next
+**/.env
+**/.env.*
+**/*.tsbuildinfo
+**/*.log
