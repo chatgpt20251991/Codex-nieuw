@@ -11,14 +11,15 @@ function event() {
       app_metadata: { eubp_organisation_id: organisationId, eubp_role: 'operator_user' } } };
 }
 async function execute(input) {
-  const result = { denied: [], access: [], identity: [] };
+  const result = { denied: [], access: [], identity: [], mfa: [] };
   await onExecutePostLogin(input, { access: { deny: reason => result.denied.push(reason) },
+    multifactor: { enable: (provider, options) => result.mfa.push({ provider, ...options }) },
     accessToken: { setCustomClaim: (key, value) => result.access.push([key, value]) },
     idToken: { setCustomClaim: (key, value) => result.identity.push([key, value]) } });
   return result;
 }
 function denied(result, reason) {
-  assert.deepEqual(result, { denied: [reason], access: [], identity: [] });
+  assert.deepEqual(result, { denied: [reason], access: [], identity: [], mfa: [] });
 }
 
 test('Auth0 action: approved provisioning emits only the namespaced tenant and role', async () => {
@@ -33,6 +34,7 @@ test('Auth0 action: approved provisioning emits only the namespaced tenant and r
     ['https://eubatterypassport.nl/role', 'operator_user'],
   ]);
   assert.deepEqual(result.identity, result.access);
+  assert.deepEqual(result.mfa, [{ provider: 'any', allowRememberBrowser: false }]);
 });
 test('Auth0 action: every approved role is preserved without an administrator fallback', async () => {
   for (const role of ['operator_user', 'operator_admin', 'compliance_manager', 'service_provider', 'service_provider_admin']) {
@@ -43,7 +45,7 @@ test('Auth0 action: every approved role is preserved without an administrator fa
 test('Auth0 action: unrelated and missing audiences receive no EUBP claims', async () => {
   for (const resourceServer of [{ identifier: audience + '/other' }, { identifier: audience.toUpperCase() }, {}, undefined]) {
     const input = event(); input.resource_server = resourceServer; delete input.user;
-    assert.deepEqual(await execute(input), { denied: [], access: [], identity: [] });
+    assert.deepEqual(await execute(input), { denied: [], access: [], identity: [], mfa: [] });
   }
 });
 test('Auth0 action: absent or invalid audience secret denies instead of silently granting access', async () => {
@@ -84,4 +86,16 @@ test('Auth0 action: email-free enterprise identities use explicit provisioning w
   const input = event(); delete input.user.email; delete input.user.email_verified;
   const result = await execute(input); assert.deepEqual(result.denied, []);
   assert.equal(result.access.length, 2); assert.ok(result.access.every(([key]) => !key.includes('email')));
+});
+
+test('Auth0 action: user input and remembered MFA never suppress the required challenge', async () => {
+  const input = event();
+  input.authentication = { methods: [{ name: 'mfa' }] };
+  input.user.user_metadata = { mfa: true, skip_mfa: true };
+  input.request = { query: { skip_mfa: 'true', acr_values: 'none' } };
+  const result = await execute(input);
+  assert.deepEqual(result.mfa, [{ provider: 'any', allowRememberBrowser: false }]);
+  assert.equal(result.access.length, 2);
+  assert.equal(result.identity.length, 2);
+  assert.ok(result.identity.every(([key]) => key !== 'amr'));
 });

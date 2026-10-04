@@ -210,6 +210,8 @@ test('Browser login: genuine HTTPS authorization-code flows enforce state, nonce
     assert.equal(exchange.client_secret, clientSecret); assert.equal(exchange.authorization, undefined);
     assert.equal(createHash('sha256').update(exchange.code_verifier).digest('base64url'), authorization.code_challenge);
     assert.equal(authorization.scope.includes('offline_access'), false);
+    assert.equal(authorization.prompt, 'login');
+    assert.equal(authorization.acr_values, 'http://schemas.openid.net/pape/policies/2007/06/multi-factor');
   }
 });
 
@@ -369,6 +371,18 @@ test('Browser login: missing provisioned organisation or role claims cannot crea
     assert.equal(await result.callback.text(), 'Sign-in failed. Please try again.');
     assert.equal(sessionCookies(await ctx.cookies(webProxy.origin)).length, 0);
     assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
+    await ctx.close();
+  }
+});
+
+test('Browser login: signed ID tokens without valid MFA cannot create a session even with valid tenant and role', async () => {
+  for (const amr of [undefined, [], ['pwd'], 'mfa', ['MFA'], ['pwd', 'mfa', 1]]) {
+    const ctx = await context(), result = await login(ctx, 'A', { fault: { idClaims: { amr } } });
+    assert.equal(result.callback.status(), 400);
+    assert.equal(await result.callback.text(), 'Sign-in failed. Please try again.');
+    assert.equal(sessionCookies(await ctx.cookies(webProxy.origin)).length, 0);
+    assert.equal((await request(ctx, '/api/session')).data.authenticated, false);
+    assert.equal((await request(ctx, '/api/backend/organisations/current')).status, 401);
     await ctx.close();
   }
 });

@@ -2,6 +2,15 @@
 
 ## Current engineering status
 
+Production follow-up (4 October 2026): workspace confirmed and inspected; only
+unrelated Oregon services exist. `docs/24_RENDER_ACCEPTANCE_PLAN.md` records the
+unapproved Frankfurt installation proposal and its certificate-verified database
+transport dependency. The generated acceptance Blueprint is not applied. The
+Auth0 Action now requests MFA and the console rejects ID tokens without its
+verified MFA assertion. Real Auth0 deployment/enrolment/recovery needs the owner's
+fresh login and entitlement review. No paid resources, real customer admission,
+external test mail or Registry registration have been created. Gate 7 stays open.
+
 Production follow-up (3 October 2026): PR 17 database startup protection is merged
 at `9f639425e383693c8a75f45dc36c0303dad0d33f` after current-main checks passed.
 See `docs/23_PRODUCTION_OPERATIONS.md` for the reproducible deployment image,

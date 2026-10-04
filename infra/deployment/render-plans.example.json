@@ -1,0 +1,30 @@
+{
+  "status": "cost_proposal_not_approved_or_applied",
+  "checkedAt": "2026-10-04",
+  "region": "frankfurt",
+  "plans": {
+    "api": "standard",
+    "web": "standard",
+    "scanner": "pro",
+    "database": "basic-1gb"
+  },
+  "monthlyUsd": {
+    "api": 25,
+    "web": 25,
+    "scanner": 85,
+    "databaseCompute": 19,
+    "databaseStorage10GB": 3,
+    "scannerSignatureDisk5GB": 1.25,
+    "renderSubtotal": 158.25
+  },
+  "excluded": [
+    "taxes, bandwidth, build overages and any workspace subscription",
+    "Auth0 MFA entitlement",
+    "EU S3/KMS evidence storage and independent backups",
+    "WAF/gateway and delivered monitoring alerts",
+    "transactional email",
+    "independent penetration test"
+  ],
+  "pricingSource": "https://render.com/pricing",
+  "scannerSizingSource": "https://docs.clamav.net/manual/Installing/Docker.html"
+}

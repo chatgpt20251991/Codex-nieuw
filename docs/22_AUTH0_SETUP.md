@@ -5,6 +5,19 @@ This is an administrator runbook and a tested Action template. No Auth0 tenant,
 application, subscription, secret or real-user account was created by these files.
 Successful local/CI fixtures do not establish real-provider acceptance.
 
+Update prepared 4 October 2026: the Action now calls
+`api.multifactor.enable('any', { allowRememberBrowser: false })` for provisioned
+EUBP identities. The console requests interactive login and an MFA authentication
+context, then requires the SDK-validated ID token's `amr` array to contain `mfa`
+before saving a session. The Action does not fabricate MFA claims: the challenge
+finishes after the Action flow. Deploy this updated Action and configure entitled
+factors before accepting customer logins. Silent authentication, remembered MFA
+and refresh-token flows are not accepted substitutes in this initial release.
+The historical September account record below does not prove this update was
+deployed. Current Dashboard access requires the owner's fresh login.
+References: [Auth0 MFA Action API](https://auth0.com/docs/actions/reference/post-login/post-login-api-object)
+and [ID-token MFA validation](https://auth0.com/docs/secure/multi-factor-authentication/step-up-authentication/configure-step-up-authentication-for-web-apps).
+
 This runbook targets a production build of the console served over HTTPS in staging
 or production. `next dev` deliberately retains the development-token panel and
 direct development API requests. Adding Auth0 settings to that development mode

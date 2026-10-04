@@ -78,6 +78,10 @@ jobs:
         run: npm run typecheck
       - name: Unit and static tests
         run: npm test
+      - name: Reproduce the unapproved Render acceptance proposal
+        run: |
+          node scripts/ops/render-blueprint.cjs infra/deployment/render-plans.example.json .ops/render.acceptance.yaml
+          diff -u infra/deployment/render.acceptance.yaml .ops/render.acceptance.yaml
       - name: Reproduce customer assessment checklists and fictional dossier
         run: |
           node scripts/customer-readiness.cjs

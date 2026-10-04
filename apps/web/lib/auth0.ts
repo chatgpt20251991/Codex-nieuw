@@ -1,6 +1,6 @@
 import { Auth0Client } from '@auth0/nextjs-auth0/server';
 import { NextResponse } from 'next/server';
-import { AUTH_SCOPE, AUTH_SESSION_SECONDS, AUTH_TRANSACTION_SECONDS, assertProvisionedIdentity, readAuth0Config } from './auth-config';
+import { AUTH_SCOPE, AUTH_SESSION_SECONDS, AUTH_TRANSACTION_SECONDS, MFA_ACR, assertMfaIdentity, assertProvisionedIdentity, readAuth0Config } from './auth-config';
 
 let client: Auth0Client | undefined;
 
@@ -15,7 +15,7 @@ export function getAuth0Client(): Auth0Client | null {
     clientSecret: config.clientSecret,
     secret: config.secret,
     appBaseUrl: config.appBaseUrl,
-    authorizationParameters: { scope: AUTH_SCOPE, audience: config.audience },
+    authorizationParameters: { scope: AUTH_SCOPE, audience: config.audience, acr_values: MFA_ACR, prompt: 'login' },
     signInReturnToPath: '/dashboard',
     enableAccessTokenEndpoint: false,
     enableConnectAccountEndpoint: false,
@@ -39,6 +39,7 @@ export function getAuth0Client(): Auth0Client | null {
       return NextResponse.redirect(new URL('/dashboard', config.appBaseUrl), 303);
     },
     async beforeSessionSaved(session) {
+      assertMfaIdentity(session.user);
       assertProvisionedIdentity(session.user);
       // API access tokens remain encrypted inside the HttpOnly cookie. Browser
       // profile responses never need provider/custom authorization claims.

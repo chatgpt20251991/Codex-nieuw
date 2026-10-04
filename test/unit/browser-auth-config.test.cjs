@@ -21,6 +21,17 @@ const configured = {
   OIDC_ISSUER: 'https://identity.example.test/',
 };
 
+test('browser MFA requires the exact method in SDK-validated ID-token claims', () => {
+  const { assertMfaIdentity } = exportsObject;
+  for (const amr of [['mfa'], ['pwd', 'mfa'], ['otp', 'mfa']]) {
+    assert.doesNotThrow(() => assertMfaIdentity({ amr }));
+  }
+  for (const amr of [undefined, null, true, 'mfa', [], ['pwd'], ['MFA'], ['mfa '], ['mfa', 1], { mfa: true }]) {
+    assert.throws(() => assertMfaIdentity({ amr, user_metadata: { mfa: true } }));
+  }
+  assert.throws(() => assertMfaIdentity(Object.create({ amr: ['mfa'] })));
+});
+
 test('browser auth requires complete configuration without choosing a default provider or credential', () => {
   assert.equal(readAuth0Config({ NODE_ENV: 'production' }), null);
   for (const key of ['AUTH0_DOMAIN', 'APP_BASE_URL', 'AUTH0_CLIENT_ID', 'AUTH0_CLIENT_SECRET', 'AUTH0_SECRET', 'AUTH0_AUDIENCE']) {
