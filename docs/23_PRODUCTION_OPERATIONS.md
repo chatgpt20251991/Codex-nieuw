@@ -10,6 +10,16 @@ The earlier Auth0 staging tenant and Action exist according to the 6 September a
 
 The provided KvK details identify Avenzo digital, 94554692, as a sole proprietorship. This is owner-supplied information, not a completed Registry verification. The KVK activity/name change and owner's identification remain separate from deploying software.
 
+## Follow-up on 4 October 2026
+
+PR 30 merged at `896ef975d8fe78f39c2ecdd4848086ab8b5cda5e` after all 13 returned
+checks passed. Workspace selection is now confirmed. The account contains only
+unrelated Oregon resources, so no EUBP production resource was available to reuse.
+See `docs/24_RENDER_ACCEPTANCE_PLAN.md` for the Frankfurt installation proposal,
+current base cost and database TLS blocker. The new MFA code and generated
+Blueprint are repository work; real Auth0 setup and paid installation remain
+pending. The owner has been asked to log in and approve the concrete base cost.
+
 ## Deployment package
 
 Build from the repository root with `infra/deployment/Dockerfile`. Supply only the two public addresses as build arguments. Never pass Auth0, database, storage or session secrets to the image build. The allowlisted build context excludes `.env` files, local outputs, Git history and the separate marketing site. The official Node 22 base image is digest-pinned. The runtime runs as the unprivileged `node` user.

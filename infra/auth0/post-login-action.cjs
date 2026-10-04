@@ -36,6 +36,11 @@ exports.onExecutePostLogin = async (event, api) => {
     return api.access.deny('EUBP_VERIFIED_EMAIL_REQUIRED');
   }
 
+  // Auth0 performs this challenge after the Actions flow, before issuing tokens.
+  // Never synthesize an 'mfa' claim from metadata or an incomplete challenge.
+  // Provider factor entitlement/enrolment still requires live acceptance.
+  api.multifactor.enable('any', { allowRememberBrowser: false });
+
   // Only trusted administrator-controlled app_metadata supplies these claims.
   // Never read user_metadata, request parameters, native org_id or a default role.
   api.accessToken.setCustomClaim(ORGANISATION_CLAIM, organisationId);

@@ -255,6 +255,8 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
         const idToken = await sign({ iss: issuer, aud: clientId, sub: `browser-${entry.actor}`, iat: now, exp: now + 600,
           nonce: entry.params.nonce, sid: randomBytes(12).toString('hex'), name: `Synthetic tenant ${entry.actor}`,
           email: `browser-${entry.actor.toLowerCase()}@example.invalid`, email_verified: true,
+          // Synthetic signed assertion for protocol tests, not a real MFA enrolment.
+          amr: ['pwd', 'mfa'],
           'https://eubatterypassport.nl/organisation_id': tenants[entry.actor], 'https://eubatterypassport.nl/role': 'operator_admin',
           ...entry.fault?.idClaims });
         entry.issued = { token, idToken };

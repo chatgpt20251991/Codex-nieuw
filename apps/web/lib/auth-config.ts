@@ -11,9 +11,18 @@ export type BrowserAuthConfig = Readonly<{
 export const AUTH_SCOPE = 'openid profile email';
 export const AUTH_SESSION_SECONDS = 3600;
 export const AUTH_TRANSACTION_SECONDS = 600;
+export const MFA_ACR = 'http://schemas.openid.net/pape/policies/2007/06/multi-factor';
 export const ORGANISATION_CLAIM = 'https://eubatterypassport.nl/organisation_id';
 export const ROLE_CLAIM = 'https://eubatterypassport.nl/role';
 const applicationRoles = new Set(['operator_user', 'operator_admin', 'compliance_manager', 'service_provider', 'service_provider_admin']);
+
+/** Only call on claims from the SDK-validated ID token, never a request body. */
+export function assertMfaIdentity(user: Record<string, unknown>) {
+  const methods = Object.hasOwn(user, 'amr') ? user.amr : undefined;
+  if (!Array.isArray(methods) || !methods.every(method => typeof method === 'string') || !methods.includes('mfa')) {
+    throw new Error('Multi-factor authentication is required.');
+  }
+}
 
 /** An authenticated identity still needs explicit administrator-provisioned application access. */
 export function assertProvisionedIdentity(user: Record<string, unknown>) {

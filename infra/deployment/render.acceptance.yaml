@@ -1,0 +1,280 @@
+{
+  "previews": {
+    "generation": "off"
+  },
+  "projects": [
+    {
+      "name": "EUBatteryPassport",
+      "environments": [
+        {
+          "name": "acceptance",
+          "services": [
+            {
+              "type": "web",
+              "name": "eubp-acceptance-api",
+              "runtime": "docker",
+              "region": "frankfurt",
+              "plan": "standard",
+              "repo": "https://github.com/chatgpt20251991/Codex-nieuw",
+              "branch": "main",
+              "dockerfilePath": "./infra/deployment/Dockerfile",
+              "dockerContext": ".",
+              "dockerCommand": "node scripts/ops/start-service.cjs api",
+              "autoDeployTrigger": "off",
+              "numInstances": 1,
+              "healthCheckPath": "/v1/health",
+              "domains": [
+                "api.eubatterypassport.nl"
+              ],
+              "envVars": [
+                {
+                  "key": "NODE_ENV",
+                  "value": "production"
+                },
+                {
+                  "key": "PORT",
+                  "value": "4000"
+                },
+                {
+                  "key": "AUTH_MODE",
+                  "value": "oidc"
+                },
+                {
+                  "key": "WEB_ORIGIN",
+                  "value": "https://app.eubatterypassport.nl"
+                },
+                {
+                  "key": "DATABASE_URL",
+                  "sync": false
+                },
+                {
+                  "key": "OIDC_ISSUER",
+                  "sync": false
+                },
+                {
+                  "key": "OIDC_JWKS_URL",
+                  "sync": false
+                },
+                {
+                  "key": "OIDC_AUDIENCE",
+                  "value": "https://api.eubatterypassport.nl"
+                },
+                {
+                  "key": "OIDC_ALLOWED_ALGORITHMS",
+                  "value": "RS256"
+                },
+                {
+                  "key": "OIDC_ORGANISATION_CLAIM",
+                  "value": "https://eubatterypassport.nl/organisation_id"
+                },
+                {
+                  "key": "OIDC_ROLE_CLAIM",
+                  "value": "https://eubatterypassport.nl/role"
+                },
+                {
+                  "key": "S3_REGION",
+                  "value": "eu-central-1"
+                },
+                {
+                  "key": "S3_BUCKET",
+                  "sync": false
+                },
+                {
+                  "key": "S3_ACCESS_KEY",
+                  "sync": false
+                },
+                {
+                  "key": "S3_SECRET_KEY",
+                  "sync": false
+                },
+                {
+                  "key": "S3_FORCE_PATH_STYLE",
+                  "value": "false"
+                },
+                {
+                  "key": "S3_UPLOAD_URL_TTL_SECONDS",
+                  "value": "300"
+                },
+                {
+                  "key": "MALWARE_SCANNER",
+                  "value": "clamav"
+                },
+                {
+                  "key": "CLAMAV_HOST",
+                  "fromService": {
+                    "type": "pserv",
+                    "name": "eubp-acceptance-scanner",
+                    "property": "host"
+                  }
+                },
+                {
+                  "key": "CLAMAV_PORT",
+                  "value": "3310"
+                },
+                {
+                  "key": "CLAMAV_TIMEOUT_MS",
+                  "value": "30000"
+                },
+                {
+                  "key": "CLAMAV_MAX_BYTES",
+                  "value": "104857600"
+                },
+                {
+                  "key": "API_RATE_LIMIT_PER_MINUTE",
+                  "value": "600"
+                },
+                {
+                  "key": "AUTH_RATE_LIMIT_PER_MINUTE",
+                  "value": "120"
+                },
+                {
+                  "key": "RESOLVER_BASE_URL",
+                  "value": "https://api.eubatterypassport.nl/v1/public/b"
+                },
+                {
+                  "key": "SUPPLIER_PORTAL_BASE_URL",
+                  "value": "https://app.eubatterypassport.nl/supplier"
+                },
+                {
+                  "key": "RESTRICTED_ACCESS_BASE_URL",
+                  "value": "https://app.eubatterypassport.nl/access"
+                },
+                {
+                  "key": "EVIDENCE_EXTRACTOR",
+                  "value": "disabled"
+                },
+                {
+                  "key": "BATTERY_SEMANTIC_CATALOGUE_AVAILABLE",
+                  "value": "false"
+                },
+                {
+                  "key": "REGISTRY_BATTERY_SUBMISSION_AVAILABLE",
+                  "value": "false"
+                },
+                {
+                  "key": "ARTICLE_77_9_ACCESS_ACT_FINAL",
+                  "value": "false"
+                },
+                {
+                  "key": "REGULATORY_RULESET_VERSION",
+                  "value": "EU-BR-2026.08"
+                },
+                {
+                  "key": "NEXT_PUBLIC_API_URL",
+                  "value": "https://api.eubatterypassport.nl/v1"
+                },
+                {
+                  "key": "NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN",
+                  "fromService": {
+                    "type": "web",
+                    "name": "eubp-acceptance-web",
+                    "envVarKey": "NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "web",
+              "name": "eubp-acceptance-web",
+              "runtime": "docker",
+              "region": "frankfurt",
+              "plan": "standard",
+              "repo": "https://github.com/chatgpt20251991/Codex-nieuw",
+              "branch": "main",
+              "dockerfilePath": "./infra/deployment/Dockerfile",
+              "dockerContext": ".",
+              "dockerCommand": "node scripts/ops/start-service.cjs web",
+              "autoDeployTrigger": "off",
+              "numInstances": 1,
+              "healthCheckPath": "/",
+              "domains": [
+                "app.eubatterypassport.nl"
+              ],
+              "envVars": [
+                {
+                  "key": "NODE_ENV",
+                  "value": "production"
+                },
+                {
+                  "key": "PORT",
+                  "value": "3000"
+                },
+                {
+                  "key": "APP_BASE_URL",
+                  "value": "https://app.eubatterypassport.nl"
+                },
+                {
+                  "key": "API_BASE_URL",
+                  "value": "https://api.eubatterypassport.nl/v1"
+                },
+                {
+                  "key": "NEXT_PUBLIC_API_URL",
+                  "value": "https://api.eubatterypassport.nl/v1"
+                },
+                {
+                  "key": "NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN",
+                  "sync": false
+                },
+                {
+                  "key": "AUTH0_DOMAIN",
+                  "sync": false
+                },
+                {
+                  "key": "AUTH0_CLIENT_ID",
+                  "sync": false
+                },
+                {
+                  "key": "AUTH0_CLIENT_SECRET",
+                  "sync": false
+                },
+                {
+                  "key": "AUTH0_SECRET",
+                  "sync": false
+                },
+                {
+                  "key": "AUTH0_AUDIENCE",
+                  "value": "https://api.eubatterypassport.nl"
+                }
+              ]
+            },
+            {
+              "type": "pserv",
+              "name": "eubp-acceptance-scanner",
+              "runtime": "image",
+              "region": "frankfurt",
+              "plan": "pro",
+              "numInstances": 1,
+              "autoDeployTrigger": "off",
+              "image": {
+                "url": "docker.io/clamav/clamav:stable@sha256:ebec5bc138401b36ae987caa1a3fa3c3b2a21ed3d51f0bfa5852825e663e67b0"
+              },
+              "disk": {
+                "name": "eubp-scanner-signatures",
+                "mountPath": "/var/lib/clamav",
+                "sizeGB": 5
+              },
+              "envVars": [
+                {
+                  "key": "TZ",
+                  "value": "UTC"
+                }
+              ]
+            }
+          ],
+          "databases": [
+            {
+              "name": "eubp-acceptance-db",
+              "region": "frankfurt",
+              "plan": "basic-1gb",
+              "postgresMajorVersion": "16",
+              "databaseName": "eubp_acceptance",
+              "user": "eubp_admin",
+              "diskSizeGB": 10,
+              "ipAllowList": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
