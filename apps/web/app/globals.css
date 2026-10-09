@@ -16,3 +16,4 @@
 .passportMetadata{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2fr);gap:10px;font-size:13px}
 .passportMetadata dt{color:var(--muted)}
 .passportMetadata dd{margin:0;overflow-wrap:anywhere}
+.row>div{min-width:0}.row strong,.row span,.portalIntro h1,.portalIntro p,.portalBrand strong{overflow-wrap:anywhere}

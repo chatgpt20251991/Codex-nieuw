@@ -4,6 +4,7 @@ import { calculateReadiness, crossFieldChecks, fields } from '@eubp/rules';
 import type { BatteryCategory } from '@eubp/rules';
 import type { Prisma } from '@prisma/client';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
+import { assessConditionalReview } from '../batteries/applicability-review';
 
 @Injectable()
 export class PassportDataService {
@@ -33,7 +34,9 @@ export class PassportDataService {
   private readinessForValues(category:BatteryCategory,values:any[],applicability:unknown){
     const context:any=applicability||{};
     const input=values.map(v=>({fieldId:v.fieldDefinitionId,value:v.valueJson,unit:v.unit||undefined,validated:v.validationStatus==='validated',evidenceIds:v.evidenceLinks.filter((x:any)=>usableEvidence(x.evidence)).map((x:any)=>x.evidenceId)}));
-    return calculateReadiness(category,input,{conditionalRequiredFieldIds:Array.isArray(context.conditionalRequiredFieldIds)?context.conditionalRequiredFieldIds.map(Number):[]});
+    const readiness=calculateReadiness(category,input,{conditionalRequiredFieldIds:Array.isArray(context.conditionalRequiredFieldIds)?context.conditionalRequiredFieldIds.filter((id:unknown)=>Number.isInteger(id)):[]});
+    const conditionalReview=assessConditionalReview(category,applicability);
+    return {...readiness,conditionalOpen:conditionalReview.unresolvedFieldIds.length,blockers:[...readiness.blockers,...conditionalReview.issues],conditionalReview};
   }
 
   async validateTx(tx:Prisma.TransactionClient,organisationId:string,itemId:string){
@@ -46,7 +49,7 @@ export class PassportDataService {
     if(['recycled','superseded'].includes(item.passportState)||item.lifecycleStatus==='recycled')cross.push({rule:'BP-LIFECYCLE-CLOSED',severity:'blocker',message:'A closed lifecycle cannot publish another passport version.'});
     const provenanceBlockers=readiness.warnings.map(w=>({...w,severity:'blocker' as const,message:'Publication provenance gate: '+w.message}));
     const publicationBlockers=[...readiness.blockers,...cross.filter(x=>x.severity==='blocker'),...provenanceBlockers];
-    return {item,values,readiness,crossChecks:cross,publishable:publicationBlockers.length===0,publicationBlockers};
+    return {item,values,readiness,conditionalReview:readiness.conditionalReview,crossChecks:cross,publishable:publicationBlockers.length===0,publicationBlockers};
   }
 
   definitions(){return new Map(fields.map(f=>[f.id,f]));}

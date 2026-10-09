@@ -249,7 +249,10 @@ test('Customer workflow: browser review, immutable publication and QR download r
       let data;
       if (path === `/battery-items/${itemId}`) data = item;
       else if (path === `/battery-models/${modelId}`) data = model;
-      else if (path === '/compliance/fields') data = [{ id: 11, name: 'Capacity', currentRequirement: 'mandatory', access_tier: 'public', legal_source: 'Synthetic fixture' }];
+      else if (path === '/compliance/fields') data = [
+        { id: 1, name: 'Manufacturer', currentRequirement: 'mandatory', access_tier: 'public', legal_source: 'Synthetic fixture' },
+        { id: 11, name: 'Capacity', currentRequirement: 'mandatory', access_tier: 'public', legal_source: 'Synthetic fixture' },
+      ];
       else if (path === `/passport-values/${valueId}`) data = { ...value, evidenceLinks: value.evidenceLinks };
       else if (path === '/evidence/link') {
         assert.equal(request.postDataJSON().passportValueId, valueId);

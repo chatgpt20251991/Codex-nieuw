@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AppShell from '../../components/AppShell';
 import { apiFetch } from '../../lib/api';
 import { parsePassportInput, publicPassportLink, ValueKind } from '../../lib/passport-input';
+import { downloadEvidence } from '../../lib/evidence-review';
 
 function download(content: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -110,6 +111,12 @@ export default function Passports() {
       setNotice('Evidence verification recorded. The value still needs its own validation.');
     });
   }
+  async function reviewDocument(id: string) {
+    await run(async () => {
+      await downloadEvidence(id);
+      setNotice('Source download initiated. Read the document before recording verification. Downloading does not verify evidence.');
+    });
+  }
   async function validateValue() {
     await run(async () => {
       await apiFetch(`/passport-values/${currentValue.id}/validate`, { method: 'POST' });
@@ -153,15 +160,15 @@ export default function Passports() {
       </section>
       <div className="twoCol">
         <section className="panel"><h2>Data point</h2><form onSubmit={save}>
-          <label>Passport data point<select value={fieldId} disabled={busy} onChange={e => setFieldId(Number(e.target.value))}>
+          <label>Passport data point<select aria-label="Passport data point" value={fieldId} disabled={busy} onChange={e => setFieldId(Number(e.target.value))}>
             {fields.map(f => <option key={f.id} value={f.id}>{f.id}. {f.name}</option>)}</select></label>
           <p className="mutedText">{definition?.currentRequirement} · {definition?.access_tier} · {definition?.legal_source}</p>
-          <label>Value applies to<select value={scope} disabled={busy} onChange={e => setScope(e.target.value)}>
+          <label>Value applies to<select aria-label="Value applies to" value={scope} disabled={busy} onChange={e => setScope(e.target.value)}>
             <option value="item">This individual battery</option><option value="model">All batteries of this model</option></select></label>
           {scope === 'model' && <p className="mutedText">Changing a model value requires fresh publication checks for its batteries.</p>}
-          <label>Value format<select value={kind} disabled={busy} onChange={e => { setKind(e.target.value as ValueKind); setInput(e.target.value === 'boolean' ? 'true' : ''); }}>
+          <label>Value format<select aria-label="Value format" value={kind} disabled={busy} onChange={e => { setKind(e.target.value as ValueKind); setInput(e.target.value === 'boolean' ? 'true' : ''); }}>
             <option value="text">Text</option><option value="number">Number</option><option value="boolean">Yes / no</option><option value="structured">Structured object or list</option></select></label>
-          <label>Passport value{kind === 'boolean' ? <select value={input} onChange={e => setInput(e.target.value)}><option value="true">Yes</option><option value="false">No</option></select>
+          <label>Passport value{kind === 'boolean' ? <select aria-label="Passport value" value={input} onChange={e => setInput(e.target.value)}><option value="true">Yes</option><option value="false">No</option></select>
             : <textarea required value={input} onChange={e => setInput(e.target.value)} />}</label>
           {kind === 'structured' && <p className="mutedText">Enter the agreed structured object or list as JSON; preserve the source structure.</p>}
           <label>Unit, where applicable<input value={unit} onChange={e => setUnit(e.target.value)} placeholder="For example kg, Ah or V" /></label>
@@ -175,6 +182,7 @@ export default function Passports() {
             {(valueDetail?.evidenceLinks || []).map((link: any) => <div className="evidenceReview" key={link.evidenceId}>
               <strong>{link.evidence?.originalFilename || link.evidenceId}</strong>
               <p className="mutedText">Verification: {link.evidence?.verificationStatus} · Malware scan recorded: {link.evidence?.malwareScannedAt || 'Not recorded'}</p>
+              <button className="button secondary" disabled={busy} onClick={() => reviewDocument(link.evidenceId)}>Download source document</button>
               <label className="checkLabel"><input type="checkbox" checked={Boolean(reviewedEvidence[link.evidenceId])}
                 onChange={e => setReviewedEvidence(v => ({ ...v, [link.evidenceId]: e.target.checked }))} />
                 I have reviewed this source document and its relevance to this value.</label>
@@ -195,6 +203,7 @@ export default function Passports() {
         </tr>)}</tbody>
       </table></div>{!mergedValues.size && <p className="mutedText">No values supplied yet.</p>}</section>
       <section className="panel"><h2>Complete passport check</h2>
+        {validation?.conditionalReview && <p className="mutedText">Model applicability: {validation.conditionalReview.complete ? 'Reviewed' : 'Review required'}. <Link href="/models">Review model conditions</Link>.</p>}
         <p className="mutedText">{validation?.publishable ? 'Current data passes publication checks.' : 'Publication is blocked.'}
           {' '}Data completeness: {validation?.readiness?.score ?? 0}%. Completeness alone does not establish publishability.</p>
         <div className="workflowActions"><button className="button secondary" disabled={busy} onClick={validatePassport}>Validate passport</button></div>

@@ -33,6 +33,7 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Enterprise-style Next.js operator workspace and supplier/restricted portals
 - Persistent model/item creation, dossier review and explicit version publication in the operator workspace
 - Anonymous public scan viewer and authenticated QR download
+- Explicit conditional applicability review and short-lived private source-document review downloads
 
 The [customer passport workflow](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md) describes
 the current console, scan routing and the external acceptance still required

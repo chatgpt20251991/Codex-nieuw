@@ -10,6 +10,7 @@ const { resolve, dirname, join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 const { createHttpsProxy, createOidcIssuer } = require('../fixtures/browser-oidc.cjs');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 
 // These real browser/TLS/OIDC exchanges exercise the application and SDK with a
 // synthetic issuer. They do not attest to a provisioned or live Auth0 tenant.
@@ -320,6 +321,17 @@ test('Customer workflow: a signed-in browser creates its model and actual serial
     const model = (await api('A', '/battery-models')).find(row => row.modelIdentifier === identifier);
     assert(model);
     await page.getByLabel('Battery model', { exact: true }).selectOption(model.id);
+    await page.getByRole('heading', { name: 'Model applicability review', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Record applicability review', exact: true }).isEnabled(), false);
+    for (const decision of syntheticConditionalDecisions('EV')) {
+      await page.getByLabel(`Applicability for point ${decision.fieldId}`, { exact: true }).selectOption(String(decision.applicable));
+      await page.getByLabel(`Reason and source for point ${decision.fieldId}`, { exact: true }).fill(decision.reason);
+    }
+    assert.equal(await page.getByRole('button', { name: 'Record applicability review', exact: true }).isEnabled(), false);
+    await page.getByLabel('I have assessed each condition against this model and approve the recorded decisions.').check();
+    await page.getByRole('button', { name: 'Record applicability review', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Applicability review recorded' }).waitFor();
+    assert.equal((await api('A', `/compliance/model/${model.id}/readiness`)).conditionalReview.complete, true);
     await page.getByLabel('Serial or individual item identifier', { exact: true }).fill(serial);
     await page.getByRole('button', { name: 'Create battery', exact: true }).click();
     await page.getByText(serial, { exact: true }).waitFor();

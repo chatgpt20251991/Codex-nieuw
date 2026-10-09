@@ -28,6 +28,12 @@ export class EvidenceController {
     return this.evidenceStorage.verify(orgId,id,actor.subject);
   }
 
+  @Post(':id/review-download')
+  @Roles('operator_admin','compliance_manager','service_provider_admin')
+  reviewDownload(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
+    return this.evidenceStorage.reviewDownload(orgId,id,actor.subject);
+  }
+
   @Post('link')
   async link(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() b:any){
     return this.tenantDb.run(orgId,async tx=>{

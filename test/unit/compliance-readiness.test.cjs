@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { fields } = require('@eubp/rules');
 const { ComplianceController } = require('../../apps/api/dist/modules/compliance/compliance.controller');
 const { PassportDataService } = require('../../apps/api/dist/modules/passports/passport-data.service');
+const { syntheticReviewedApplicabilityContext } = require('../fixtures/conditional-applicability.cjs');
 
 function fixture(evidenceOverrides = {}, itemOverrides = {}) {
   const evidence = { id: 'private-evidence', verificationStatus: 'verified', expiresAt: null, issuedAt: null,
@@ -16,7 +17,7 @@ function fixture(evidenceOverrides = {}, itemOverrides = {}) {
   }));
   values.push({ fieldDefinitionId: 50, validationStatus: 'validated', valueJson: 'authority-only-test-value',
     evidenceLinks: [{ evidenceId: evidence.id, evidence }] });
-  const model = { id: 'model-A', organisationId: 'org-A', category: 'EV', applicabilityContext: {}, values };
+  const model = { id: 'model-A', organisationId: 'org-A', category: 'EV', applicabilityContext: syntheticReviewedApplicabilityContext('EV'), values };
   const item = { id: 'item-A', organisationId: 'org-A', model, values: [], lifecycleStatus: 'original',
     passportState: 'published', ...itemOverrides };
   const queries = [];

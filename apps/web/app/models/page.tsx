@@ -9,6 +9,9 @@ export default function Models() {
   const [models, setModels] = useState<any[]>([]);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<any>();
+  const [conditionalReview, setConditionalReview] = useState<any>();
+  const [decisions, setDecisions] = useState<Record<number, { applicable: string; reason: string }>>({});
+  const [reviewApproved, setReviewApproved] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [name, setName] = useState('');
   const [category, setCategory] = useState('LMT');
@@ -27,8 +30,14 @@ export default function Models() {
   useEffect(() => { loadModels().catch(e => setError(e.message)); }, []);
   useEffect(() => {
     let active = true;
-    setDetail(undefined);
-    if (selected) apiFetch(`/battery-models/${selected}`).then(row => { if (active) setDetail(row); })
+    setDetail(undefined); setConditionalReview(undefined); setDecisions({}); setReviewApproved(false);
+    if (selected) Promise.all([apiFetch(`/battery-models/${selected}`), apiFetch(`/compliance/model/${selected}/readiness`)]).then(([row, result]) => {
+      if (!active) return;
+      setDetail(row); setConditionalReview(result.conditionalReview);
+      setDecisions(Object.fromEntries((result.conditionalReview?.fields || []).map((field: any) => [field.fieldId, {
+        applicable: typeof field.decision?.applicable === 'boolean' ? String(field.decision.applicable) : '', reason: field.decision?.reason || '',
+      }])));
+    })
       .catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [selected]);
@@ -55,6 +64,21 @@ export default function Models() {
       setNotice(`Battery ${item.serialOrItemIdentifier} created. Its dossier is still a draft.`);
     } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
+  async function saveApplicability(event: FormEvent) {
+    event.preventDefault(); if (!reviewApproved) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await apiFetch(`/battery-models/${selected}/applicability-review`, { method: 'POST', body: JSON.stringify({
+        decisions: conditionalReview.fields.map((field: any) => ({ fieldId: field.fieldId,
+          applicable: decisions[field.fieldId]?.applicable === 'true', reason: decisions[field.fieldId]?.reason.trim() })),
+      }) });
+      setConditionalReview(result.conditionalReview); setReviewApproved(false);
+      setDetail(await apiFetch(`/battery-models/${selected}`));
+      setNotice('Applicability review recorded for this model. Its batteries require fresh publication checks.');
+    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  }
+  const decisionsComplete = Boolean(conditionalReview?.fields.every((field: any) =>
+    ['true', 'false'].includes(decisions[field.fieldId]?.applicable) && (decisions[field.fieldId]?.reason.trim().length || 0) >= 10));
   return <AppShell>
     <section className="pageHead"><div><div className="kicker">BATTERY DATA MODEL</div>
       <h1>Models and individual batteries.</h1><p>Enter the model once, then create a separate dossier for each physical battery. Publication requires reviewed data and evidence.</p></div></section>
@@ -64,14 +88,14 @@ export default function Models() {
       <section className="panel"><h2>Create battery model</h2><form onSubmit={createModel}>
         <label>Model identifier<input required value={identifier} onChange={e => setIdentifier(e.target.value)} /></label>
         <label>Model name<input value={name} onChange={e => setName(e.target.value)} /></label>
-        <label>Battery category<select value={category} onChange={e => setCategory(e.target.value)}>
+        <label>Battery category<select aria-label="Battery category" value={category} onChange={e => setCategory(e.target.value)}>
           <option value="LMT">Light means of transport</option><option value="EV">Electric vehicle</option>
           <option value="INDUSTRIAL_GT_2KWH">Industrial above 2 kWh</option></select></label>
         <label>Chemistry, if known<input value={chemistry} onChange={e => setChemistry(e.target.value)} /></label>
         <button className="button" disabled={busy || !identifier.trim()}>Create model</button>
       </form></section>
       <section className="panel"><h2>Create individual battery</h2><form onSubmit={createItem}>
-        <label>Battery model<select required value={selected} disabled={busy} onChange={e => setSelected(e.target.value)}>
+        <label>Battery model<select aria-label="Battery model" required value={selected} disabled={busy} onChange={e => setSelected(e.target.value)}>
           <option value="">Select a model</option>{models.map(m => <option key={m.id} value={m.id}>{m.modelIdentifier}</option>)}</select></label>
         <label>Serial or individual item identifier<input required value={serial} onChange={e => setSerial(e.target.value)} /></label>
         <label>Batch, if known<input value={batch} onChange={e => setBatch(e.target.value)} /></label>
@@ -93,6 +117,26 @@ export default function Models() {
       {!detail.items.length && <div className="empty">This model has no batteries yet.</div>}
       {detail.items.length === 100 && <p className="mutedText">Showing the latest 100 batteries. Existing dossiers remain accessible through their saved links.</p>}
     </div></section>}
+    {detail && conditionalReview && <section className="panel"><h2>Model applicability review</h2>
+      <p>Assess each conditional data point for {detail.modelIdentifier}. Unknown conditions block publication. Record the source and reason for each decision; a decision applies to all batteries of this model.</p>
+      <p className="mutedText">{conditionalReview.complete ? 'A complete review is recorded.' : 'This model still needs an applicability review.'}</p>
+      <form onSubmit={saveApplicability}>
+        {conditionalReview.fields.map((field: any) => <fieldset className="evidenceReview" key={field.fieldId}>
+          <legend>{field.fieldId}. {field.name}</legend><p className="mutedText">{field.requirement}</p>
+          <label>Applicability<select aria-label={`Applicability for point ${field.fieldId}`} disabled={busy}
+            value={decisions[field.fieldId]?.applicable || ''} onChange={e => { setReviewApproved(false); setDecisions(current => ({ ...current,
+              [field.fieldId]: { ...current[field.fieldId], applicable: e.target.value } })); }} required>
+            <option value="">Not assessed</option><option value="true">Applies to this model</option><option value="false">Does not apply to this model</option>
+          </select></label>
+          <label>Reason and source<textarea aria-label={`Reason and source for point ${field.fieldId}`} disabled={busy} minLength={10} maxLength={1000} required
+            value={decisions[field.fieldId]?.reason || ''} onChange={e => { setReviewApproved(false); setDecisions(current => ({ ...current,
+              [field.fieldId]: { ...current[field.fieldId], reason: e.target.value } })); }} /></label>
+        </fieldset>)}
+        <label className="checkLabel"><input type="checkbox" disabled={busy || !decisionsComplete} checked={reviewApproved} onChange={e => setReviewApproved(e.target.checked)} />
+          I have assessed each condition against this model and approve the recorded decisions.</label>
+        <button className="button" disabled={busy || !decisionsComplete || !reviewApproved}>Record applicability review</button>
+      </form>
+    </section>}
     <ComplianceMatrix />
   </AppShell>;
 }

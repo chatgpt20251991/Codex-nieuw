@@ -8,6 +8,7 @@ const { resolve } = require('node:path');
 const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
 const { fields } = require('@eubp/rules');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 const { hashJson } = require('../../apps/api/dist/common/crypto/canonical.js');
 const { S3Client, CreateBucketCommand, ListObjectsV2Command, DeleteObjectsCommand, DeleteBucketCommand } = require('@aws-sdk/client-s3');
 
@@ -47,6 +48,7 @@ async function populateModel(actor, model) {
     const data = field.id === 67 ? 'original' : [10, 11, 26, 27, 28, 51].includes(field.id) ? 100 : `fixture-${field.id}`;
     await value({ modelId: model.id }, field.id, data, actor);
   }
+  await success(`/battery-models/${model.id}/applicability-review`, { actor, body: { decisions: syntheticConditionalDecisions(model.category) } });
 }
 async function makeItem(actor = 'A', model = models[actor]) {
   return success('/battery-items', { actor, body: { modelId: model.id, serialOrItemIdentifier: randomUUID() } });
@@ -294,4 +296,28 @@ test('Gate 5: revalidating an unchanged publication cannot create a duplicate ve
   assert.equal((await request(`/passports/${item.id}/publish`, { body: {} })).status, 409);
   assert.equal(await admin.passportVersion.count({ where: { batteryItemId: item.id } }), 1);
   assert.equal(await admin.registrySubmission.count({ where: { batteryItemId: item.id } }), 0);
+});
+
+test('conditional applicability changes invalidate inherited ready/publication state and retain immutable published versions', async () => {
+  const model = await success('/battery-models', { body: { modelIdentifier: randomUUID(), category: 'EV' } });
+  await populateModel('A', model);
+  const ready = await makeItem('A', model), published = await makeItem('A', model), recycled = await makeItem('A', model);
+  for (const item of [ready, published, recycled]) await success(`/passports/${item.id}/validate`, { body: {} });
+  const publication = await success(`/passports/${published.id}/publish`, { body: {} });
+  await event(recycled, 'recycle');
+  const immutable = await admin.passportVersion.findUniqueOrThrow({ where: { id: publication.version.id } });
+  const snapshot = await admin.publicPassportSnapshot.findFirstOrThrow({ where: { passportVersionId: publication.version.id } });
+  const decisions = syntheticConditionalDecisions('EV');
+  decisions[0] = { ...decisions[0], applicable: true, reason: 'Synthetic regression change: this previously excluded conditional requirement now applies.' };
+  await success(`/battery-models/${model.id}/applicability-review`, { body: { decisions } });
+  assert.equal((await success(`/battery-items/${ready.id}`)).passportState, 'data_collection');
+  assert.equal((await success(`/battery-items/${published.id}`)).passportState, 'updated');
+  assert.equal((await success(`/battery-items/${recycled.id}`)).passportState, 'recycled');
+  const assessment = await success(`/passports/${published.id}/validate`);
+  assert.equal(assessment.conditionalReview.complete, true);
+  assert.equal(assessment.publishable, false);
+  assert.ok(assessment.publicationBlockers.some(issue => issue.rule === 'BP-REQUIRED' && issue.fieldId === decisions[0].fieldId));
+  assert.equal((await request(`/passports/${published.id}/publish`, { body: {} })).status, 409);
+  assert.deepEqual(await admin.passportVersion.findUniqueOrThrow({ where: { id: publication.version.id } }), immutable);
+  assert.deepEqual(await admin.publicPassportSnapshot.findUniqueOrThrow({ where: { id: snapshot.id } }), snapshot);
 });

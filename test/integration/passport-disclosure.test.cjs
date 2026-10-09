@@ -7,6 +7,7 @@ const { createServer } = require('node:net');
 const { resolve } = require('node:path');
 const { PrismaClient } = require('@prisma/client');
 const { fields } = require('@eubp/rules');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 
 const admin = new PrismaClient({ datasources: { db: { url: process.env.TEST_ADMIN_DATABASE_URL } } });
 const orgs = { A: randomUUID(), B: randomUUID() }, tokens = {};
@@ -49,6 +50,9 @@ before(async () => {
       .setSubject(`gate3-${name}`).setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
       .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   }
+  tokens.reader = await new SignJWT({ org_id: orgs.A, role: 'operator_user' }).setProtectedHeader({ alg: 'HS256' })
+    .setSubject('gate3-non-reviewer').setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
+    .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   const listener = createServer(); listener.listen(0, '127.0.0.1'); await once(listener, 'listening');
   const port = listener.address().port; await new Promise(resolve => listener.close(resolve));
   base = `http://127.0.0.1:${port}/v1`;
@@ -77,8 +81,17 @@ before(async () => {
     await success('/evidence/link', { body: { evidenceId: evidence.id, passportValueId: value.id } });
     await success(`/passport-values/${value.id}/validate`, { body: {} });
   }
+  const unknown = await success(`/passports/${item.id}/validate`, { body: {} });
+  assert.equal(unknown.readiness.score, 100);
+  assert.equal(unknown.publishable, false, 'Complete values cannot replace a conditional applicability review.');
+  assert.equal(unknown.conditionalReview.complete, false);
+  assert.ok(unknown.publicationBlockers.some(issue => issue.rule === 'BP-APPLICABILITY-REVIEW'));
+  assert.equal((await request(`/passports/${item.id}/publish`, { body: {} })).status, 409);
+  const reviewed = await success(`/battery-models/${model.id}/applicability-review`, { body: { decisions: syntheticConditionalDecisions('EV', fields.map(field => field.id)) } });
+  assert.equal(reviewed.conditionalReview.complete, true);
   const validation = await success(`/passports/${item.id}/validate`, { body: {} });
   assert.equal(validation.publishable, true);
+  assert.equal(validation.conditionalReview.complete, true);
   const published = await success(`/passports/${item.id}/publish`, { body: {} });
   assert.equal(published.version.canonicalJson.values.length, 71);
   fixture = { model, item, evidence, published };
@@ -197,4 +210,33 @@ test('Gate 3: legacy snapshot metadata and unknown stored tiers cannot bypass pr
     assert.ok(!JSON.stringify(passport).includes('legacy-unknown-secret'));
     noInternalMetadata(passport);
   }
+});
+
+test('conditional model review is authenticated, tenant scoped and cannot be forged or partially saved', async () => {
+  const model = await success('/battery-models', { body: { modelIdentifier: randomUUID(), category: 'EV' } });
+  const decisions = syntheticConditionalDecisions('EV');
+  const before = await admin.batteryModel.findUniqueOrThrow({ where: { id: model.id } });
+  for (const [actor, status] of [[null, 401], ['reader', 403], ['B', 404]]) {
+    assert.equal((await request(`/battery-models/${model.id}/applicability-review`, { actor, body: { decisions } })).status, status);
+  }
+  for (const body of [
+    { decisions: [] }, { decisions: decisions.slice(1) }, { decisions: [...decisions, decisions[0]] },
+    { decisions: [{ ...decisions[0], applicable: 'false' }, ...decisions.slice(1)] },
+    { decisions: [{ ...decisions[0], reason: '' }, ...decisions.slice(1)] },
+    { decisions: [...decisions, { fieldId: 1, applicable: false, reason: 'Synthetic non-conditional field' }] },
+  ]) assert.equal((await request(`/battery-models/${model.id}/applicability-review`, { body })).status, 400);
+  assert.deepEqual(await admin.batteryModel.findUniqueOrThrow({ where: { id: model.id } }), before);
+  assert.equal(await admin.auditEvent.count({ where: { resourceId: model.id, action: 'battery_model.applicability_review' } }), 0);
+  for (const applicabilityContext of [{ conditionalDecisions: decisions }, { conditionalReview: { reviewedBySubject: 'forged' } }]) {
+    assert.equal((await request('/battery-models', { body: { modelIdentifier: randomUUID(), category: 'EV', applicabilityContext } })).status, 400);
+  }
+  const checked = await success(`/battery-models/${model.id}/applicability-review`, { body: { decisions } });
+  assert.equal(checked.conditionalReview.complete, true);
+  const summary = await success(`/compliance/model/${model.id}/readiness`);
+  assert.equal(summary.conditionalReview.complete, true);
+  assert.deepEqual(checked.applicabilityContext.conditionalRequiredFieldIds, []);
+  const audit = await admin.auditEvent.findFirstOrThrow({ where: { resourceId: model.id, action: 'battery_model.applicability_review' } });
+  assert.equal(audit.organisationId, orgs.A);
+  assert.equal(audit.actorSubject, 'gate3-A');
+  assert.deepEqual(audit.metadata.decisions, decisions);
 });

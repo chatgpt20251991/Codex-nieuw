@@ -19,23 +19,40 @@ conformity or EU registration.
    Opening a draft or historical `sent` link records `opened`, without inventing
    delivery evidence. The detail route remains tenant-bound and projects only
    review metadata. Reviewed submissions import as unvalidated supplier values.
-4. `/evidence` uploads bytes to private storage and checks integrity. The
-   operator retains/accesses the actual source document for review; this change
-   does not implement a new document download/export archive.
+4. `/evidence` uploads bytes to private storage and checks integrity. Reviewers
+   in dossier and supplier screens can request a short-lived attachment download
+   of the exact finalized, clean-scanned storage version. Only authorised review
+   roles can issue one, with tenant checks and an issuance audit. The browser
+   restricts the URL to the configured storage origin and does not retain it.
+   Issuing or downloading a file never records a human review or verifies it.
 5. `/passports?item=<item UUID>` displays current effective model/item values,
    supports text, numeric, boolean and structured input, evidence links,
    authorised evidence verification and separate value validation. Zero and
    false remain explicit values; blank input does not become a measurement.
-6. Complete validation uses the same current evidence/provenance, cross-field
+6. `/models` requires an explicit applicability review for each current
+   conditional point, with a decision and source/reason. Missing or inconsistent
+   decisions block publication; unknown is never treated as not applicable.
+   The server records actor/time, locks and invalidates affected batteries, and
+   audits the review. Complete validation uses the same current evidence/provenance, cross-field
    and lifecycle assessment as publication. A 100% completeness score can still
    be blocked. Read-only assessments do not mutate passport state or reveal raw
    values/evidence metadata. The existing publication transaction rechecks
    current data and retains locking, immutable versions, audit and hash chaining.
+   Existing models lacking authenticated review metadata remain blocked until
+   reviewed; this does not rewrite their already published versions/snapshots.
 7. Publication requires an explicit operator confirmation. The console shows
    published versions and an authenticated SVG QR download. The BFF admits
    only the exact UUID QR path on GET/HEAD, with bounded bytes, a fixed download
    name and restrictive SVG policy. It retains the existing session, tenant,
    trusted host and origin controls. Other file paths and QR mutations fail.
+
+Private review links last at most 60 seconds and cannot outlive the document's
+validity. Revocation prevents further issuance; an already issued link remains
+a capability until its short expiry. Downloads use an attachment disposition
+and octet-stream rather than rendering untrusted documents inline, with private
+no-store response headers. Running downloads and files already downloaded cannot
+be recalled. An issuance
+audit proves issuance, not that a reviewer opened or understood the source.
 
 ## Public scan route
 

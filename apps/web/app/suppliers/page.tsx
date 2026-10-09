@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
 import { apiFetch } from '../../lib/api';
+import { downloadEvidence } from '../../lib/evidence-review';
 
 const labels: Record<string, string> = {
   draft: 'Link created, not sent', sent: 'Legacy sent status', opened: 'Opened',
@@ -93,6 +94,11 @@ export default function Suppliers() {
       setReview(undefined); setReviewed(false); await load();
     } catch (e: any) { setError(e.message); } finally { setBusy(''); }
   }
+  async function reviewDocument(id: string) {
+    setBusy('document'); setError(''); setNotice(''); setReviewed(false);
+    try { await downloadEvidence(id); setNotice('Source download initiated. Read the document before reviewing the declarations.'); }
+    catch (e: any) { setError(e.message); } finally { setBusy(''); }
+  }
 
   return <AppShell>
     <section className="pageHead"><div><div className="kicker">SUPPLIER DATA ROOM</div><h1>Chase evidence at the source.</h1><p>Request specific model data, inspect supplier submissions and import them for review. Supplier declarations do not become validated facts automatically.</p></div><button className="button secondary" disabled={Boolean(busy)} onClick={() => load().catch(e => setError(e.message))}>Refresh</button></section>
@@ -123,7 +129,7 @@ export default function Suppliers() {
     <section className="panel"><h2>Recent data requests</h2><div className="rows">{requests.map(r => <div className="row" key={r.id}><div><strong>{r.supplier?.legalName}</strong><span>{r.model?.modelIdentifier} · {r.fields?.length} requested points · {r._count?.submissions || 0} submissions</span></div><div className="rowMeta"><span className="badge neutral">{labels[r.status] || r.status}</span><button className="button secondary" disabled={Boolean(busy)} onClick={() => openReview(r.id)}>Review request</button></div></div>)}{!requests.length && <div className="empty">No supplier requests yet.</div>}</div></section>
     {review && <section className="panel"><div className="panelHead"><div><h2>Review supplier declarations</h2><p>{review.supplier?.legalName} · {review.model?.modelIdentifier} · {labels[review.status] || review.status}</p></div><button className="button secondary" disabled={Boolean(busy)} onClick={() => { setReview(undefined); setReviewed(false); }}>Close review</button></div>
       <p>These are supplier declarations. Check the model, values, units and supporting documents before importing them. Importing does not verify evidence or validate any passport value.</p>
-      <div className="rows">{review.submissions.map((submission: any) => <article className="row" key={submission.id}><div><strong>Field {submission.fieldDefinitionId}{submission.unit ? ' · ' + submission.unit : ''}</strong><pre className="log">{displayValue(submission.valueJson)}</pre>{submission.attestationText && <p>{submission.attestationText}</p>}<span>{submission.evidence.length ? 'Evidence references:' : 'No evidence attached.'}</span>{submission.evidence.map((link: any) => <span key={link.evidenceId}>{link.evidence?.originalFilename || link.evidenceId} · {link.evidence?.verificationStatus || 'Unknown status'}</span>)}</div></article>)}{!review.submissions.length && <div className="empty">No supplier declarations have been submitted.</div>}</div>
+      <div className="rows">{review.submissions.map((submission: any) => <article className="row" key={submission.id}><div><strong>Field {submission.fieldDefinitionId}{submission.unit ? ' · ' + submission.unit : ''}</strong><pre className="log">{displayValue(submission.valueJson)}</pre>{submission.attestationText && <p>{submission.attestationText}</p>}<span>{submission.evidence.length ? 'Evidence references:' : 'No evidence attached.'}</span>{submission.evidence.map((link: any) => <div className="evidenceReview" key={link.evidenceId}><span>{link.evidence?.originalFilename || link.evidenceId} · {link.evidence?.verificationStatus || 'Unknown status'}</span><button className="button secondary" disabled={Boolean(busy)} onClick={() => reviewDocument(link.evidenceId)}>Download source document</button></div>)}</div></article>)}{!review.submissions.length && <div className="empty">No supplier declarations have been submitted.</div>}</div>
       {['submitted', 'partially_submitted'].includes(review.status) && review.submissions.length > 0 && <div>
         <label className="checkLabel"><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} /> I reviewed these declarations and want to import them as unvalidated supplier values.</label>
         <button className="button" disabled={Boolean(busy) || !reviewed} onClick={acceptReview}>{busy === 'accept' ? 'Importing…' : 'Import declarations for review'}</button>
