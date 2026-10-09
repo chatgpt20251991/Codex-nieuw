@@ -2,6 +2,19 @@
 
 ## Current engineering status
 
+Regulatory follow-up (9 October 2026): see
+`docs/25_REGULATORY_UPDATE_2026-10-09.md` for the verified draft/norm status,
+separate industrial Article 10 dossier check and staged engineering plan.
+The offline ledger, control inventory and industrial model template are prepared
+with 24 regression tests. The draft is not active law; normative profiles remain
+unverified and no Registry or production gate is activated. See
+`docs/customer-readiness/FIRST_CUSTOMER_RELEASE.md` for the free first-customer
+preparation and remaining intake/identity acceptance. Dutch/English public copy
+is prepared; website publication remains blocked by the full dependency audit's
+unpatched braces advisory (see `docs/26_SECURITY_PATCH_REVIEW_2026-10-09.md`). The
+owner has deferred paid customer hosting until a concrete first order; the
+October 4 Render proposal remains unapplied and is not an approved spending plan.
+
 Production follow-up (4 October 2026): workspace confirmed and inspected; only
 unrelated Oregon services exist. `docs/24_RENDER_ACCEPTANCE_PLAN.md` records the
 unapproved Frankfurt installation proposal and its certificate-verified database

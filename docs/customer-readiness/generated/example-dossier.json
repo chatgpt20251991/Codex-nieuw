@@ -1,6 +1,6 @@
 {
   "schema": "eubp.fictional-dossier.v1",
-  "profile": "eubp.customer-assessment.2026-10-01",
+  "profile": "eubp.customer-assessment.2026-10-09",
   "fictional": true,
   "status": "draft",
   "model": "EX-120",
@@ -92,5 +92,269 @@
     "reason": "No authenticated official integration; guide v1.03 still states battery registration unavailable"
   },
   "public_example_url": "https://eubatterypassport.nl/voorbeeld",
-  "public_example_is_item_resolver": false
+  "public_example_is_item_resolver": false,
+  "industrial_model_assessment": {
+    "schema": "eubp.industrial-model-assessment.v1",
+    "profile": "eubp.customer-assessment.2026-10-09",
+    "internal_only": true,
+    "status": "draft",
+    "model_scope": {
+      "model_id": "DEMO-MODEL-EX-120",
+      "model_name": "EX-120",
+      "category": "INDUSTRIAL_GT_2KWH",
+      "rechargeable": true,
+      "rated_energy_kwh": 120,
+      "exclusively_external_storage": false,
+      "storage_principle": null,
+      "finished_battery": null,
+      "bms": {
+        "manufacturer": null,
+        "model": null,
+        "firmware": null,
+        "shared_with_other_modules": null,
+        "dependencies": null
+      },
+      "variants": [],
+      "intended_application": "Stationary storage, assumed for fictional exercise",
+      "market_placement_date": null
+    },
+    "legal_context": {
+      "passport": {
+        "legal_basis": "Regulation (EU) 2023/1542 Article 77",
+        "deadline": "2027-02-18",
+        "applicability_decision": null
+      },
+      "industrial_performance": {
+        "legal_basis": "Regulation (EU) 2023/1542 Article 10",
+        "current_documentation_review": {
+          "legal_basis": "Article 10(1)",
+          "status": "requires_case_review",
+          "evidence_refs": []
+        },
+        "draft_reference": "Ares(2026)9188325",
+        "draft_status": "proposal_not_active_law",
+        "minimum_values": null,
+        "adoption_date": null,
+        "entry_into_force_date": null,
+        "minimum_requirement_application_date": null,
+        "application_date_rule": "Later of 18 August 2027 or 18 months after entry into force of the final delegated act; not the passport deadline"
+      }
+    },
+    "measurements": [
+      {
+        "quantity": "rated_capacity",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      },
+      {
+        "quantity": "power",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      },
+      {
+        "quantity": "internal_resistance",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      },
+      {
+        "quantity": "round_trip_efficiency",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      },
+      {
+        "quantity": "cycle_lifetime",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      },
+      {
+        "quantity": "calendar_lifetime",
+        "value": null,
+        "unit": null,
+        "uncertainty": null,
+        "measured_at": null,
+        "model_variant": null,
+        "test_conditions": {
+          "temperature_c": null,
+          "current_a": null,
+          "voltage_v": null,
+          "c_rate": null,
+          "state_of_charge_percent": null,
+          "depth_of_discharge_percent": null,
+          "reference_cycle_definition": null,
+          "test_method": null,
+          "norm_edition": null,
+          "description": null
+        },
+        "evidence_refs": [],
+        "reviewer": null,
+        "reviewed_at": null,
+        "status": "not_reviewed",
+        "validated": false,
+        "source": "fictional exercise; measurements and reports not supplied"
+      }
+    ],
+    "evidence": [],
+    "evidence_record_template": {
+      "evidence_id": null,
+      "model_id": null,
+      "model_variant": null,
+      "document_name": null,
+      "document_revision": null,
+      "document_date": null,
+      "laboratory_or_supplier": null,
+      "norm_edition": null,
+      "page_or_section": null,
+      "content_sha256": null,
+      "byte_integrity_status": "not_verified",
+      "reviewer": null,
+      "reviewed_at": null,
+      "review_status": "not_reviewed"
+    },
+    "review": {
+      "applicability_decision": null,
+      "reason": null,
+      "reviewer": null,
+      "reviewed_at": null,
+      "evidence_refs": [],
+      "open_questions": [],
+      "review_status": "requires_case_review"
+    },
+    "product_performance_conformity": "not_assessed",
+    "registry": {
+      "submission_available": false,
+      "uploadable": false,
+      "status": "not_submitted",
+      "external_registration_id": null
+    },
+    "fictional": true,
+    "scope_review": {
+      "internal_only": true,
+      "article10_scope_indicator": "minimum_performance_scope_candidate",
+      "article10_documentation_scope_indicator": "industrial_performance_documentation_candidate",
+      "passport_scope_indicator": "passport_scope_candidate",
+      "passport_deadline": "2027-02-18",
+      "unknown_scope_inputs": [
+        "finished_battery"
+      ],
+      "review_metadata_gaps": [
+        "applicability_decision",
+        "reason",
+        "reviewer",
+        "reviewed_at",
+        "evidence_refs"
+      ],
+      "review_status": "requires_case_review",
+      "applicability_decision": null,
+      "suggested_reviewer_decision": null,
+      "product_performance_conformity": "not_assessed",
+      "validated": false,
+      "minimum_values_applied": false,
+      "registry_registered": false
+    }
+  }
 }

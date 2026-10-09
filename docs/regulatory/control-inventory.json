@@ -1,0 +1,43 @@
+{
+  "schema": "eubp.normative-mapping-preparation.v1",
+  "checkedAt": "2026-10-09",
+  "normConformityEstablished": false,
+  "controls": [
+    {
+      "id": "stable_resolver", "observation": "Publisher reuses the stored item UPI. Resolver uses HTTPS in production and generates SVG QR; existing settings are not a reviewed EN profile.",
+      "codeRefs": ["apps/api/src/modules/resolver/resolver.service.ts", "apps/api/src/modules/resolver/resolver.controller.ts", "apps/api/src/modules/passports/passports.controller.ts"],
+      "regressionRefs": ["test/integration/passport-lifecycle.test.cjs"],
+      "normativeComplianceVerified": false, "remainingReview": "Review identifier issuance, data-carrier clauses, continuity and migration cases. No abstract-derived syntax or QR margins."
+    },
+    {
+      "id": "public_projection", "observation": "Public resolver reads PublicPassportSnapshot and projects allowed public fields, rather than serving the canonical passport.",
+      "codeRefs": ["apps/api/src/modules/resolver/resolver.controller.ts", "apps/api/src/modules/passports/passport-projection.ts"],
+      "regressionRefs": ["test/integration/passport-disclosure.test.cjs"],
+      "normativeComplianceVerified": false, "remainingReview": "Map reviewed access clauses and final Article 77(9) rules to audience-specific policies; public data must remain readable."
+    },
+    {
+      "id": "scoped_access", "observation": "Capability tokens are hashed; grant validation checks tenant ownership, scope, expiry and revocation in the disclosure transaction.",
+      "codeRefs": ["apps/api/src/modules/access/access-token.service.ts", "apps/api/src/modules/access/access.controller.ts", "apps/api/src/common/tenant/tenant-db.service.ts"],
+      "regressionRefs": ["test/integration/passport-disclosure.test.cjs"],
+      "normativeComplianceVerified": false, "remainingReview": "Review legitimate-interest eligibility, identity assurance, permitted reuse and responsibility transfer; current capability mechanism is not a normative conformity claim."
+    },
+    {
+      "id": "evidence_integrity", "observation": "Evidence must pass actual-byte hash checks and applicable malware scanning before verified use; provenance and manual verification remain required.",
+      "codeRefs": ["apps/api/src/common/storage/evidence-storage.service.ts", "apps/api/src/common/storage/storage.service.ts", "apps/api/src/modules/evidence/evidence.controller.ts"],
+      "regressionRefs": ["test/integration/evidence-integrity.test.cjs"],
+      "normativeComplianceVerified": false, "remainingReview": "Map authenticated exchange requirements after full-text review. Content hashes alone do not establish origin/authenticity, ESDC conformity or issuer trust."
+    },
+    {
+      "id": "immutable_version_chain", "observation": "Publishing creates a canonical SHA-256 version and previous-version link. Database trigger protects published version mutation/deletion.",
+      "codeRefs": ["apps/api/src/modules/passports/passports.controller.ts", "apps/api/src/common/crypto/canonical.ts", "apps/api/prisma/migrations/20260905010000_immutable_passport_versions/migration.sql"],
+      "regressionRefs": ["test/integration/passport-lifecycle.test.cjs", "test/integration/verify-migration-upgrade.cjs", "test/integration/verify-backup-restore.cjs"],
+      "normativeComplianceVerified": false, "remainingReview": "Review authenticity, key/issuer trust, data-exchange constructs and retention/transfer; immutable local versions do not independently prove normative conformity."
+    }
+  ],
+  "normativeMappings": [
+    { "standardId": "EN 18219:2026", "status": "full_text_review_pending", "clause": null, "requiredBehaviour": null, "relatedControlIds": ["stable_resolver"], "reviewer": null, "reviewedAt": null, "requiredTests": [], "deviations": [], "deploymentEvidence": null },
+    { "standardId": "EN 18220:2026", "status": "full_text_review_pending", "clause": null, "requiredBehaviour": null, "relatedControlIds": ["stable_resolver", "public_projection"], "reviewer": null, "reviewedAt": null, "requiredTests": [], "deviations": [], "deploymentEvidence": null },
+    { "standardId": "EN 18239:2026", "status": "full_text_review_pending", "clause": null, "requiredBehaviour": null, "relatedControlIds": ["public_projection", "scoped_access"], "reviewer": null, "reviewedAt": null, "requiredTests": [], "deviations": [], "deploymentEvidence": null },
+    { "standardId": "EN 18246:2026", "status": "full_text_review_pending", "clause": null, "requiredBehaviour": null, "relatedControlIds": ["evidence_integrity", "immutable_version_chain"], "reviewer": null, "reviewedAt": null, "requiredTests": [], "deviations": [], "deploymentEvidence": null }
+  ]
+}

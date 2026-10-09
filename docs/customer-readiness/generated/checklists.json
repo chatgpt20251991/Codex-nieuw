@@ -4,7 +4,7 @@
   "checklists": [
     {
       "category": "EV",
-      "profile": "eubp.customer-assessment.2026-10-01",
+      "profile": "eubp.customer-assessment.2026-10-09",
       "source_sha256": "a1970a3219ece45e4f51c00a9e15f2652af11d2153cf960a9889069716dcd377",
       "review_status": "requires_case_review",
       "fields": [
@@ -1361,7 +1361,7 @@
     },
     {
       "category": "LMT",
-      "profile": "eubp.customer-assessment.2026-10-01",
+      "profile": "eubp.customer-assessment.2026-10-09",
       "source_sha256": "a1970a3219ece45e4f51c00a9e15f2652af11d2153cf960a9889069716dcd377",
       "review_status": "requires_case_review",
       "fields": [
@@ -2718,7 +2718,7 @@
     },
     {
       "category": "INDUSTRIAL_GT_2KWH",
-      "profile": "eubp.customer-assessment.2026-10-01",
+      "profile": "eubp.customer-assessment.2026-10-09",
       "source_sha256": "a1970a3219ece45e4f51c00a9e15f2652af11d2153cf960a9889069716dcd377",
       "review_status": "requires_case_review",
       "fields": [

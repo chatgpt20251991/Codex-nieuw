@@ -1,8 +1,10 @@
 # Klanttraject voor EUBatteryPassport
 
-Dit werkpakket helpt de eigenaar een eerste klantdossier af te bakenen, gegevens op te vragen en een offerte te maken. Het is opgesteld op 1 oktober 2026. Een geslaagde softwaretest is geen certificering en geen bewijs dat een klantbatterij geregistreerd is.
+Dit werkpakket helpt de eigenaar een eerste klantdossier af te bakenen, gegevens op te vragen en een offerte te maken. Het is opgesteld op 1 oktober en uitgebreid op 9 oktober 2026 met een afzonderlijk industrieel modeldossier. Een geslaagde softwaretest is geen certificering en geen bewijs dat een klantbatterij geregistreerd is.
 
 ## De eerste opdracht
+
+Gebruik de [vrijgavewerklijst voor de eerste klant](FIRST_CUSTOMER_RELEASE.md) voor intakeacceptatie, bedrijfsidentiteit, Registry-voorbereiding en het afgesproken uitstel van betaalde klantinfrastructuur.
 
 Begin met één model van een Nederlandse leverancier van stationaire opslag. Bepaal eerst de daadwerkelijke rol van de onderneming; een distributeur is niet automatisch de verantwoordelijke importeur. Verkoop een begrensde dossierbeoordeling met een ontbrekende-gegevenslijst en een uitvoeringsvoorstel. Neem nog geen onvoorwaardelijke verplichting tot live registratie, een gegarandeerde compliancestatus of levenslange hosting aan.
 
@@ -40,7 +42,21 @@ De gegenereerde bestanden onder `generated` bevatten 71 rijen voor elk van EV, L
 
 Leg bij ieder bewijs de leverancier of het laboratorium, documentdatum, modelvariant, revisie, pagina, eenheid, inhoudshash en reviewer vast. Een documentnaam of een gegenereerde hash bewijst geen inhoudelijke juistheid. Vraag bij EV-prestatie- en levensduuronderzoek naar de gebruikte normeditie en het dekkingsbereik van het rapport, waaronder EN 18060:2025 waar relevant. Het geharmoniseerde besluit maakt deze EV-norm niet automatisch toepasselijk op stationaire opslag of LMT.
 
+## Afzonderlijk modeldossier voor industriële prestaties
+
+Gebruik `generated/industrial-model-assessment-template.json` voor één afgebakend model. Dit is een offline invultemplate naast de drie bestaande 71-veldenchecklists. Het bevat categorie, oplaadbaarheid, nominale energie in kWh, uitsluitend externe opslag, complete batterij, BMS-afhankelijkheden, varianten, toepassing en marktintroductiedatum. Onbekende eigenschappen blijven `null` en vragen een expliciete beoordeling.
+
+Verzamel capaciteit, vermogen, interne weerstand, round-trip-efficiëntie en levensduurmetingen met eenheden, onzekerheid, testcondities, rapporten en modelvariant. Leg laboratorium of leverancier, gebruikte normeditie, datum, documentrevisie, pagina, inhoudshash, daadwerkelijke bytecontrole en reviewer vast. De template schrijft geen testnorm of minimumwaarde voor.
+
+De afzonderlijke artikel 10-scopecheck geeft uitsluitend een kandidaat-indicatie. Een nominale energie van precies 2 kWh overschrijdt de industriële grens niet. De huidige beoordeling van prestatiedocumentatie onder artikel 10(1) blijft afzonderlijk van de toekomstige minimumwaarden. De uitzondering voor uitsluitend externe opslag bij industriële minimumprestaties wordt nooit doorgezet als een algemene vrijstelling van de paspoortverplichting of een automatische vrijstelling van huidige prestatiedocumentatie. De paspoortdeadline van 18 februari 2027 en de latere toepassingsdatum van toekomstige industriële minimumwaarden blijven afzonderlijke gegevens.
+
+Een ingevulde reviewer, hash of `verified`-label in een lokaal bestand is geen vertrouwde platformvalidatie. De offline controle houdt de definitieve toepasselijkheidsbeslissing open en meldt ook bij complete reviewmetadata dat feitelijke verificatie nodig is. Er worden geen ontwerpgrenswaarden toegepast, paspoortwaarden gevalideerd, normconformiteitsclaims gemaakt of Registry-statussen gepromoveerd. `generated/industrial-model-assessment-example.json` is een fictieve EX-120-oefening zonder meetrapporten of onderbouwde productafbakening.
+
+De metadata-versie `eubp.customer-assessment.2026-10-09` geldt voor deze werkdocumenten. De actieve platformregels, veldvereisten en toegangsbeleid behouden hun bestaande versie. De modelbeoordeling en bewijsmetadata staan uitsluitend in het interne dossier; de afzonderlijke fictieve openbare projectie bevat alleen velden met de bestaande openbare toegangstier.
+
 ## Updates per klant afspreken
+
+Bij industriële modellen gebruikt de dossierbeoordeling ook de [aanvullende modelcheck van 9 oktober](../25_REGULATORY_UPDATE_2026-10-09.md#aanvullende-dossiercheck-per-industrieel-model). Leg opslagprincipe, referentiecondities en modelgebonden prestatierapporten vast. Beoordeel artikel 10 afzonderlijk van paspoortcompleetheid; ontwerpgrenswaarden krijgen geen actieve compliant-score. De datum van toekomstige minimumwaarden verandert de paspoortdeadline niet.
 
 Kies na beoordeling handmatige updates, onderhoudsupdates of een automatische API/BMS-koppeling. Leg per gegeven vast wie aanlevert, wanneer het wordt gemeten, welke gebeurtenis een update vereist en wie afwijkingen beoordeelt. Een gekozen servicemethode is geen algemene vrijstelling van actualisering. Status- en prestatiegegevens bij marktintroductie mogen niet willekeurig leeg blijven. Alleen werkelijk nog niet bestaande gebruiksgegevens krijgen een onderbouwde beginstatus.
 
@@ -75,9 +91,9 @@ Stuur niets automatisch. Houd per prospect de toestemming/benaderingsgrond, reac
 ## Openstaande voorwaarden
 
 - Formulierverwerking: productie-intake en worker staan uit; private configuratie/cron en echte ontvangst plus foutmelding moeten worden gecontroleerd.
-- Bedrijfsgegevens: officiële naam, adres en eventuele KvK-inschrijving zijn bij de eigenaar opgevraagd.
+- Bedrijfsgegevens: Avenzo digital en KvK/adres zijn door de eigenaar opgegeven; doelgerichte bevestiging voor openbare privacyinformatie en bevoegde Registry-identiteit blijft open.
 - Officiële registratie: ingelogde bevoegde organisatie, actuele schemas/templates en werkelijke integratie-uitkomst ontbreken.
 - Operationeel platform: de bestaande Gate 7-productievoorwaarden blijven gelden; de marketingwebsite is niet de productietoepassing.
 - Klantenwerving: geen berichten, offertes of contracten verzonden.
 
-Genereer en controleer de checklist en het fictieve dossier met `node scripts/customer-readiness.cjs`. Bekijk daarna `generated/werkpakket.html` lokaal. Dit interne werkpakket hoort niet in de openbare website-output.
+Genereer en controleer de checklist, het fictieve dossier en het industriële modeltemplate met `node scripts/customer-readiness.cjs`. Voer `node --test scripts/customer-readiness-assessment.test.cjs` uit voor scopegrenzen, onbekende invoer, bewijs-/reviewblokkades en bescherming van de openbare projectie. Bekijk daarna `generated/werkpakket.html` lokaal. Dit interne werkpakket hoort niet in de openbare website-output en vereist geen nieuw hostingabonnement.

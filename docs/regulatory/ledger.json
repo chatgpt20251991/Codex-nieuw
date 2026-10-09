@@ -1,0 +1,305 @@
+{
+  "schema": "eubp.regulatory-preparation.v1",
+  "checkedAt": "2026-10-09",
+  "preparationOnly": true,
+  "sourceCatalogSha256": "434a790c5f95bf2d74c0f8932c63ec6d8267fbbd77d91322360990ca6414c6d3",
+  "sourceIntegrityScope": "Local source metadata only; original publication bytes are not archived or authenticated by this digest.",
+  "sources": [
+    {
+      "id": "batteries",
+      "authority": "European Union / EUR-Lex",
+      "url": "https://eur-lex.europa.eu/eli/reg/2023/1542/oj",
+      "locator": "Articles 10(2), 77(1), 77(3) and 77(9)",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "draft",
+      "authority": "European Commission / Publications Office",
+      "url": "https://op.europa.eu/en/publication-detail/-/publication/7da524b6-bc01-11f1-81de-01aa75ed71a1/language-en",
+      "locator": "Ares(2026)9188325; draft Articles 1 and 2(1)",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "consultation",
+      "authority": "European Commission",
+      "url": "https://ec.europa.eu/info/law/better-regulation/brpapi/groupInitiatives/14460",
+      "locator": "Initiative 14460: draft consultation dates and no adoption date",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "espr_citation",
+      "authority": "European Union / EUR-Lex",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026D1736",
+      "locator": "Implementing Decision (EU) 2026/1736: six cited DPP standards under ESPR 2024/1781",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "faq",
+      "authority": "European Commission",
+      "url": "https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en",
+      "locator": "Sections 1.3, 1.4, 6.3 and 6.4; September 2026 manuscript, guidance not binding legislation",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "nen_18219",
+      "authority": "NEN",
+      "url": "https://www.nen.nl/nen-en-18219-2026-en-352707",
+      "locator": "EN 18219 catalogue and free NEN Connect reading access notice; not full-text review",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "nen_18220",
+      "authority": "NEN",
+      "url": "https://www.nen.nl/en/nen-en-18220-2026-en-352706",
+      "locator": "EN 18220 catalogue and free NEN Connect reading access notice; not full-text review",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "nen_18239",
+      "authority": "NEN",
+      "url": "https://www.nen.nl/nen-en-18239-2026-en-356885",
+      "locator": "Definitive standard; publication 2026-09-01; national registration/start 2026-09-21",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "nen_18246",
+      "authority": "NEN",
+      "url": "https://www.nen.nl/nen-en-18246-2026-en-356883",
+      "locator": "Definitive standard; publication 2026-09-01; national registration/start 2026-09-21",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "cen_18239",
+      "authority": "CEN-CENELEC",
+      "url": "https://standards.cencenelec.eu/ords/f?cs=1C97AB3E731BCF82E3BD2A04D9D8DC8CD&p=205%3A110%3A%3A%3A%3A%3AFSP_PROJECT%3A81494",
+      "locator": "Project 81494: definitive text availability 2026-09-16",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "cen_18246",
+      "authority": "CEN-CENELEC",
+      "url": "https://standards.cencenelec.eu/ords/f?cs=1C627F97280D3E45FBBBED053BCCA88A9&p=205%3A110%3A%3A%3A%3A%3AFSP_PROJECT%3A81495",
+      "locator": "Project 81495: definitive text availability 2026-09-16",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "harmonisation_list",
+      "authority": "European Commission",
+      "url": "https://single-market-economy.ec.europa.eu/single-market/goods/european-standards/harmonised-standards/digital-product-passport-dpp_en",
+      "locator": "Official DPP harmonisation page lists Decision 2026/1736; corroboration of current citation status, not full-text conformity",
+      "checkedAt": "2026-10-09"
+    },
+    {
+      "id": "restricted_access_initiative",
+      "authority": "European Commission",
+      "url": "https://ec.europa.eu/info/law/better-regulation/brpapi/groupInitiatives/16473",
+      "locator": "Initiative 16473: planning/upcoming metadata; no adoption date or published act attachments at review",
+      "checkedAt": "2026-10-09"
+    }
+  ],
+  "runtimeFlags": {
+    "BATTERY_SEMANTIC_CATALOGUE_AVAILABLE": false,
+    "REGISTRY_BATTERY_SUBMISSION_AVAILABLE": false,
+    "ARTICLE_77_9_ACCESS_ACT_FINAL": false
+  },
+  "legal": {
+    "passportDeadline": "2027-02-18",
+    "currentIdentifierBasis": {
+      "reference": "Regulation (EU) 2023/1542 Article 77(3)",
+      "family": "ISO/IEC 15459 or equivalent",
+      "sourceId": "batteries",
+      "implementationConformityEstablished": false,
+      "scope": "qr_code_and_unique_identifier",
+      "editions": [
+        "15459-1:2014",
+        "15459-2:2015",
+        "15459-3:2014",
+        "15459-4:2014",
+        "15459-5:2014",
+        "15459-6:2014"
+      ]
+    },
+    "draft": {
+      "reference": "Ares(2026)9188325",
+      "publishedAt": "2026-09-29",
+      "consultationEndsAt": "2026-10-27",
+      "status": "draft_consultation",
+      "binding": false,
+      "finalPublication": null,
+      "entryIntoForce": null,
+      "identifierQrApplicationDate": null,
+      "proposedArticle77References": {
+        "identifier": "EN 18219:2026",
+        "carrier": "EN 18220:2026",
+        "equivalentStandardsAllowed": true
+      },
+      "sourceIds": [
+        "draft",
+        "consultation"
+      ]
+    },
+    "industrialMinimums": {
+      "scope": "rechargeable_industrial_gt_2kwh_excluding_exclusively_external_storage",
+      "applicationRule": "later_of_2027_08_18_and_final_entry_into_force_plus_18_calendar_months",
+      "finalEntryIntoForce": null,
+      "applicationDate": null,
+      "activeDraftThresholds": false,
+      "passportExemptionInferred": false,
+      "sourceIds": [
+        "batteries",
+        "draft"
+      ],
+      "review": "Separate Article 10 product-performance review; a passport dossier is not evidence that performance minimums are satisfied."
+    },
+    "restrictedAccessAct": {
+      "status": "pending_final_binding_act",
+      "finalPublication": null,
+      "sourceId": "faq",
+      "note": "A forecast draft date does not establish adoption or access rights.",
+      "corroboratingSourceIds": [
+        "restricted_access_initiative"
+      ]
+    }
+  },
+  "standards": [
+    {
+      "id": "EN 18219:2026",
+      "subject": "Unique identifiers",
+      "published": true,
+      "ojCitation": {
+        "status": "cited",
+        "scope": "ESPR_2024_1781",
+        "sourceId": "espr_citation"
+      },
+      "batteryArticle77Reference": "proposed_only",
+      "fullTextReviewed": false,
+      "profileImplemented": false,
+      "deploymentVerified": false,
+      "activeProfile": false,
+      "conformityClaim": false,
+      "reviewEvidence": [],
+      "sourceIds": [
+        "espr_citation",
+        "draft",
+        "nen_18219"
+      ],
+      "fullTextAccess": "NEN advertises free NEN Connect reading; account and full-text review pending. Do not redistribute normative text."
+    },
+    {
+      "id": "EN 18220:2026",
+      "subject": "Data carriers",
+      "published": true,
+      "ojCitation": {
+        "status": "cited",
+        "scope": "ESPR_2024_1781",
+        "sourceId": "espr_citation"
+      },
+      "batteryArticle77Reference": "proposed_only",
+      "fullTextReviewed": false,
+      "profileImplemented": false,
+      "deploymentVerified": false,
+      "activeProfile": false,
+      "conformityClaim": false,
+      "reviewEvidence": [],
+      "sourceIds": [
+        "espr_citation",
+        "draft",
+        "nen_18220"
+      ],
+      "fullTextAccess": "NEN advertises free NEN Connect reading; account and full-text review pending. Do not redistribute normative text."
+    },
+    {
+      "id": "EN 18239:2026",
+      "subject": "Access rights, information security and confidentiality",
+      "published": true,
+      "nenPublishedAt": "2026-09-01",
+      "nenRegistrationAt": "2026-09-21",
+      "cenAvailableAt": "2026-09-16",
+      "ojCitation": {
+        "status": "not_verified_pending_review",
+        "sourceId": "faq",
+        "corroboratingSourceIds": [
+          "harmonisation_list"
+        ]
+      },
+      "fullTextReviewed": false,
+      "profileImplemented": false,
+      "deploymentVerified": false,
+      "activeProfile": false,
+      "conformityClaim": false,
+      "reviewEvidence": [],
+      "sourceIds": [
+        "nen_18239",
+        "cen_18239",
+        "faq",
+        "harmonisation_list"
+      ],
+      "fullTextAccess": "Lawful reading route to be established; catalogue is insufficient for clause review."
+    },
+    {
+      "id": "EN 18246:2026",
+      "subject": "Data authentication, reliability and integrity",
+      "published": true,
+      "nenPublishedAt": "2026-09-01",
+      "nenRegistrationAt": "2026-09-21",
+      "cenAvailableAt": "2026-09-16",
+      "ojCitation": {
+        "status": "not_verified_pending_review",
+        "sourceId": "faq",
+        "corroboratingSourceIds": [
+          "harmonisation_list"
+        ]
+      },
+      "fullTextReviewed": false,
+      "profileImplemented": false,
+      "deploymentVerified": false,
+      "activeProfile": false,
+      "conformityClaim": false,
+      "reviewEvidence": [],
+      "sourceIds": [
+        "nen_18246",
+        "cen_18246",
+        "faq",
+        "harmonisation_list"
+      ],
+      "fullTextAccess": "Lawful reading route to be established; catalogue is insufficient for clause or ESDC implementation choices."
+    }
+  ],
+  "identifierMigration": {
+    "status": "test_plan_not_executed",
+    "normativeSyntaxSelected": false,
+    "qrNormativeSettingsSelected": false,
+    "cases": [
+      {
+        "id": "published_upi_stable",
+        "status": "planned",
+        "acceptance": "Existing item publicId and published UPI stay unchanged after profile selection; no bulk replacement of issued identifiers."
+      },
+      {
+        "id": "legacy_qr_still_resolves",
+        "status": "planned",
+        "acceptance": "An already-issued QR resolves the same battery after new-profile publication, migration, export/import and successor-provider transfer."
+      },
+      {
+        "id": "new_identifier_collision_rejected",
+        "status": "planned",
+        "acceptance": "Duplicates and profile-invalid identifiers are rejected without changing an existing issued identity; exact syntax follows reviewed clauses."
+      },
+      {
+        "id": "immutable_versions_preserved",
+        "status": "planned",
+        "acceptance": "All prior version bytes, hashes and hash-chain links remain unchanged; updated data produces a new version."
+      },
+      {
+        "id": "restricted_data_stays_private",
+        "status": "planned",
+        "acceptance": "Legacy and new resolver aliases expose only the public projection; no canonical or restricted fields leak through redirects, exports or QR routes."
+      },
+      {
+        "id": "unreviewed_profile_rejected",
+        "status": "planned",
+        "acceptance": "A catalogued or draft profile cannot be promoted by a version label alone; require clause mapping, test results and recorded release approval."
+      }
+    ]
+  }
+}
