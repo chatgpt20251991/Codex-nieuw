@@ -2,6 +2,8 @@
 
 Gecontroleerd op 1 oktober 2026. Dit dossier maakt onderscheid tussen regelgeving, niet-bindende toelichting en onze eigen uitvoeringskeuzes. De oudere bronmomentopnamen in de repository blijven historische bewijsstukken.
 
+Aanvulling op 9 oktober 2026: [de nieuwe broncontrole en technische werklijst](../25_REGULATORY_UPDATE_2026-10-09.md) behandelen ontwerp Ares(2026)9188325, de definitieve EN 18239/18246-normen en een afzonderlijke modelbeoordeling voor industriële productprestaties. De oorspronkelijke bevindingen hieronder blijven gedateerd op 1 oktober; de aanvulling verandert geen actieve paspoortregels of registratiestatus.
+
 | Bron | Bevinding en gevolg |
 | --- | --- |
 | [Commissieoverzicht datapuntenguidance](https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en) | Het overzicht noemt 71 datapunten met categoriegebonden toepasselijkheid. Onze bestaande configuratie is een vertrekpunt; toepasselijkheid en latere wijzigingen vragen inhoudelijke review. |

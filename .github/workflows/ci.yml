@@ -78,6 +78,10 @@ jobs:
         run: npm run typecheck
       - name: Unit and static tests
         run: npm test
+      - name: Check offline regulatory preparation and industrial model assessment
+        run: |
+          node --test scripts/customer-readiness-assessment.test.cjs scripts/regulatory-review.test.cjs
+          node scripts/regulatory-review.cjs
       - name: Reproduce the unapproved Render acceptance proposal
         run: |
           node scripts/ops/render-blueprint.cjs infra/deployment/render-plans.example.json .ops/render.acceptance.yaml
