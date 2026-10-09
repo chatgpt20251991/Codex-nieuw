@@ -74,9 +74,9 @@ function qrRouteFixture({ upstream, session = {}, access, clientConfigured = tru
     calls.push({ target, options });
     return typeof upstream === 'function' ? upstream() : upstream;
   });
-  const invoke = (method = 'GET', headers = {}, segments = qrPath) => route[method](
+  const invoke = (method = 'GET', headers = {}, segments = qrPath, init = {}) => route[method](
     new next.NextRequest(`https://passport.example/api/backend/${segments.join('/')}`, {
-      method, headers: { host: 'passport.example', ...headers },
+      ...init, method, headers: { host: 'passport.example', ...headers },
     }), { params: Promise.resolve({ path: segments }) });
   return { invoke, calls };
 }
@@ -202,6 +202,68 @@ test('ordinary BFF endpoints remain JSON-only and do not inherit QR download han
   assert.equal(fixture.calls[0].options.headers.get('accept'), 'application/json');
   const unexpected = qrRouteFixture({ upstream: new Response('<svg/>', { headers: { 'content-type': 'image/svg+xml' } }) });
   assert.equal((await unexpected.invoke('GET', {}, segments)).status, 502);
+});
+
+test('bodyless POST commands accept an HTTP-adapter empty stream and preserve server-side credentials', async () => {
+  for (const segments of [
+    ['passports', qrItemId, 'validate'], ['passports', qrItemId, 'publish'],
+    ['evidence', qrItemId, 'verify'], ['evidence', qrItemId, 'review-download'],
+    ['passport-values', qrItemId, 'validate'],
+  ]) {
+    for (const contentType of [undefined, 'application/json', 'text/plain']) {
+      const fixture = qrRouteFixture({ upstream: Response.json({ publishable: false }, { status: 201 }) });
+      const empty = new ReadableStream({ start(controller) { controller.close(); } });
+      const response = await fixture.invoke('POST', { origin: 'https://passport.example',
+        authorization: 'Bearer browser-token', cookie: 'browser=value', 'content-length': '0',
+        ...(contentType ? { 'content-type': contentType } : {}) }, segments, { body: empty, duplex: 'half' });
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), { publishable: false });
+      assert.equal(fixture.calls.length, 1);
+      const { options } = fixture.calls[0];
+      assert.equal(options.body, undefined); assert.equal(options.headers.get('content-type'), null);
+      assert.equal(options.headers.get('content-length'), null); assert.equal(options.headers.get('cookie'), null);
+      assert.equal(options.headers.get('authorization'), 'Bearer synthetic-session-access-token');
+    }
+  }
+});
+
+test('bodyless commands still require trusted origin and an authenticated unexpired session', async () => {
+  const segments = ['passports', qrItemId, 'validate'];
+  for (const { config, headers, status } of [
+    { config: {}, headers: {}, status: 403 },
+    { config: {}, headers: { origin: 'https://evil.example' }, status: 403 },
+    { config: { session: null }, headers: { origin: 'https://passport.example' }, status: 401 },
+    { config: { access: { token: 'expired', expiresAt: 0 } }, headers: { origin: 'https://passport.example' }, status: 401 },
+  ]) {
+    const fixture = qrRouteFixture(config);
+    const empty = new ReadableStream({ start(controller) { controller.close(); } });
+    assert.equal((await fixture.invoke('POST', headers, segments, { body: empty, duplex: 'half' })).status, status);
+    assert.equal(fixture.calls.length, 0);
+  }
+});
+
+test('non-empty mutations retain MIME, UTF-8, JSON and actual streamed-byte limits', async () => {
+  const segments = ['passports', qrItemId, 'validate'];
+  for (const { body, contentType, status } of [
+    { body: '{}', status: 415 },
+    { body: '{}', contentType: 'text/plain', status: 415 },
+    { body: 'field=value', contentType: 'application/x-www-form-urlencoded', status: 415 },
+    { body: '<html>not-json</html>', contentType: 'application/json', status: 400 },
+    { body: new Uint8Array([0xff]), contentType: 'application/json', status: 400 },
+    { body: new Uint8Array(exported.MAX_REQUEST_BYTES + 1), contentType: 'application/json', status: 400 },
+    { body: new Uint8Array(exported.MAX_REQUEST_BYTES + 1), contentType: 'application/x-www-form-urlencoded', status: 400 },
+  ]) {
+    const fixture = qrRouteFixture();
+    const headers = { origin: 'https://passport.example', ...(contentType ? { 'content-type': contentType } : {}) };
+    assert.equal((await fixture.invoke('POST', headers, segments, { body })).status, status);
+    assert.equal(fixture.calls.length, 0);
+  }
+  const fixture = qrRouteFixture({ upstream: Response.json({ ok: true }, { status: 201 }) });
+  const response = await fixture.invoke('POST', { origin: 'https://passport.example', 'content-type': 'application/json' },
+    segments, { body: '{"actual":"payload"}' });
+  assert.equal(response.status, 201);
+  assert.equal(fixture.calls[0].options.body, '{"actual":"payload"}');
+  assert.equal(fixture.calls[0].options.headers.get('content-type'), 'application/json');
 });
 
 test('Production browser and backend origins reject insecure and credential-bearing configuration', () => {

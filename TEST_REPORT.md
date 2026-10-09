@@ -4,7 +4,7 @@
 
 The customer-workflow branch passes the locked installation, Prisma generation,
 all workspace typechecks and API/web production builds with Node 24.15 on Windows.
-The final local run passes 21 rule tests, 43 static checks and 116 API/security/web
+The final local run passes 21 rule tests, 43 static checks and 119 API/security/web
 unit tests with no skips. The platform lockfile audit reports zero known
 vulnerabilities. This does not describe the separately maintained marketing site.
 
@@ -25,6 +25,10 @@ forged review metadata and preserve immutable versions when conditions change.
 Review downloads bind the exact finalized scanned storage version, constrain
 reviewer roles and tenants, audit issuance without the signed URL and preserve
 the separate human verification gate.
+The BFF regressions include HTTP-adapter empty POST streams while retaining
+origin/session checks and non-empty JSON, UTF-8 and streamed-size limits. The
+real browser fixture asserts the validation response before its blocked notice;
+audit-link exclusion checks serialize database BigInt IDs without omitting fields.
 They remain in the required central runner. Local Docker/database integration
 was not available; GitHub Actions must pass on the final commit before merge.
 Real Auth0/MFA, target hosting/storage and recovery acceptance remain open.

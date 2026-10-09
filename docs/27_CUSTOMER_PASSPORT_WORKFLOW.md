@@ -47,7 +47,9 @@ conformity or EU registration.
    published versions and an authenticated SVG QR download. The BFF admits
    only the exact UUID QR path on GET/HEAD, with bounded bytes, a fixed download
    name and restrictive SVG policy. It retains the existing session, tenant,
-   trusted host and origin controls. Other file paths and QR mutations fail.
+   trusted host and origin controls. Bodyless commands also accept the empty
+   stream emitted by the HTTP adapter; non-empty mutations still require
+   bounded, valid UTF-8 JSON. Other file paths and QR mutations fail.
 
 Private review links last at most 60 seconds and cannot outlive the document's
 validity. Revocation prevents further issuance; an already issued link remains

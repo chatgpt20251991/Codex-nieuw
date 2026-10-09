@@ -43,13 +43,18 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   }
   let body: string | undefined;
   if (!['GET', 'HEAD'].includes(request.method) && request.body) {
-    if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type') || '')) return failure(415, 'A JSON request is required.');
     try {
       const bytes = await readBoundedBody(request.body, MAX_REQUEST_BYTES);
-      body = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-      if (body) JSON.parse(body);
+      // Next's HTTP adapter may represent a bodyless POST as an empty stream.
+      // Judge the actual bytes: command endpoints need no payload, whereas
+      // every non-empty mutation still requires bounded, valid JSON.
+      if (bytes.byteLength) {
+        if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type') || '')) return failure(415, 'A JSON request is required.');
+        body = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        JSON.parse(body);
+        headers.set('content-type', 'application/json');
+      }
     } catch { return failure(400, 'Invalid or oversized JSON request.'); }
-    headers.set('content-type', 'application/json');
   }
   try {
     const upstream = await fetch(target, { method: request.method, headers, body, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(15000) });

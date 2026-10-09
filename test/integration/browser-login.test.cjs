@@ -349,7 +349,15 @@ test('Customer workflow: a signed-in browser creates its model and actual serial
     const capacity = values.find(row => row.fieldDefinitionId === 11);
     assert.equal(capacity.valueJson, 0); assert.equal(capacity.unit, 'Ah');
     assert.notEqual(capacity.validationStatus, 'validated');
+    const validationResponsePromise = page.waitForResponse(response =>
+      new URL(response.url()).pathname === `/api/backend/passports/${item.id}/validate`
+      && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Validate passport', exact: true }).click();
+    const validationResponse = await validationResponsePromise;
+    const validationResult = await validationResponse.json();
+    assert.equal(validationResponse.status(), 201,
+      `The bodyless validation command failed: ${validationResult.message || validationResult.code || validationResponse.status()}`);
+    assert.equal(validationResult.publishable, false);
     await page.getByRole('status').filter({ hasText: 'Publication is blocked' }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Publish passport version', exact: true }).isEnabled(), false);
     assert.equal((await api('A', `/battery-items/${item.id}`)).versions.length, 0);
