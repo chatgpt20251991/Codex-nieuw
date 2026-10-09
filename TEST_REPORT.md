@@ -4,7 +4,7 @@
 
 The customer-workflow branch passes the locked installation, Prisma generation,
 all workspace typechecks and API/web production builds with Node 24.15 on Windows.
-The final local run passes 21 rule tests, 43 static checks and 112 API/security/web
+The final local run passes 21 rule tests, 43 static checks and 116 API/security/web
 unit tests with no skips. The platform lockfile audit reports zero known
 vulnerabilities. This does not describe the separately maintained marketing site.
 
@@ -13,6 +13,9 @@ save/link/review/validate/publish/QR sequence without page overflow, JavaScript
 errors or CSP violations. A failed item change removes the previous dossier.
 The local browser differs from CI's Playwright-installed browser; this evidence
 does not establish actual provider, database, storage or customer acceptance.
+The model conditional-review form also passes independent checks at both widths:
+unknown/short-reason decisions block submission, explicit approval is required,
+and recorded decisions persist after reload.
 
 New integration cases cover real tenant-bound model/item creation and persistence,
 incomplete-publication rejection, current evidence readiness, supplier review,

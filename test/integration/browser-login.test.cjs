@@ -287,7 +287,7 @@ test('Browser login: a real signed-in browser creates a supplier through the BFF
     const name = `Browser-created supplier ${randomUUID()}`;
     await page.getByPlaceholder('Cell / pack supplier').fill(name);
     await page.getByRole('button', { name: 'Add supplier', exact: true }).click();
-    await page.getByText(name, { exact: true }).waitFor();
+    await page.locator('.rows').getByText(name, { exact: true }).waitFor();
     assert(seen.some(req => req.url === webProxy.origin + '/api/backend/suppliers'));
     assert(seen.every(req => !req.authorization));
     assert(seen.every(req => !req.url.startsWith(apiProxy.origin)));

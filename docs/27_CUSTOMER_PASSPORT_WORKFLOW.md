@@ -25,6 +25,9 @@ conformity or EU registration.
    roles can issue one, with tenant checks and an issuance audit. The browser
    restricts the URL to the configured storage origin and does not retain it.
    Issuing or downloading a file never records a human review or verifies it.
+   Delegated downloads additionally require an active written authorisation
+   with the explicit Boolean scope `evidenceReview: true`; missing, false or
+   string-valued scopes do not grant document access.
 5. `/passports?item=<item UUID>` displays current effective model/item values,
    supports text, numeric, boolean and structured input, evidence links,
    authorised evidence verification and separate value validation. Zero and
@@ -89,6 +92,10 @@ need the existing Gate 7 runbook. An independent customer export/archive and
 successor drill are separate continuity work. Paid infrastructure remains
 deferred under the owner's prior instruction. Both Registry flags stay false;
 the current official battery submission facilities remain unavailable.
+
+The download scope is enforced by opt-in handler policy. General per-action
+scope enforcement on older delegated routes remains a separate Gate 7 item;
+the new route does not claim to complete all delegated-access acceptance.
 
 ## How competitors already operate
 

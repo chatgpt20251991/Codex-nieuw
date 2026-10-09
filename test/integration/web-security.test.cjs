@@ -186,7 +186,7 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
     assert.equal(await page.getByRole('button', { name: 'Add supplier', exact: true }).isEnabled(), false);
     await page.getByPlaceholder('Cell / pack supplier').fill('Gate 7 CSP supplier');
     await page.getByRole('button', { name: 'Add supplier', exact: true }).click();
-    await page.getByText('Gate 7 CSP supplier', { exact: true }).waitFor();
+    await page.locator('.rows').getByText('Gate 7 CSP supplier', { exact: true }).waitFor();
     assert.equal(created, true);
     await page.getByRole('link', { name: 'Evidence', exact: true }).click();
     await page.getByRole('heading', { name: 'Upload evidence', exact: true }).waitFor();
