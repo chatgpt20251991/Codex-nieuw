@@ -1,4 +1,40 @@
-# Verification record — 5 September 2026
+# Verification record
+
+## Customer passport workflow — local checks, 9 October 2026
+
+The customer-workflow branch passes the locked installation, Prisma generation,
+all workspace typechecks and API/web production builds with Node 24.15 on Windows.
+The final local run passes 21 rule tests, 43 static checks and 119 API/security/web
+unit tests with no skips. The platform lockfile audit reports zero known
+vulnerabilities. This does not describe the separately maintained marketing site.
+
+Independent local Chromium 1223 checks at 390 and 1440 pixels pass the synthetic
+save/link/review/validate/publish/QR sequence without page overflow, JavaScript
+errors or CSP violations. A failed item change removes the previous dossier.
+The local browser differs from CI's Playwright-installed browser; this evidence
+does not establish actual provider, database, storage or customer acceptance.
+The model conditional-review form also passes independent checks at both widths:
+unknown/short-reason decisions block submission, explicit approval is required,
+and recorded decisions persist after reload.
+
+New integration cases cover real tenant-bound model/item creation and persistence,
+incomplete-publication rejection, current evidence readiness, supplier review,
+review/publication/QR browser sequencing and mobile/desktop public scan rendering.
+Additional cases require explicit conditional applicability reviews, reject
+forged review metadata and preserve immutable versions when conditions change.
+Review downloads bind the exact finalized scanned storage version, constrain
+reviewer roles and tenants, audit issuance without the signed URL and preserve
+the separate human verification gate.
+The BFF regressions include HTTP-adapter empty POST streams while retaining
+origin/session checks and non-empty JSON, UTF-8 and streamed-size limits. The
+real browser fixture asserts the validation response before its blocked notice;
+audit-link exclusion checks serialize database BigInt IDs without omitting fields.
+They remain in the required central runner. Local Docker/database integration
+was not available; GitHub Actions must pass on the final commit before merge.
+Real Auth0/MFA, target hosting/storage and recovery acceptance remain open.
+See [the workflow record](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md).
+
+The records below are historical verification of their specified revisions.
 
 ## Gate 6 — internal Registry preparation verified
 

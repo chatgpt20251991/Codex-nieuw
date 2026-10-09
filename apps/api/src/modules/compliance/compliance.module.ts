@@ -1,1 +1,1 @@
-import {Module} from '@nestjs/common'; import {ComplianceController} from './compliance.controller'; @Module({controllers:[ComplianceController]}) export class ComplianceModule{}
+import {Module} from '@nestjs/common'; import {ComplianceController} from './compliance.controller'; import {PassportsModule} from '../passports/passports.module'; @Module({imports:[PassportsModule],controllers:[ComplianceController]}) export class ComplianceModule{}

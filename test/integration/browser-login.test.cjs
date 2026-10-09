@@ -10,6 +10,7 @@ const { resolve, dirname, join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 const { createHttpsProxy, createOidcIssuer } = require('../fixtures/browser-oidc.cjs');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 
 // These real browser/TLS/OIDC exchanges exercise the application and SDK with a
 // synthetic issuer. They do not attest to a provisioned or live Auth0 tenant.
@@ -286,7 +287,7 @@ test('Browser login: a real signed-in browser creates a supplier through the BFF
     const name = `Browser-created supplier ${randomUUID()}`;
     await page.getByPlaceholder('Cell / pack supplier').fill(name);
     await page.getByRole('button', { name: 'Add supplier', exact: true }).click();
-    await page.getByText(name, { exact: true }).waitFor();
+    await page.locator('.rows').getByText(name, { exact: true }).waitFor();
     assert(seen.some(req => req.url === webProxy.origin + '/api/backend/suppliers'));
     assert(seen.every(req => !req.authorization));
     assert(seen.every(req => !req.url.startsWith(apiProxy.origin)));
@@ -303,6 +304,72 @@ test('Browser login: cookie-authenticated mutations reject missing, foreign and 
     assert.equal(result.status, 403);
   }
   assert.equal(apiProxy.requests.length, beforeCount);
+});
+
+test('Customer workflow: a signed-in browser creates its model and actual serial, persists reviewed values and blocks incomplete publication', async () => {
+  const page = sessions.A.page;
+  const identifier = `operator-model-${randomUUID()}`, serial = `SERIAL-${randomUUID()}`;
+  const observed = [];
+  const listener = req => observed.push({ url: req.url(), authorization: req.headers().authorization });
+  page.on('request', listener);
+  try {
+    await page.goto(webProxy.origin + '/models');
+    await page.getByLabel('Model identifier', { exact: true }).fill(identifier);
+    await page.getByLabel('Battery category', { exact: true }).selectOption('EV');
+    await page.getByRole('button', { name: 'Create model', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: `Model ${identifier} created` }).waitFor();
+    const model = (await api('A', '/battery-models')).find(row => row.modelIdentifier === identifier);
+    assert(model);
+    await page.getByLabel('Battery model', { exact: true }).selectOption(model.id);
+    await page.getByRole('heading', { name: 'Model applicability review', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Record applicability review', exact: true }).isEnabled(), false);
+    for (const decision of syntheticConditionalDecisions('EV')) {
+      await page.getByLabel(`Applicability for point ${decision.fieldId}`, { exact: true }).selectOption(String(decision.applicable));
+      await page.getByLabel(`Reason and source for point ${decision.fieldId}`, { exact: true }).fill(decision.reason);
+    }
+    assert.equal(await page.getByRole('button', { name: 'Record applicability review', exact: true }).isEnabled(), false);
+    await page.getByLabel('I have assessed each condition against this model and approve the recorded decisions.').check();
+    await page.getByRole('button', { name: 'Record applicability review', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Applicability review recorded' }).waitFor();
+    assert.equal((await api('A', `/compliance/model/${model.id}/readiness`)).conditionalReview.complete, true);
+    await page.getByLabel('Serial or individual item identifier', { exact: true }).fill(serial);
+    await page.getByRole('button', { name: 'Create battery', exact: true }).click();
+    await page.getByText(serial, { exact: true }).waitFor();
+    const item = (await api('A', `/battery-models/${model.id}`)).items.find(row => row.serialOrItemIdentifier === serial);
+    assert(item); assert.equal(item.passportState, 'draft');
+    await page.getByRole('link', { name: 'Open dossier', exact: true }).click();
+    await page.getByRole('heading', { name: serial, exact: true }).waitFor();
+    await page.getByLabel('Passport data point', { exact: true }).selectOption('11');
+    await page.getByLabel('Value format', { exact: true }).selectOption('number');
+    await page.getByLabel('Passport value', { exact: true }).fill('0');
+    await page.getByLabel('Unit, where applicable', { exact: true }).fill('Ah');
+    await page.getByRole('button', { name: 'Save value for review', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Value saved for review' }).waitFor();
+    const values = (await api('A', `/battery-items/${item.id}`)).values;
+    const capacity = values.find(row => row.fieldDefinitionId === 11);
+    assert.equal(capacity.valueJson, 0); assert.equal(capacity.unit, 'Ah');
+    assert.notEqual(capacity.validationStatus, 'validated');
+    const validationResponsePromise = page.waitForResponse(response =>
+      new URL(response.url()).pathname === `/api/backend/passports/${item.id}/validate`
+      && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Validate passport', exact: true }).click();
+    const validationResponse = await validationResponsePromise;
+    const validationResult = await validationResponse.json();
+    assert.equal(validationResponse.status(), 201,
+      `The bodyless validation command failed: ${validationResult.message || validationResult.code || validationResponse.status()}`);
+    assert.equal(validationResult.publishable, false);
+    await page.getByRole('status').filter({ hasText: 'Publication is blocked' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Publish passport version', exact: true }).isEnabled(), false);
+    assert.equal((await api('A', `/battery-items/${item.id}`)).versions.length, 0);
+    const foreign = await request(sessions.B.context, `/api/backend/battery-items/${item.id}`);
+    assert.equal(foreign.status, 404);
+    assert(observed.some(row => row.url.includes('/api/backend/passport-values')));
+    assert(observed.every(row => !row.authorization));
+    assert(observed.every(row => !row.url.startsWith(apiProxy.origin)));
+    await page.reload();
+    await page.getByRole('heading', { name: serial, exact: true }).waitFor();
+    assert.equal((await api('A', `/battery-items/${item.id}`)).values.find(row => row.id === capacity.id).valueJson, 0);
+  } finally { page.off('request', listener); }
 });
 
 test('Browser login: BFF route restrictions and disabled SDK token/profile endpoints cannot disclose credentials', async () => {

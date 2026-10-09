@@ -31,6 +31,13 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Registry enrolment profile for legal name/address/NTR-LEI-VAT-eID/contact/legal representative preparation
 - OIDC production auth, Auth0 browser cookie sessions and isolated development-token mode
 - Enterprise-style Next.js operator workspace and supplier/restricted portals
+- Persistent model/item creation, dossier review and explicit version publication in the operator workspace
+- Anonymous public scan viewer and authenticated QR download
+- Explicit conditional applicability review and short-lived private source-document review downloads
+
+The [customer passport workflow](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md) describes
+the current console, scan routing and the external acceptance still required
+before admitting a customer. A software build does not complete those checks.
 
 ## Truth status
 

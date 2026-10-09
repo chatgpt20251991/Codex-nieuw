@@ -23,6 +23,11 @@ const SupplierUploadSchema=EvidenceUploadSchema.omit({supplierId:true});
 export class SuppliersController {
   constructor(private readonly tenantDb:TenantDbService,private readonly config:ConfigService,private readonly evidenceStorage:EvidenceStorageService,private readonly audit:AuditService,private readonly tokens:SupplierTokenService){}
 
+  private requestResponse<T extends { tokenHash: string }>(request: T): Omit<T, 'tokenHash'> {
+    const { tokenHash, ...response } = request;
+    return response;
+  }
+
   private assertOpen(request: { expiresAt: Date; status: string }) {
     if (request.expiresAt.getTime() <= Date.now()) throw new GoneException({ code: 'SUPPLIER_TOKEN_EXPIRED' });
     if (['accepted', 'cancelled', 'expired'].includes(request.status)) {
@@ -45,12 +50,26 @@ export class SuppliersController {
 
   @Post('supplier-requests') async createRequest(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=RequestSchema.parse(body);const raw=secureToken();const hash=sha256Hex(raw);const expiresAt=new Date(Date.now()+b.expiresInDays*86400000);
-    const row=await this.tenantDb.run(orgId,async tx=>{await tx.supplier.findFirstOrThrow({where:{id:b.supplierId,organisationId:orgId}});await tx.batteryModel.findFirstOrThrow({where:{id:b.modelId,organisationId:orgId}});return tx.supplierRequest.create({data:{organisationId:orgId,supplierId:b.supplierId,modelId:b.modelId,tokenHash:hash,status:'sent',requestedBySubject:actor.subject,message:b.message,dueAt:b.dueAt?new Date(b.dueAt):undefined,expiresAt,sentAt:new Date(),fields:{create:[...new Set(b.fieldDefinitionIds)].map(fieldDefinitionId=>({fieldDefinitionId}))}},include:{supplier:true,model:true,fields:true}})});
+    // Generating a capability link is not evidence of email or manual delivery.
+    // Keep the existing draft state until the supplier actually opens the link.
+    const row=await this.tenantDb.run(orgId,async tx=>{await tx.supplier.findFirstOrThrow({where:{id:b.supplierId,organisationId:orgId}});await tx.batteryModel.findFirstOrThrow({where:{id:b.modelId,organisationId:orgId}});return tx.supplierRequest.create({data:{organisationId:orgId,supplierId:b.supplierId,modelId:b.modelId,tokenHash:hash,status:'draft',requestedBySubject:actor.subject,message:b.message,dueAt:b.dueAt?new Date(b.dueAt):undefined,expiresAt,sentAt:null,fields:{create:[...new Set(b.fieldDefinitionIds)].map(fieldDefinitionId=>({fieldDefinitionId}))}},include:{supplier:true,model:true,fields:true}})});
     await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'supplier_request.create',resourceType:'supplier_request',resourceId:row.id,metadata:{fieldCount:row.fields.length}});
-    const base=this.config.get<string>('SUPPLIER_PORTAL_BASE_URL')||'http://localhost:3000/supplier';return {request:row,inviteUrl:`${base}#token=${encodeURIComponent(raw)}`,securityNotice:'The raw capability token is shown once. The portal should move it from the URL fragment into memory/session storage and send it only in X-Supplier-Token.'};
+    const base=this.config.get<string>('SUPPLIER_PORTAL_BASE_URL')||'http://localhost:3000/supplier';return {request:this.requestResponse(row),inviteUrl:`${base}#token=${encodeURIComponent(raw)}`,delivery:{mode:'manual_link',status:'not_sent'},securityNotice:'This link has not been sent. The raw capability token is shown once. The portal should move it from the URL fragment into memory/session storage and send it only in X-Supplier-Token.'};
   }
 
-  @Get('supplier-requests') listRequests(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,tx=>tx.supplierRequest.findMany({where:{organisationId:orgId},include:{supplier:true,model:true,fields:true,_count:{select:{submissions:true}}},orderBy:{createdAt:'desc'}}));}
+  @Get('supplier-requests') listRequests(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,async tx=>(await tx.supplierRequest.findMany({where:{organisationId:orgId},include:{supplier:true,model:true,fields:true,_count:{select:{submissions:true}}},orderBy:{createdAt:'desc'}})).map(request=>this.requestResponse(request)));}
+
+  @Get('supplier-requests/:id')
+  async requestDetail(@CurrentTenant() orgId: string, @Param('id') id: string) {
+    return this.tenantDb.run(orgId, async tx => this.requestResponse(await tx.supplierRequest.findFirstOrThrow({
+      where: { id, organisationId: orgId },
+      include: { supplier: true, model: true, fields: true,
+        submissions: { orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
+          include: { evidence: { include: { evidence: { select: {
+            id: true, originalFilename: true, verificationStatus: true, evidenceType: true,
+          } } } } } } },
+    })));
+  }
 
   @Public() @Get('supplier-portal/session')
   async portalSession(@Headers('x-supplier-token') token: string) {
@@ -61,7 +80,7 @@ export class SuppliersController {
         const now = new Date();
         const changed = await tx.supplierRequest.updateMany({ where: { id: request.id,
           organisationId: context.organisationId, openedAt: null, status: request.status, expiresAt: { gt: now } },
-          data: { openedAt: now, ...(request.status === 'sent' ? { status: 'opened' } : {}) } });
+          data: { openedAt: now, ...(['draft', 'sent'].includes(request.status) ? { status: 'opened' } : {}) } });
         if (changed.count !== 1) throw new GoneException({ code: 'SUPPLIER_TOKEN_EXPIRED' });
       }
       return { requestId: request.id, supplier: { legalName: request.supplier.legalName },

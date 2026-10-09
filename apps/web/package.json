@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "4.29.0",
+    "@eubp/rules": "0.2.1",
     "next": "15.5.27",
     "react": "19.2.8",
     "react-dom": "19.2.8"

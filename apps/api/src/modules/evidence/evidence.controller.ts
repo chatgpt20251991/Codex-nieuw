@@ -5,6 +5,7 @@ import type { Actor } from '../../common/auth/auth.types';
 import { Roles } from '../../common/auth/roles.decorator';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { invalidatePassports, lockValueOwner } from '../../common/tenant/passport-lock';
 import { ExtractionService } from './extraction/extraction.service';
 
@@ -26,6 +27,13 @@ export class EvidenceController {
   @Roles('operator_admin','compliance_manager','service_provider_admin')
   verify(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     return this.evidenceStorage.verify(orgId,id,actor.subject);
+  }
+
+  @Post(':id/review-download')
+  @Roles('operator_admin','compliance_manager','service_provider_admin')
+  @RequireAuthorisationScope('evidenceReview')
+  reviewDownload(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
+    return this.evidenceStorage.reviewDownload(orgId,id,actor.subject);
   }
 
   @Post('link')

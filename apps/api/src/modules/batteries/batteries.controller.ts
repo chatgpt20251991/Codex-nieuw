@@ -1,12 +1,21 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
 import type { Actor } from '../../common/auth/auth.types';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
 import { AuditService } from '../audit/audit.service';
+import { Roles } from '../../common/auth/roles.decorator';
+import { invalidatePassports, lockModel } from '../../common/tenant/passport-lock';
+import type { BatteryCategory } from '@eubp/rules';
+import { ApplicabilityReviewSchema, assessConditionalReview, reviewedApplicabilityContext } from './applicability-review';
 
-const ModelSchema=z.object({modelIdentifier:z.string().min(1),category:z.enum(['EV','LMT','INDUSTRIAL_GT_2KWH']),name:z.string().optional(),chemistry:z.string().optional(),applicabilityContext:z.record(z.string(),z.any()).optional()});
+const ModelSchema=z.object({modelIdentifier:z.string().min(1),category:z.enum(['EV','LMT','INDUSTRIAL_GT_2KWH']),name:z.string().optional(),chemistry:z.string().optional(),applicabilityContext:z.record(z.string(),z.any()).optional()})
+  .superRefine((body, ctx) => {
+    for (const key of ['conditionalDecisions', 'conditionalReview']) if (body.applicabilityContext && Object.hasOwn(body.applicabilityContext, key)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['applicabilityContext', key], message: 'Use the authenticated applicability-review endpoint to review conditional fields.' });
+    }
+  });
 const ItemSchema=z.object({modelId:z.string().uuid(),serialOrItemIdentifier:z.string().min(1),batchIdentifier:z.string().optional(),upi:z.string().url().optional(),manufactureDate:z.string().datetime().or(z.string().date()).optional()});
 const BulkSchema=z.object({items:z.array(ItemSchema).min(1).max(1000)});
 
@@ -26,6 +35,26 @@ export class BatteriesController {
 
   @Get('battery-models/:id')
   model(@CurrentTenant() orgId:string,@Param('id') id:string){return this.tenantDb.run(orgId,tx=>tx.batteryModel.findFirstOrThrow({where:{id,organisationId:orgId},include:{items:{orderBy:{createdAt:'desc'},take:100},values:{where:{validUntil:null},include:{evidenceLinks:true}}}}));}
+
+  @Post('battery-models/:id/applicability-review')
+  @Roles('operator_admin', 'compliance_manager', 'service_provider_admin')
+  async reviewApplicability(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string,@Body() body:unknown){
+    const parsed=ApplicabilityReviewSchema.parse(body);
+    return this.tenantDb.run(orgId,async tx=>{
+      // Same aggregate lock as publication/value writes: a changed review
+      // cannot race publication using the old applicability requirements.
+      await lockModel(tx,orgId,id);
+      const model=await tx.batteryModel.findFirstOrThrow({where:{id,organisationId:orgId}});
+      const context=reviewedApplicabilityContext(model.category as BatteryCategory,model.applicabilityContext,parsed.decisions,actor.subject);
+      const conditionalReview=assessConditionalReview(model.category as BatteryCategory,context);
+      if(!conditionalReview.complete)throw new BadRequestException({code:'CONDITIONAL_REVIEW_INCOMPLETE',issues:conditionalReview.issues});
+      const row=await tx.batteryModel.update({where:{id},data:{applicabilityContext:context}});
+      await invalidatePassports(tx,orgId,{modelId:id});
+      await tx.auditEvent.create({data:{organisationId:orgId,actorSubject:actor.subject,action:'battery_model.applicability_review',resourceType:'battery_model',resourceId:id,
+        metadata:{category:model.category,previous:model.applicabilityContext,review:context.conditionalReview,decisions:parsed.decisions}}});
+      return {...row,conditionalReview};
+    });
+  }
 
   @Post('battery-items')
   async createItem(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){

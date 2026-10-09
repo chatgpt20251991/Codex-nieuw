@@ -9,6 +9,7 @@ const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
 const { chromium } = require('playwright');
 const { fields } = require('@eubp/rules');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 const { hashJson } = require('../../apps/api/dist/common/crypto/canonical.js');
 const { serializeRegistryDraft, XML_NAMESPACE } = require('../../apps/api/dist/modules/registry/registry-contract.js');
 const { S3Client, CreateBucketCommand, ListObjectsV2Command, DeleteObjectsCommand, DeleteBucketCommand } = require('@aws-sdk/client-s3');
@@ -53,6 +54,7 @@ async function populateModel(actor, model) {
     const data = field.id === 67 ? 'original' : [10, 11, 26, 27, 28, 51].includes(field.id) ? 100 : `fixture-${field.id}`;
     values[field.id] = await value({ modelId: model.id }, field.id, data, actor);
   }
+  await success(`/battery-models/${model.id}/applicability-review`, { actor, body: { decisions: syntheticConditionalDecisions(model.category) } });
   return values;
 }
 async function makeItem(actor = 'A', model = models[actor], serialOrItemIdentifier = randomUUID()) {

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { EvidenceObject } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -131,6 +131,59 @@ export class EvidenceStorageService {
     const checksum = await this.checkBytes(evidence, actorSubject);
     if (evidence.verificationStatus === 'verified' && !checksum.malwareScannedAt) return evidence;
     return this.transition(evidence, 'verified', actorSubject, checksum);
+  }
+
+  private assertReviewDownloadReady(evidence: EvidenceObject, now = Date.now()) {
+    this.assertCurrent(evidence);
+    // Review downloads have no development bypass: only the finalized, clean
+    // scanned immutable version may leave storage, before or after human review.
+    if (!evidence.uploadedAt || !evidence.sha256 || !/^[a-f0-9]{64}$/.test(evidence.sha256) ||
+        evidence.sizeBytes === null || evidence.sizeBytes <= 0n || evidence.sizeBytes > 100n * 1024n * 1024n ||
+        evidence.storageChecksum !== this.storage.checksumBase64(evidence.sha256) ||
+        evidence.malwareScanSha256 !== evidence.sha256 || !evidence.malwareScannedAt ||
+        !Number.isFinite(evidence.malwareScannedAt.getTime()) || evidence.malwareScannedAt.getTime() > now ||
+        !evidence.malwareScannerVersion?.startsWith('ClamAV ') ||
+        !evidence.storageVersionId?.trim() || evidence.storageVersionId === 'null' ||
+        !evidence.objectKey.startsWith(`orgs/${evidence.organisationId}/evidence/${evidence.id}/`)) {
+      throw new ConflictException({ code: 'EVIDENCE_REVIEW_DOWNLOAD_NOT_READY' });
+    }
+  }
+
+  async reviewDownload(organisationId: string, id: string, actorSubject: string) {
+    const evidence = await this.load(organisationId, id);
+    this.assertReviewDownloadReady(evidence);
+    // HEAD is pinned to the scanned version, never the latest key contents.
+    let head: Awaited<ReturnType<StorageService['head']>>;
+    try { head = await this.storage.head(evidence.objectKey, evidence.storageVersionId, AbortSignal.timeout(10000)); }
+    catch { throw new ServiceUnavailableException({ code: 'EVIDENCE_REVIEW_DOWNLOAD_UNAVAILABLE' }); }
+    if (head.VersionId !== evidence.storageVersionId || head.ContentLength !== Number(evidence.sizeBytes) ||
+        head.Metadata?.sha256 !== evidence.sha256) {
+      throw new ConflictException({ code: 'EVIDENCE_REVIEW_VERSION_MISMATCH' });
+    }
+    return this.tenantDb.run(organisationId, async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "EvidenceObject" WHERE "id" = ${id} AND "organisationId" = ${organisationId} FOR UPDATE`;
+      const current = await tx.evidenceObject.findFirstOrThrow({ where: { id, organisationId } });
+      const issuedAt = new Date();
+      this.assertReviewDownloadReady(current, issuedAt.getTime());
+      if (current.updatedAt.getTime() !== evidence.updatedAt.getTime() || current.storageVersionId !== evidence.storageVersionId ||
+          current.sha256 !== evidence.sha256 || current.objectKey !== evidence.objectKey) {
+        throw new ConflictException({ code: 'EVIDENCE_CHANGED_RETRY' });
+      }
+      const expiresInSeconds = current.expiresAt
+        ? Math.min(60, Math.floor((current.expiresAt.getTime() - issuedAt.getTime()) / 1000)) : 60;
+      if (expiresInSeconds < 1) throw new ConflictException({ code: 'EVIDENCE_OUTSIDE_VALIDITY' });
+      const expiresAt = new Date(issuedAt.getTime() + expiresInSeconds * 1000).toISOString();
+      let downloadUrl: string;
+      try {
+        downloadUrl = await this.storage.createReviewDownloadUrl({ objectKey: current.objectKey,
+          versionId: current.storageVersionId!, filename: current.originalFilename, expiresIn: expiresInSeconds, issuedAt });
+      } catch { throw new ServiceUnavailableException({ code: 'EVIDENCE_REVIEW_DOWNLOAD_UNAVAILABLE' }); }
+      const issuanceId = randomUUID();
+      await tx.auditEvent.create({ data: { organisationId, actorSubject, action: 'evidence.review_download_issued',
+        resourceType: 'evidence', resourceId: id, metadata: { issuanceId, expiresAt, storageVersionId: current.storageVersionId } } });
+      return { evidenceId: id, downloadUrl, method: 'GET', expiresAt, expiresInSeconds, reviewStatus: 'not_recorded',
+        notice: 'Download issuance does not verify evidence or record human review.' };
+    }, { timeout: 10000 });
   }
 
   async forExtraction(organisationId: string, id: string, actorSubject?: string) {
