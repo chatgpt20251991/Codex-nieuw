@@ -2,6 +2,15 @@
 
 ## Current engineering status
 
+Customer workflow follow-up (9 October 2026): see
+`docs/27_CUSTOMER_PASSPORT_WORKFLOW.md`. Model/item forms, persistent dossier
+review and validate/publish controls, truthful supplier delivery/review and a
+human-readable public scan viewer are prepared. Readiness now shares current
+publication assessment; QR downloads keep BFF authentication and origin gates.
+The change does not deploy the target environment or close Gate 7. New QR bases
+must point at the deployed public viewer; keep all existing issued UPI URLs
+stable. Both Registry flags remain false, and paid hosting remains deferred.
+
 Regulatory follow-up (9 October 2026): see
 `docs/25_REGULATORY_UPDATE_2026-10-09.md` for the verified draft/norm status,
 separate industrial Article 10 dossier check and staged engineering plan.

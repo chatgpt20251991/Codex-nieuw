@@ -1,4 +1,22 @@
-# Verification record — 5 September 2026
+# Verification record
+
+## Customer passport workflow — local checks, 9 October 2026
+
+The customer-workflow branch passes the locked installation, Prisma generation,
+all workspace typechecks and API/web production builds with Node 24.15 on Windows.
+The final local run passes 21 rule tests, 43 static checks and 98 API/security/web
+unit tests with no skips. The platform lockfile audit reports zero known
+vulnerabilities. This does not describe the separately maintained marketing site.
+
+New integration cases cover real tenant-bound model/item creation and persistence,
+incomplete-publication rejection, current evidence readiness, supplier review,
+review/publication/QR browser sequencing and mobile/desktop public scan rendering.
+They remain in the required central runner. Local Docker/database integration
+was not available; GitHub Actions must pass on the final commit before merge.
+Real Auth0/MFA, target hosting/storage and recovery acceptance remain open.
+See [the workflow record](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md).
+
+The records below are historical verification of their specified revisions.
 
 ## Gate 6 — internal Registry preparation verified
 

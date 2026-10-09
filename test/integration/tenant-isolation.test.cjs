@@ -162,6 +162,14 @@ test('direct model, item and value routes hide another tenant and ignore tenant 
   assert.equal(untouched.validationStatus, 'unvalidated');
 });
 
+test('read-only model and item readiness hide another tenant', async () => {
+  for (const [kind, id] of [['model', fixture.B.model.id], ['item', fixture.B.item.id]]) {
+    const response = await request(`/compliance/${kind}/${id}/readiness`, 'A');
+    assert.equal(response.status, 404);
+    assert.equal(response.data.code, 'RESOURCE_NOT_FOUND');
+  }
+});
+
 test('concurrent API requests retain their own tenant', async () => {
   await Promise.all(Array.from({ length: 12 }, async (_, index) => {
     const actor = index % 2 ? 'A' : 'B';

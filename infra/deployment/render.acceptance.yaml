@@ -129,7 +129,7 @@
                 },
                 {
                   "key": "RESOLVER_BASE_URL",
-                  "value": "https://api.eubatterypassport.nl/v1/public/b"
+                  "value": "https://app.eubatterypassport.nl/b"
                 },
                 {
                   "key": "SUPPLIER_PORTAL_BASE_URL",

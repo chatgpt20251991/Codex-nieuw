@@ -139,6 +139,26 @@ test('Gate 5: real source evidence supports draft, ready and published v1 with r
   assert.equal(snapshot.sha256, hashJson(snapshot.publicJson));
 });
 
+test('readiness GET reports publication cross-field blockers without mutating state, versions or audit', async () => {
+  const item = await makeItem();
+  await value({ batteryItemId: item.id }, 26, 300);
+  const before = await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } });
+  const auditBefore = await admin.auditEvent.count({ where: { organisationId: orgs.A } });
+  const versionsBefore = await admin.passportVersion.count({ where: { batteryItemId: item.id } });
+  const summary = await success(`/compliance/item/${item.id}/readiness`);
+  const actual = await success(`/passports/${item.id}/validate`);
+  assert.equal(summary.score, 100);
+  assert.equal(summary.verified, summary.required);
+  assert.equal(summary.publishable, false);
+  assert.ok(summary.publicationBlockers.some(issue => issue.rule === 'BP-X001'));
+  assert.deepEqual(summary.publicationBlockers, actual.publicationBlockers);
+  assert.deepEqual(await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } }), before);
+  assert.equal(await admin.auditEvent.count({ where: { organisationId: orgs.A } }), auditBefore);
+  assert.equal(await admin.passportVersion.count({ where: { batteryItemId: item.id } }), versionsBefore);
+  assert.equal('item' in summary, false);
+  assert.equal('values' in summary, false);
+});
+
 test('Gate 5: changed value produces v2, links the prior hash and preserves every byte of v1', async () => {
   await value({ batteryItemId: mainItem.id }, 11, 101);
   assert.equal((await success(`/battery-items/${mainItem.id}`)).passportState, 'updated');

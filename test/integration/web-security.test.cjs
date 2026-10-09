@@ -231,3 +231,74 @@ test('Gate 7 web: the browser blocks injected inline scripts and inline event ha
     assert(result.directives.includes('script-src-attr'));
   } finally { await context.close(); }
 });
+
+test('Customer workflow: browser review, immutable publication and QR download retain CSP and explicit approval', async () => {
+  const { context, page, errors } = await instrumentPage();
+  const itemId = '12345678-1234-4123-8123-123456789012', modelId = '12345678-1234-4123-8123-123456789013';
+  const valueId = '12345678-1234-4123-8123-123456789014', evidenceId = '12345678-1234-4123-8123-123456789015';
+  const value = { id: valueId, fieldDefinitionId: 11, valueJson: 120, unit: 'Ah', validationStatus: 'submitted', evidenceLinks: [] };
+  const model = { id: modelId, modelIdentifier: 'SYNTHETIC-UI-MODEL', category: 'EV', values: [] };
+  const item = { id: itemId, modelId, model, serialOrItemIdentifier: 'SYNTHETIC-UI-SERIAL', passportState: 'draft', lifecycleStatus: 'original', values: [value], versions: [] };
+  let evidenceVerified = false, validated = false, published = false;
+  try {
+    // This fixture tests UI sequencing and CSP. Actual persistence, tenant
+    // isolation and server publication gates have separate integration cases.
+    await page.route(`${base}/api/backend/**`, async route => {
+      const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
+      assert.equal(request.headers().authorization, undefined);
+      let data;
+      if (path === `/battery-items/${itemId}`) data = item;
+      else if (path === `/battery-models/${modelId}`) data = model;
+      else if (path === '/compliance/fields') data = [{ id: 11, name: 'Capacity', currentRequirement: 'mandatory', access_tier: 'public', legal_source: 'Synthetic fixture' }];
+      else if (path === `/passport-values/${valueId}`) data = { ...value, evidenceLinks: value.evidenceLinks };
+      else if (path === '/evidence/link') {
+        assert.equal(request.postDataJSON().passportValueId, valueId);
+        assert.equal(request.postDataJSON().evidenceId, evidenceId);
+        value.evidenceLinks = [{ evidenceId, evidence: { originalFilename: 'synthetic-review.txt', verificationStatus: 'uploaded' } }]; data = {};
+      } else if (path === `/evidence/${evidenceId}/verify`) {
+        evidenceVerified = true; value.evidenceLinks[0].evidence.verificationStatus = 'verified'; data = {};
+      } else if (path === `/passport-values/${valueId}/validate`) {
+        assert(evidenceVerified); value.validationStatus = 'validated'; data = { ok: true };
+      } else if (path === `/passports/${itemId}/validate`) {
+        if (request.method() === 'POST') { assert.equal(value.validationStatus, 'validated'); item.passportState = 'ready'; validated = true; }
+        data = { publishable: value.validationStatus === 'validated', readiness: { score: 100 }, publicationBlockers: value.validationStatus === 'validated' ? [] : [{ fieldId: 11, message: 'Evidence review required' }] };
+      } else if (path === `/passports/${itemId}/publish`) {
+        assert(validated); assert.equal(item.passportState, 'ready'); published = true; item.passportState = 'published';
+        item.upi = 'https://id.example.invalid/b/' + itemId;
+        const version = { id: 'synthetic-version', versionNo: 1, publicationState: 'published', sha256: 'a'.repeat(64), publishedAt: '2026-10-09T00:00:00.000Z' };
+        item.versions = [version]; data = { version };
+      } else if (path === `/passports/${itemId}/qr.svg`) {
+        assert(published);
+        return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10H0z"/></svg>' });
+      } else return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Unexpected fixture route"}' });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    });
+    await page.goto(`${base}/passports?item=${itemId}`);
+    await page.getByRole('heading', { name: 'SYNTHETIC-UI-SERIAL', exact: true }).waitFor();
+    await page.getByLabel('Passport data point', { exact: true }).selectOption('11');
+    await page.getByLabel('Evidence ID', { exact: true }).fill(evidenceId);
+    await page.getByRole('button', { name: 'Link evidence', exact: true }).click();
+    await page.getByText('synthetic-review.txt', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Record evidence verification', exact: true }).isEnabled(), false);
+    await page.getByLabel('I have reviewed this source document and its relevance to this value.').check();
+    await page.getByRole('button', { name: 'Record evidence verification', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Evidence verification recorded' }).waitFor();
+    await page.getByRole('button', { name: 'Validate selected value', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Value validation recorded' }).waitFor();
+    await page.getByRole('button', { name: 'Validate passport', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Publication checks passed' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Publish passport version', exact: true }).isEnabled(), false);
+    await page.getByLabel('I approve publication of a new immutable version, including the fields marked public.').check();
+    await page.getByRole('button', { name: 'Publish passport version', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Version 1 published' }).waitFor();
+    assert.equal(published, true);
+    await page.getByText('No successful EU registration is recorded for this battery.', { exact: true }).waitFor();
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download battery QR', exact: true }).click();
+    const download = await pending;
+    assert.equal(download.suggestedFilename(), 'battery-passport-qr.svg');
+    assert.equal(await download.failure(), null);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
+  } finally { await context.close(); }
+});

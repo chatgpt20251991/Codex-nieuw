@@ -25,6 +25,185 @@ test('BFF routing cannot become an open proxy or reach authentication/capability
   assert.equal(exported.backendUrl(['registry', 'items', 'item-123', 'gate'], '', 'https://passport.example').origin, 'https://api.example');
 });
 
+const qrItemId = 'b75efc93-a2a5-4e9c-9f7c-3e5c845eef34';
+const qrPath = ['passports', qrItemId, 'qr.svg'];
+
+test('BFF allows only the exact UUID passport QR download for GET and HEAD', () => {
+  for (const method of ['GET', 'HEAD']) {
+    assert.equal(exported.backendUrl(qrPath, '', 'https://passport.example', method).href,
+      `https://api.example/v1/passports/${qrItemId}/qr.svg`);
+  }
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
+    assert.equal(exported.backendUrl(qrPath, '', 'https://passport.example', method), null);
+  }
+  for (const segments of [
+    ['passports', 'not-a-uuid', 'qr.svg'], ['passports', qrItemId, 'other.svg'],
+    ['passports', qrItemId, 'qr.svg', 'extra'], ['passports', qrItemId, 'qr.svg/extra'],
+    ['passports', qrItemId, 'qr%2esvg'], ['passports', qrItemId, 'qr.SVG'],
+    ['passports', qrItemId, '../qr.svg'], ['evidence', qrItemId, 'qr.svg'],
+    ['passports', qrItemId + '.svg', 'qr.svg'], ['passports', 'https://evil.example', 'qr.svg'],
+  ]) assert.equal(exported.backendUrl(segments, '', 'https://passport.example', 'GET'), null);
+});
+
+// Execute the real route against controlled auth and upstream responses. Tokens
+// stay server-side; no provider account, network or customer data is needed.
+function qrRouteFixture({ upstream, session = {}, access, clientConfigured = true } = {}) {
+  const next = require('next/server');
+  const authSource = fs.readFileSync(path.join(__dirname, '../../apps/web/lib/auth-config.ts'), 'utf8');
+  const authCompiled = ts.transpileModule(authSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const authExports = {};
+  new Function('exports', authCompiled)(authExports);
+  const calls = [];
+  const client = {
+    getSession: async () => session,
+    getAccessToken: async () => access || { token: 'synthetic-session-access-token', expiresAt: Math.floor(Date.now() / 1000) + 60 },
+  };
+  const modules = {
+    'next/server': next,
+    '../../../../lib/auth0': { getAuth0Client: () => clientConfigured ? client : null },
+    '../../../../lib/auth-config': authExports,
+    '../../../../lib/backend-policy': exported,
+  };
+  const routeSource = fs.readFileSync(path.join(__dirname, '../../apps/web/app/api/backend/[...path]/route.ts'), 'utf8');
+  const routeCompiled = ts.transpileModule(routeSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const route = {};
+  new Function('exports', 'require', 'fetch', routeCompiled)(route, name => {
+    assert(Object.hasOwn(modules, name), `Unexpected route dependency: ${name}`);
+    return modules[name];
+  }, async (target, options) => {
+    calls.push({ target, options });
+    return typeof upstream === 'function' ? upstream() : upstream;
+  });
+  const invoke = (method = 'GET', headers = {}, segments = qrPath) => route[method](
+    new next.NextRequest(`https://passport.example/api/backend/${segments.join('/')}`, {
+      method, headers: { host: 'passport.example', ...headers },
+    }), { params: Promise.resolve({ path: segments }) });
+  return { invoke, calls };
+}
+
+test('QR GET returns a private bounded SVG attachment with restrictive CSP and trusted credentials only', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0z"/></svg>';
+  const fixture = qrRouteFixture({ upstream: new Response(svg, { headers: {
+    'content-type': 'image/svg+xml; charset=utf-8', 'set-cookie': 'upstream=must-not-leak',
+    'content-disposition': 'inline; filename="untrusted.svg"',
+  } }) });
+  const response = await fixture.invoke('GET', {
+    authorization: 'Bearer browser-value', cookie: 'browser=value', 'x-forwarded-host': 'evil.example',
+    'x-acting-organisation-id': qrItemId,
+  });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), svg);
+  assert.equal(response.headers.get('content-type'), 'image/svg+xml; charset=utf-8');
+  assert.equal(response.headers.get('content-disposition'), `attachment; filename="battery-passport-${qrItemId}-qr.svg"`);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.equal(response.headers.get('cdn-cache-control'), 'no-store');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.match(response.headers.get('content-security-policy'), /(?:^|;)\s*sandbox(?:;|$)/);
+  for (const directive of ['default-src', 'script-src', 'connect-src', 'object-src', 'frame-ancestors']) {
+    assert(response.headers.get('content-security-policy').includes(`${directive} 'none'`));
+  }
+  assert.equal(response.headers.get('set-cookie'), null);
+  const { target, options } = fixture.calls[0];
+  assert.equal(target.href, `https://api.example/v1/passports/${qrItemId}/qr.svg`);
+  assert.equal(options.headers.get('authorization'), 'Bearer synthetic-session-access-token');
+  assert.equal(options.headers.get('x-acting-organisation-id'), qrItemId);
+  assert.equal(options.headers.get('cookie'), null);
+  assert.equal(options.headers.get('x-forwarded-host'), null);
+  assert.equal(options.redirect, 'error');
+  assert.equal(options.cache, 'no-store');
+});
+
+test('QR HEAD uses the same authentication and SVG attachment policy without a response body', async () => {
+  const fixture = qrRouteFixture({ upstream: new Response(null, { headers: { 'content-type': 'image/svg+xml' } }) });
+  const response = await fixture.invoke('HEAD');
+  assert.equal(response.status, 200);
+  assert.equal(response.body, null);
+  assert.equal(response.headers.get('content-type'), 'image/svg+xml; charset=utf-8');
+  assert.match(response.headers.get('content-disposition'), /^attachment;/);
+  assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);
+  assert.equal(fixture.calls[0].options.method, 'HEAD');
+});
+
+test('QR requests retain host, origin, session, expiry and acting-organisation protection', async () => {
+  for (const headers of [
+    { origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' },
+    { host: 'evil.example', 'x-forwarded-host': 'passport.example' },
+  ]) {
+    const fixture = qrRouteFixture();
+    assert.equal((await fixture.invoke('GET', headers)).status, 403);
+    assert.equal(fixture.calls.length, 0);
+  }
+  for (const config of [{ session: null }, { access: { token: 'expired', expiresAt: 0 } }]) {
+    const fixture = qrRouteFixture(config);
+    assert.equal((await fixture.invoke()).status, 401);
+    assert.equal(fixture.calls.length, 0);
+  }
+  const unconfigured = qrRouteFixture({ clientConfigured: false });
+  assert.equal((await unconfigured.invoke()).status, 503);
+  assert.equal(unconfigured.calls.length, 0);
+  const invalidTenant = qrRouteFixture();
+  assert.equal((await invalidTenant.invoke('GET', { 'x-acting-organisation-id': 'untrusted-tenant' })).status, 400);
+  assert.equal(invalidTenant.calls.length, 0);
+});
+
+test('QR route rejects mutating methods and non-QR file paths before any upstream request', async () => {
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    const fixture = qrRouteFixture();
+    assert.equal((await fixture.invoke(method, { origin: 'https://passport.example' })).status, 404);
+    assert.equal(fixture.calls.length, 0);
+  }
+  for (const segments of [['passports', 'invalid', 'qr.svg'], ['passports', qrItemId, 'other.svg']]) {
+    const fixture = qrRouteFixture();
+    assert.equal((await fixture.invoke('GET', {}, segments)).status, 404);
+    assert.equal(fixture.calls.length, 0);
+  }
+});
+
+test('QR failures remain JSON and do not expose SVG downloads for denied tenants or unexpected MIME types', async () => {
+  const denied = qrRouteFixture({ upstream: Response.json({ code: 'TENANT_FORBIDDEN' }, { status: 403 }) });
+  const response = await denied.invoke();
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { code: 'TENANT_FORBIDDEN' });
+  assert.equal(response.headers.get('content-disposition'), null);
+  for (const contentType of ['text/html', 'application/json', 'image/svg+xml-evil', '']) {
+    for (const method of ['GET', 'HEAD']) {
+      const fixture = qrRouteFixture({ upstream: new Response('untrusted', { headers: { 'content-type': contentType } }) });
+      const failure = await fixture.invoke(method);
+      assert.equal(failure.status, 502);
+      assert.equal(failure.headers.get('content-disposition'), null);
+      assert.equal((await failure.json()).message, 'The service returned an unexpected response.');
+    }
+  }
+});
+
+test('QR download limits count streamed bytes and reject oversized or invalid UTF-8 responses', async () => {
+  let cancelled = false;
+  const oversized = new ReadableStream({
+    start(controller) { controller.enqueue(new Uint8Array(exported.MAX_QR_RESPONSE_BYTES + 1)); },
+    cancel() { cancelled = true; },
+  });
+  for (const body of [oversized, new Uint8Array([0xff])]) {
+    const fixture = qrRouteFixture({ upstream: new Response(body, { headers: { 'content-type': 'image/svg+xml' } }) });
+    const response = await fixture.invoke();
+    assert.equal(response.status, 502);
+    assert.match(response.headers.get('content-type'), /^application\/json/);
+    assert.equal(response.headers.get('content-disposition'), null);
+  }
+  assert.equal(cancelled, true);
+});
+
+test('ordinary BFF endpoints remain JSON-only and do not inherit QR download handling', async () => {
+  const segments = ['passports', qrItemId, 'versions'];
+  const fixture = qrRouteFixture({ upstream: Response.json({ versions: [] }) });
+  const response = await fixture.invoke('GET', {}, segments);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { versions: [] });
+  assert.equal(response.headers.get('content-disposition'), null);
+  assert.equal(fixture.calls[0].options.headers.get('accept'), 'application/json');
+  const unexpected = qrRouteFixture({ upstream: new Response('<svg/>', { headers: { 'content-type': 'image/svg+xml' } }) });
+  assert.equal((await unexpected.invoke('GET', {}, segments)).status, 502);
+});
+
 test('Production browser and backend origins reject insecure and credential-bearing configuration', () => {
   for (const url of ['http://passport.example', 'http://localhost:3000', 'https://user:password@passport.example', 'https://passport.example/nested', 'https://passport.example?redirect=x']) {
     environment.APP_BASE_URL = url;
