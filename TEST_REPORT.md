@@ -1,5 +1,37 @@
 # Verification record
 
+## Production-control follow-up — 20 October 2026
+
+Local validation uses the existing source checkout with a separate snapshot,
+locked dependency installation, generated files, caches and logs on E:. No
+existing project was moved or replaced by links. Node 24.15/npm 11.12.1 remain
+the local toolchain; required CI uses Node 22.
+
+The complete initial local run passes 21 rule tests, 43 static checks and 143
+unit/security tests. After independent review fixed strict MFA response typing
+and the exact export-byte limit, the final unit/security run passes 145 tests,
+without failures or skips. The API production build and web production build
+(including web type validation) pass. The complete platform dependency audit
+reports zero known vulnerabilities, including development dependencies.
+
+New regressions cover all authenticated route scope policies, malformed/legacy
+grants, exact action separation, request-context isolation and grant rechecks;
+private export hash/chain/source tampering, missing records, independent portable
+verification, filesystem confidentiality and redacted CLI errors; exact browser
+item/byte boundaries; and real-provider configuration false-positive rejection.
+All provider acceptance/launch/Registry flags remain false in the auditor.
+
+The required integration runner additionally includes real PostgreSQL grant-lock
+revocation serialization and atomic audit checks, private export access and
+unchanged publications, plus a browser download with acknowledgement, exact
+independent content verification, wrong-item rejection and denied-permission
+handling. Real database/storage/scanner/browser/recovery CI must pass on the
+final PR revision before merge. These local results do not establish actual
+Auth0/MFA, hosting, customer migration, standard conformity or Registry acceptance.
+
+See [the production-control record](docs/29_PRODUCTION_CONTROLS_2026-10-20.md)
+and the exact-revision PR checks for remote results.
+
 ## Customer passport workflow — local checks, 9 October 2026
 
 The customer-workflow branch passes the locked installation, Prisma generation,
