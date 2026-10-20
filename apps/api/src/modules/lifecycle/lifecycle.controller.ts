@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { transition } from '@eubp/rules';
@@ -25,7 +26,7 @@ const statusForEvent: Record<string, string> = {
 export class LifecycleController {
   constructor(private readonly tenantDb: TenantDbService) {}
 
-  @Get(':itemId/events')
+  @RequireAuthorisationScope('lifecycleRead') @Get(':itemId/events')
   events(@CurrentTenant() orgId: string, @Param('itemId') itemId: string) {
     return this.tenantDb.run(orgId, async tx => {
       await tx.batteryItem.findFirstOrThrow({ where: { id: itemId, organisationId: orgId } });
@@ -33,7 +34,7 @@ export class LifecycleController {
     });
   }
 
-  @Post(':itemId/events')
+  @RequireAuthorisationScope('lifecycleWrite') @Post(':itemId/events')
   async event(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor,
     @Param('itemId') itemId: string, @Body() body: unknown) {
     const b = EventSchema.parse(body);
@@ -75,7 +76,7 @@ export class LifecycleController {
     });
   }
 
-  @Post(':itemId/telemetry')
+  @RequireAuthorisationScope('lifecycleWrite') @Post(':itemId/telemetry')
   async telemetry(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor,
     @Param('itemId') itemId: string, @Body() body: unknown) {
     const b = TelemetrySchema.parse(body);

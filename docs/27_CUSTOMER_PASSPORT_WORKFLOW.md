@@ -95,9 +95,13 @@ successor drill are separate continuity work. Paid infrastructure remains
 deferred under the owner's prior instruction. Both Registry flags stay false;
 the current official battery submission facilities remain unavailable.
 
-The download scope is enforced by opt-in handler policy. General per-action
-scope enforcement on older delegated routes remains a separate Gate 7 item;
-the new route does not claim to complete all delegated-access acceptance.
+The 17 October follow-up applies explicit action scopes to authenticated
+cross-tenant routes, denies unannotated routes, validates new and persisted
+grant contracts, and rechecks/locks the exact grant in each customer database
+transaction. Existing broad grants need explicit review/reissue; there is no
+implicit migration to full management rights. Read
+`docs/DELEGATED_ACTION_SCOPES.md` for the action inventory, revocation semantics,
+audit and remaining live identity/grant acceptance.
 
 ## How competitors already operate
 

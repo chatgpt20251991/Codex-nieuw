@@ -3,7 +3,7 @@
 | Threat | Primary control | Remaining work |
 |---|---|---|
 | Cross-tenant IDOR | auth-derived tenant + RLS | integration tests with non-owner runtime DB role |
-| Malicious acting-org header | Active WrittenAuthorisation lookup; explicit Boolean evidenceReview scope for private review downloads | general per-action scope enforcement on older delegated routes |
+| Malicious acting-org header | Fail-closed named Boolean action scopes; active WrittenAuthorisation guard and exact-grant shared-lock recheck in every delegated customer transaction | real-provider actor/grant acceptance and independent concurrency/security review; see DELEGATED_ACTION_SCOPES.md |
 | Public restricted-data leak | separate PublicPassportSnapshot | automated E2E leakage regression suite |
 | Stolen supplier link | 256-bit token, hash-at-rest, expiry, fragment URL | one-time use option, IP/risk signals |
 | Stolen restricted link | expiring scoped token | revocation UI, stronger identity for sensitive audiences |

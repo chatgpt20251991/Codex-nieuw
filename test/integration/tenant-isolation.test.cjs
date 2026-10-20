@@ -44,6 +44,10 @@ before(async () => {
       .setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
       .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   }
+  tokens.User = await new SignJWT({ org_id: orgs.A, role: 'operator_user' })
+    .setProtectedHeader({ alg: 'HS256' }).setSubject('integration-ordinary-user')
+    .setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
+    .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   const listener = createServer();
   listener.listen(0, '127.0.0.1');
   await once(listener, 'listening');
@@ -183,9 +187,9 @@ test('delegation requires verified evidence; active grant enables only its custo
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   const pending = await admin.evidenceObject.create({ data: { organisationId: orgs.A,
     objectKey: 'fixture/pending-authorisation', evidenceType: 'written_authorisation', sha256: 'b'.repeat(64) } });
-  assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.S, evidenceId: pending.id, scope: {} })).status, 409);
+  assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.S, evidenceId: pending.id, scope: { modelRead: true } })).status, 409);
   fixture.authorisation = await success('/authorisations', 'A', { serviceProviderId: orgs.S,
-    evidenceId: fixture.A.evidence.id, scope: { passportManagement: true } });
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true, valueWrite: true } });
   const model = await success(`/battery-models/${fixture.A.model.id}`, 'S', undefined, 'A');
   assert.equal(model.organisationId, orgs.A);
   const value = await success('/passport-values', 'S', { modelId: fixture.A.model.id, fieldDefinitionId: 11, value: 74 }, 'A');
@@ -202,20 +206,160 @@ test('revocation takes effect on the next request with the same token and create
   await success(`/authorisations/${fixture.authorisation.id}/revoke`, 'A', {});
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   assert.equal((await request('/passport-values', 'S', { modelId: fixture.A.model.id, fieldDefinitionId: 12, value: 'NMC' }, 'A')).status, 403);
-  const events = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id }, orderBy: { createdAt: 'asc' } });
+  const events = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id,
+    action: { in: ['authorisation.create', 'authorisation.revoke'] } }, orderBy: { createdAt: 'asc' } });
   assert.deepEqual(events.map(e => e.action), ['authorisation.create', 'authorisation.revoke']);
   assert.ok(events.every(e => e.organisationId === orgs.A));
+  assert.deepEqual(events[0].metadata.scope, { modelRead: true, valueWrite: true });
+  assert.deepEqual(events[1].metadata.scope, { modelRead: true, valueWrite: true });
+  const uses = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id,
+    action: 'authorisation.scoped_transaction' } });
+  assert.ok(uses.length >= 2);
+  assert.ok(uses.every(event => ['modelRead', 'valueWrite'].includes(event.metadata.scope)));
 });
 
 test('expired and not-yet-effective authorisations deny access immediately', async () => {
   const auth = await success('/authorisations', 'A', { serviceProviderId: orgs.S,
-    evidenceId: fixture.A.evidence.id, scope: {}, validFrom: new Date(Date.now() - 60000).toISOString(),
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true }, validFrom: new Date(Date.now() - 60000).toISOString(),
     validUntil: new Date(Date.now() + 60000).toISOString() });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 200);
   await admin.writtenAuthorisation.update({ where: { id: auth.id }, data: { validUntil: new Date(Date.now() - 1) } });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   await admin.writtenAuthorisation.update({ where: { id: auth.id }, data: { validFrom: new Date(Date.now() + 60000), validUntil: null } });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
+});
+
+test('action-scoped delegated routes deny unrelated read, review, publication and administration capabilities', async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true } });
+  try {
+    assert.equal((await request(`/battery-models/${fixture.A.model.id}`, 'T', undefined, 'A')).status, 200);
+    for (const [path, body] of [
+      ['/organisations/current', undefined], ['/organisations/authorised-customers', undefined], ['/authorisations', undefined],
+      [`/passport-values/${fixture.A.value.id}`, undefined], ['/battery-models', {}],
+      [`/passports/${fixture.A.item.id}/publish`, {}], [`/evidence/${fixture.A.evidence.id}/verify`, {}],
+      ['/supplier-requests', {}], ['/registry/export-json', {}],
+      [`/lifecycle/${fixture.A.item.id}/events`, {}], ['/access-grants', {}],
+    ]) assert.equal((await request(path, 'T', body, 'A')).status, 403, path);
+    assert.equal((await request('/battery-models', 'T', undefined, 'B')).status, 403);
+    assert.equal((await request(`/battery-models/${fixture.B.model.id}`, 'T', undefined, 'A')).status, 404);
+    const discovery = await success('/organisations/authorised-customers', 'T');
+    const listed = discovery.find(row => row.id === grant.id);
+    assert.deepEqual(listed.availableActions, ['modelRead']);
+    for (const key of ['scopeJson', 'documentObjectKey', 'documentSha256']) assert.equal(Object.hasOwn(listed, key), false);
+    // Grant policy supplements, rather than replaces, normal own-tenant roles.
+    assert.equal((await request(`/evidence/${fixture.A.evidence.id}/verify`, 'User', {})).status, 403);
+    assert.equal((await request('/battery-models', 'A')).status, 200);
+    const audits = await admin.auditEvent.findMany({ where: { resourceId: grant.id, action: 'authorisation.scoped_transaction' } });
+    assert.ok(audits.length > 0); assert.ok(audits.every(event => event.metadata.scope === 'modelRead'));
+  } finally { await success(`/authorisations/${grant.id}/revoke`, 'A', {}); }
+});
+
+test('malformed historical and unrelated active grants cannot shadow a valid grant or create broad access', async () => {
+  const seeded = [];
+  for (const scope of [{}, { modelRead: 'true' }, { modelRead: true, '*': true },
+    { passportManagement: true }, { modelRead: false }, { modelRead: 1 }]) {
+    assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.T,
+      evidenceId: fixture.A.evidence.id, scope })).status, 400);
+    seeded.push(await admin.writtenAuthorisation.create({ data: { responsibleOperatorId: orgs.A,
+      serviceProviderId: orgs.T, scopeJson: scope, documentObjectKey: fixture.A.evidence.objectKey,
+      documentSha256: fixture.A.evidence.sha256, validFrom: new Date() } }));
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 403);
+  }
+  const unrelated = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { valueWrite: true } });
+  const valid = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true } });
+  try {
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 200);
+    const value = await success('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 13, value: 'separate explicit write grant' }, 'A');
+    assert.equal(value.organisationId, orgs.A);
+    assert.equal((await request(`/passport-values/${value.id}/validate`, 'T', {}, 'A')).status, 403);
+    await success(`/authorisations/${valid.id}/revoke`, 'A', {});
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 403);
+    const discovery = await success('/organisations/authorised-customers', 'T');
+    assert.equal(discovery.some(row => seeded.some(grant => row.id === grant.id)), false);
+  } finally {
+    await success(`/authorisations/${unrelated.id}/revoke`, 'A', {});
+    await admin.writtenAuthorisation.updateMany({ where: { id: { in: seeded.map(row => row.id) } }, data: { revokedAt: new Date() } });
+  }
+});
+
+test('revocation serializes against an authorised delegated transaction and denies subsequent work', { timeout: 20000 }, async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { valueWrite: true } });
+  const authorisedValue = `authorised-before-revocation-${randomUUID()}`;
+  const deniedValue = `denied-after-revocation-${randomUUID()}`;
+  const deniedFieldBefore = await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+    modelId: fixture.A.model.id, fieldDefinitionId: 15 }, orderBy: { id: 'asc' } });
+  const blocker = new Client({ connectionString: process.env.TEST_ADMIN_DATABASE_URL });
+  let write, revoke;
+  await blocker.connect();
+  async function waitForBlockedBy(pid, queryFragment) {
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      const rows = await admin.$queryRawUnsafe(`SELECT pid FROM pg_stat_activity
+        WHERE $1 = ANY(pg_blocking_pids(pid)) AND query LIKE $2`, pid, `%${queryFragment}%`);
+      if (rows.length) return rows[0].pid;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail(`No expected ${queryFragment} operation waited for database lock`);
+  }
+  try {
+    await blocker.query('BEGIN');
+    const { rows: [connection] } = await blocker.query('SELECT pg_backend_pid() AS pid');
+    await blocker.query('SELECT id FROM "BatteryModel" WHERE id = $1 FOR UPDATE', [fixture.A.model.id]);
+    write = request('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 14, value: authorisedValue }, 'A');
+    const delegatedPid = await waitForBlockedBy(connection.pid, 'BatteryModel');
+    revoke = request(`/authorisations/${grant.id}/revoke`, 'A', {});
+    await waitForBlockedBy(delegatedPid, 'WrittenAuthorisation');
+    await blocker.query('COMMIT');
+    const written = await write;
+    assert.equal(written.status, 201, JSON.stringify(written));
+    assert.equal((await revoke).status, 201);
+    const committed = await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+      modelId: fixture.A.model.id, fieldDefinitionId: 14, valueJson: { equals: authorisedValue } } });
+    assert.equal(committed.length, 1, 'The already-authorised write commits exactly once');
+    assert.equal(committed[0].id, written.data.id);
+    assert.equal(committed[0].validUntil, null);
+    assert.equal(committed[0].validationStatus, 'unvalidated');
+    const scopedAudits = await admin.auditEvent.findMany({ where: { resourceId: grant.id,
+      action: 'authorisation.scoped_transaction' } });
+    assert.equal(scopedAudits.length, 1);
+    const [scopedAudit] = scopedAudits;
+    assert.equal(scopedAudit.organisationId, orgs.A);
+    assert.equal(scopedAudit.actorSubject, 'integration-T');
+    assert.equal(scopedAudit.resourceType, 'written_authorisation');
+    assert.deepEqual(scopedAudit.metadata, { scope: 'valueWrite', serviceProviderId: orgs.T,
+      handler: 'ValuesController.create' });
+    assert.match(scopedAudit.requestId, /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
+    const businessAudits = await admin.auditEvent.findMany({ where: { resourceId: committed[0].id,
+      action: 'passport_value.create' } });
+    assert.equal(businessAudits.length, 1);
+    assert.equal(businessAudits[0].organisationId, orgs.A);
+    assert.equal(businessAudits[0].actorSubject, 'integration-T');
+    assert.deepEqual(businessAudits[0].metadata, { fieldDefinitionId: 14 });
+    // PostgreSQL records the inserting transaction in xmin. The value, its
+    // business audit and the scoped authorisation audit must commit atomically.
+    const transactions = await admin.$queryRaw`SELECT xmin::text AS "transactionId" FROM "PassportValue" WHERE id = ${committed[0].id}
+      UNION ALL SELECT xmin::text AS "transactionId" FROM "AuditEvent" WHERE id IN (${businessAudits[0].id}, ${scopedAudit.id})`;
+    assert.equal(transactions.length, 3);
+    assert.equal(new Set(transactions.map(row => row.transactionId)).size, 1);
+    const denied = await request('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 15, value: deniedValue }, 'A');
+    assert.equal(denied.status, 403);
+    assert.equal(denied.data.code, 'NO_WRITTEN_AUTHORISATION');
+    assert.deepEqual(await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+      modelId: fixture.A.model.id, fieldDefinitionId: 15 }, orderBy: { id: 'asc' } }), deniedFieldBefore);
+    assert.equal(await admin.auditEvent.count({ where: { resourceId: grant.id,
+      action: 'authorisation.scoped_transaction' } }), 1, 'The denied request creates no success audit');
+  } finally {
+    await blocker.query('ROLLBACK').catch(() => {}); await blocker.end();
+    await Promise.allSettled([write, revoke].filter(Boolean));
+    await admin.writtenAuthorisation.update({ where: { id: grant.id }, data: { revokedAt: new Date() } });
+  }
 });
 
 test('non-login public resolver works under FORCE RLS and exposes only the public projection', async () => {

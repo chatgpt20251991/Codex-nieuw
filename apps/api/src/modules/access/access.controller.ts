@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { Body, ConflictException, Controller, Headers, Param, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
@@ -21,7 +22,7 @@ export class AccessController {
   constructor(private readonly tenantDb: TenantDbService, private readonly config: ConfigService,
     private readonly tokens: AccessTokenService) {}
 
-  @Post('access-grants')
+  @RequireAuthorisationScope('accessGrantWrite') @Post('access-grants')
   async create(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Body() body: unknown) {
     const b = GrantSchema.parse(body), raw = secureToken();
     const validFrom = new Date(), validUntil = new Date(Date.now() + b.validForHours * 3600000);
@@ -40,7 +41,7 @@ export class AccessController {
       securityNotice: 'Capability token is shown once. Authority-only data is deliberately excluded from this token mechanism.' };
   }
 
-  @Post('access-grants/:id/revoke')
+  @RequireAuthorisationScope('accessGrantWrite') @Post('access-grants/:id/revoke')
   async revoke(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('id') id: string) {
     return this.tenantDb.run(orgId, async tx => {
       await tx.$queryRaw`SELECT id FROM "AccessGrant" WHERE id = ${id} FOR UPDATE`;

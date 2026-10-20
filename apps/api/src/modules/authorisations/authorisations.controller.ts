@@ -5,14 +5,16 @@ import type { Actor } from '../../common/auth/auth.types';
 import { Roles } from '../../common/auth/roles.decorator';
 import { CurrentTenant } from '../../common/tenant/current-tenant.decorator';
 import { TenantDbService } from '../../common/tenant/tenant-db.service';
+import { AuthorisationScopeSchema, OwnTenantOnly } from '../../common/tenant/authorisation-scope.decorator';
 
 const Schema = z.object({
   serviceProviderId: z.string().uuid(), evidenceId: z.string().uuid(),
-  scope: z.record(z.string(), z.any()), validFrom: z.string().datetime().optional(),
+  scope: AuthorisationScopeSchema, validFrom: z.string().datetime().optional(),
   validUntil: z.string().datetime().optional(),
 });
 
 @Controller('authorisations')
+@OwnTenantOnly()
 export class AuthorisationsController {
   constructor(private readonly tenantDb: TenantDbService) {}
 
@@ -42,7 +44,8 @@ export class AuthorisationsController {
       } });
       await tx.auditEvent.create({ data: { organisationId: orgId, actorSubject: actor.subject,
         action: 'authorisation.create', resourceType: 'written_authorisation', resourceId: row.id,
-        metadata: { serviceProviderId: b.serviceProviderId } } });
+        metadata: { serviceProviderId: b.serviceProviderId, scope: b.scope,
+          validFrom: validFrom.toISOString(), validUntil: validUntil?.toISOString() ?? null } } });
       return row;
     });
   }
@@ -55,7 +58,9 @@ export class AuthorisationsController {
       const row = await tx.writtenAuthorisation.update({ where: { id }, data: { revokedAt: new Date() } });
       await tx.auditEvent.create({ data: { organisationId: orgId, actorSubject: actor.subject,
         action: 'authorisation.revoke', resourceType: 'written_authorisation', resourceId: id,
-        metadata: { serviceProviderId: existing.serviceProviderId } } });
+        metadata: { serviceProviderId: existing.serviceProviderId, scope: existing.scopeJson,
+          validFrom: existing.validFrom.toISOString(), validUntil: existing.validUntil?.toISOString() ?? null,
+          revokedAt: row.revokedAt?.toISOString() } } });
       return row;
     });
   }
