@@ -83,12 +83,17 @@ function verifyManifest(envelope, expectedPayloadSha256) {
 }
 
 async function regularFile(filename, maxBytes) {
-  const before = await fsp.lstat(filename);
-  demand(before.isFile() && !before.isSymbolicLink() && before.size <= maxBytes, 'UNSAFE_OR_OVERSIZED_FILE');
-  const handle = await fsp.open(filename, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+  // Open once, then inspect the descriptor that all reads will actually use.
+  // Nonblocking open prevents a substituted POSIX FIFO from hanging before it
+  // can be rejected; platforms without these flags still check the leaf below.
+  const handle = await fsp.open(filename, fs.constants.O_RDONLY |
+    (fs.constants.O_NOFOLLOW || 0) | (fs.constants.O_NONBLOCK || 0));
   try {
     const stat = await handle.stat();
-    demand(stat.isFile() && stat.size === before.size && stat.ino === before.ino, 'SOURCE_CHANGED_DURING_READ');
+    demand(stat.isFile() && stat.size <= maxBytes, 'UNSAFE_OR_OVERSIZED_FILE');
+    const entry = await fsp.lstat(filename);
+    demand(entry.isFile() && !entry.isSymbolicLink(), 'UNSAFE_OR_OVERSIZED_FILE');
+    demand(entry.dev === stat.dev && entry.ino === stat.ino && entry.size === stat.size, 'SOURCE_CHANGED_DURING_READ');
     return handle;
   } catch (error) { await handle.close(); throw error; }
 }

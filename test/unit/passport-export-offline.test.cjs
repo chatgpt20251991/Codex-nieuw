@@ -6,7 +6,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const syntheticExport = require('../fixtures/operator-export.cjs');
-const { hashJson, verifyManifest, verifySources, assemble } = require('../../scripts/passport-export.cjs');
+const { hashJson, verifyManifest, loadManifest, verifySources, assemble } = require('../../scripts/passport-export.cjs');
 const rehash = envelope => { envelope.integrity.payloadSha256 = hashJson(envelope.payload); return envelope; };
 const testTemp = process.env.EUBP_TEST_OUTPUT_DIRECTORY || os.tmpdir();
 
@@ -101,4 +101,68 @@ test('CLI failure logs expose error codes without malformed confidential JSON fr
       assert.equal(child.stderr.includes('private-customer'), false); assert.equal(child.stderr.includes(root), false);
     }
   } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test('manifest reader rejects a pathname replacement after open before reading and closes its original descriptor', async t => {
+  await fs.mkdir(testTemp, { recursive: true }); const root = await fs.mkdtemp(path.join(testTemp, 'eubp-export-open-race-'));
+  const originalOpen = fs.open, filename = path.join(root, 'manifest.json');
+  let opened, readStarted = false, intercepted;
+  try {
+    const { envelope } = syntheticExport();
+    await fs.writeFile(filename, JSON.stringify(envelope));
+    await fs.writeFile(path.join(root, 'replacement.json'), JSON.stringify(envelope));
+    intercepted = t.mock.method(fs, 'open', async (requested, ...args) => {
+      const handle = await originalOpen(requested, ...args);
+      if (requested === filename) {
+        opened = handle;
+        t.mock.method(handle, 'createReadStream', () => { readStarted = true; throw new Error('Unexpected read after pathname replacement'); });
+        // All renamed files are direct children of this test's newly created,
+        // private temporary root. The opened inode remains available for fstat.
+        await fs.rename(filename, path.join(root, 'opened-original.json'));
+        await fs.rename(path.join(root, 'replacement.json'), filename);
+      }
+      return handle;
+    });
+    await assert.rejects(loadManifest(filename), /SOURCE_CHANGED_DURING_READ/);
+    assert.equal(readStarted, false); assert.equal(opened.fd, -1);
+  } finally {
+    intercepted?.mock.restore();
+    if (opened && opened.fd !== -1) await opened.close();
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(testTemp));
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('manifest reader rejects directories and POSIX symlinks or FIFOs without following or blocking on them', async t => {
+  await fs.mkdir(testTemp, { recursive: true }); const root = await fs.mkdtemp(path.join(testTemp, 'eubp-export-special-file-'));
+  try {
+    await assert.rejects(loadManifest(root), error =>
+      error.message === 'UNSAFE_OR_OVERSIZED_FILE' || ['EISDIR', 'EPERM', 'EACCES'].includes(error.code));
+    if (process.platform !== 'win32') {
+      const { envelope } = syntheticExport(), filename = path.join(root, 'manifest.json'), link = path.join(root, 'linked.json');
+      await fs.writeFile(filename, JSON.stringify(envelope)); await fs.symlink(filename, link);
+      await assert.rejects(loadManifest(link), error => error.code === 'ELOOP' || error.message === 'UNSAFE_OR_OVERSIZED_FILE');
+      // Exercise the fallback used where O_NOFOLLOW is unavailable: a followed
+      // descriptor must still be closed and rejected by the post-open lstat.
+      const originalOpen = fs.open, noFollow = require('node:fs').constants.O_NOFOLLOW || 0;
+      let followed;
+      const intercepted = t.mock.method(fs, 'open', async (requested, flags, ...args) => {
+        const handle = await originalOpen(requested, flags & ~noFollow, ...args);
+        if (requested === link) followed = handle;
+        return handle;
+      });
+      try { await assert.rejects(loadManifest(link), /UNSAFE_OR_OVERSIZED_FILE/); assert.equal(followed.fd, -1); }
+      finally { intercepted.mock.restore(); if (followed && followed.fd !== -1) await followed.close(); }
+      const fifo = path.join(root, 'manifest.fifo');
+      const created = spawnSync('mkfifo', ['-m', '600', fifo], { encoding: 'utf8' });
+      assert.equal(created.status, 0, created.stderr);
+      const child = spawnSync(process.execPath, [path.resolve(__dirname, '../../scripts/passport-export.cjs'), 'verify', fifo],
+        { encoding: 'utf8', timeout: 3000 });
+      assert.equal(child.error, undefined, 'Special-file rejection must not hang waiting for FIFO writers');
+      assert.equal(child.status, 1); assert.match(child.stderr, /UNSAFE_OR_OVERSIZED_FILE/);
+    }
+  } finally {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(testTemp));
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });

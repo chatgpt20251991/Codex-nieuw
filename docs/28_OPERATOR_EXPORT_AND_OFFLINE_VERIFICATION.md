@@ -110,6 +110,9 @@ files, altered bytes, missing metadata, unsafe IDs and symlinked source paths
 fail. It does not execute documents or reinterpret a clean hash as malware or
 regulatory approval. Sources are streamed with a 100 MiB per-file and 2 GiB total
 bound; larger collections require a separately reviewed archive workflow.
+Files are opened once before descriptor/type/size checks; a post-open pathname
+identity check rejects replaced entries and leaf symlinks. Reads use that same
+descriptor. POSIX nonblocking open also prevents a substituted FIFO from hanging.
 
 Create a **new** portable archive directory, without overwriting existing files:
 

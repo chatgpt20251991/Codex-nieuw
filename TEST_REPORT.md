@@ -9,8 +9,10 @@ the local toolchain; required CI uses Node 22.
 
 The complete initial local run passes 21 rule tests, 43 static checks and 143
 unit/security tests. After independent review fixed strict MFA response typing
-and the exact export-byte limit, the final unit/security run passes 145 tests,
-without failures or skips. The API production build and web production build
+and the exact export-byte limit, the unit/security run passed 145 tests. After
+the export reader's open-first descriptor checks and deterministic pathname-swap
+and special-file regressions, the final run passes 147 tests without failures
+or skips. POSIX symlink/FIFO branches require Linux CI. The API production build and web production build
 (including web type validation) pass. The complete platform dependency audit
 reports zero known vulnerabilities, including development dependencies.
 
