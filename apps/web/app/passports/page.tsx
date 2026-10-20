@@ -5,6 +5,7 @@ import AppShell from '../../components/AppShell';
 import { apiFetch } from '../../lib/api';
 import { parsePassportInput, publicPassportLink, ValueKind } from '../../lib/passport-input';
 import { downloadEvidence } from '../../lib/evidence-review';
+import { prepareOperatorExport } from '../../lib/operator-export';
 
 function download(content: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -29,6 +30,8 @@ export default function Passports() {
   const [evidenceId, setEvidenceId] = useState('');
   const [reviewedEvidence, setReviewedEvidence] = useState<Record<string, boolean>>({});
   const [publicationConfirmed, setPublicationConfirmed] = useState(false);
+  const [operatorExportConfirmed, setOperatorExportConfirmed] = useState(false);
+  const [operatorExportHash, setOperatorExportHash] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -45,7 +48,7 @@ export default function Passports() {
     // Clear the previous battery before fetching so an error cannot leave an
     // old dossier usable under a new item identifier.
     setItem(undefined); setModel(undefined); setValidation(undefined); setValueDetail(undefined);
-    setPublicationConfirmed(false); setReviewedEvidence({});
+    setPublicationConfirmed(false); setOperatorExportConfirmed(false); setOperatorExportHash(''); setReviewedEvidence({});
     const row = await apiFetch(`/battery-items/${encodeURIComponent(id)}`);
     const [m, defs, result] = await Promise.all([
       apiFetch(`/battery-models/${row.modelId}`), apiFetch<any[]>(`/compliance/fields?category=${row.model.category}`),
@@ -72,7 +75,7 @@ export default function Passports() {
   }, [currentValue?.id, fieldId, scope]);
 
   async function run(action: () => Promise<void>) {
-    setBusy(true); setError(''); setNotice(''); setPublicationConfirmed(false);
+    setBusy(true); setError(''); setNotice(''); setPublicationConfirmed(false); setOperatorExportConfirmed(false); setOperatorExportHash('');
     try { await action(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   }
   async function open(event: FormEvent) {
@@ -142,6 +145,16 @@ export default function Passports() {
       const svg = await apiFetch<string>(`/passports/${itemId}/qr.svg`);
       download(svg, 'battery-passport-qr.svg', 'image/svg+xml');
       setNotice('QR downloaded for the published battery. Check its scan destination before printing.');
+    });
+  }
+  async function downloadOperatorExport() {
+    if (!operatorExportConfirmed) return;
+    await run(async () => {
+      const data = await apiFetch(`/passports/${itemId}/operator-export`);
+      const file = prepareOperatorExport(data, itemId);
+      download(file.content, file.filename, 'application/json');
+      setOperatorExportHash(file.payloadSha256);
+      setNotice('Private published history downloaded. Source documents are not included. Verify the file with the offline checker before transfer.');
     });
   }
   const canPublish = Boolean(validation?.publishable && ['ready', 'updated'].includes(item?.passportState));
@@ -218,6 +231,15 @@ export default function Passports() {
         {!item.versions?.length ? <p className="mutedText">No version has been published.</p> : <div className="workflowActions">
           <button className="button secondary" disabled={busy} onClick={downloadQr}>Download battery QR</button>
           {publicLink && <a href={publicLink} target="_blank" rel="noopener noreferrer">Latest published public passport</a>}
+        </div>}
+        {!!item.versions?.length && <div className="evidenceReview">
+          <h3>Private operator export</h3>
+          <p className="mutedText">Contains confidential published data from all access tiers. Source document files are not included. Store it privately; this is not a complete customer-exit archive.</p>
+          <label className="checkLabel"><input type="checkbox" checked={operatorExportConfirmed} disabled={busy}
+            onChange={e => setOperatorExportConfirmed(e.target.checked)} />
+            I am authorised to download and protect this private passport history.</label>
+          <button className="button secondary" disabled={busy || !operatorExportConfirmed} onClick={downloadOperatorExport}>Download private passport history</button>
+          {operatorExportHash && <p className="mutedText hashText">Export SHA-256: {operatorExportHash}. Save this separately if you need an integrity reference.</p>}
         </div>}
       </section>
     </>}
