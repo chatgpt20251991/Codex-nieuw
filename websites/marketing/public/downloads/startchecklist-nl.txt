@@ -1,6 +1,6 @@
 EUBatteryPassport.nl
 Startchecklist batterijpaspoort
-Bijgewerkt: 1 oktober 2026
+Bijgewerkt: 9 oktober 2026
 
 Begin met één batterijmodel. Noteer wat bekend is; laat onbekende gegevens als onbekend staan. Dit is een inventarisatie, geen verklaring van conformiteit.
 
@@ -18,6 +18,8 @@ Complete batterij, losse cellen/modules of samengesteld systeem:
 Kunnen de pakketten zelfstandig en veilig functioneren?
 Welke BMS of andere onderdelen delen de pakketten?
 Energie van de complete batterij in kWh:
+Oplaadbaar (ja, nee of onbekend):
+Uitsluitend externe opslag (ja, nee of onbekend) en opslagprincipe:
 Aantallen modellen en individuele batterijen per jaar:
 Verwachte datum van marktintroductie of ingebruikname:
 
@@ -25,6 +27,8 @@ Verwachte datum van marktintroductie of ingebruikname:
 Productspecificaties en systeemtekening:
 Fabrikant en leveranciers:
 Beschikbare testverslagen en gebruikte normen:
+Bij industriële batterijen: capaciteit, vermogen, interne weerstand, rendement en levensduur:
+Meetcondities, methode, normeditie en bijbehorend model of variant:
 EU-conformiteitsverklaring en handleidingen:
 Samenstelling, veiligheidsinformatie en demontage-informatie:
 Bronhouder en datum/revisie per document:
@@ -48,6 +52,10 @@ Gebruik de online intake of info@eubatterypassport.nl voor een korte eerste vraa
 
 Een modeldossier kan gegevens voor meerdere batterijen leveren. Een individuele batterij en het model zijn niet hetzelfde. Opstellen, publiceren en registreren blijven afzonderlijke stappen.
 
+Beoordeel de paspoortplicht en industriële prestatie-eisen afzonderlijk. De paspoortdeadline blijft 18 februari 2027. Nieuwe minimumprestaties uit het Commissievoorstel van 29 september 2026 zijn nog geen geldende eisen. Artikel 10(2) koppelt hun toepassing aan de latere datum van 18 augustus 2027 of 18 maanden na inwerkingtreding van de definitieve gedelegeerde handeling. De uitzondering voor uitsluitend externe opslag bij minimumprestaties is geen algemene paspoortvrijstelling. Bestaande documentatieverplichtingen moeten afzonderlijk worden beoordeeld.
+
 Bronnen:
+https://eur-lex.europa.eu/eli/reg/2023/1542/oj
 https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en
 https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en
+https://op.europa.eu/en/publication-detail/-/publication/7da524b6-bc01-11f1-81de-01aa75ed71a1/language-en

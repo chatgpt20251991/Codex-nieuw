@@ -1,6 +1,6 @@
 EUBatteryPassport.nl
 Battery passport starting checklist
-Updated: 1 October 2026
+Updated: 9 October 2026
 
 Start with one battery model. Record what is known and keep unknown information marked as unknown. This is an inventory, not a declaration of conformity.
 
@@ -18,6 +18,8 @@ Finished battery, separate cells/modules or assembled system:
 Can the packs function independently and safely?
 Which BMS or other components are shared?
 Energy of the finished battery in kWh:
+Rechargeable (yes, no or unknown):
+Exclusively external storage (yes, no or unknown) and storage principle:
 Number of models and individual batteries per year:
 Expected date of market placement or putting into service:
 
@@ -25,6 +27,8 @@ Expected date of market placement or putting into service:
 Product specifications and system diagram:
 Manufacturer and suppliers:
 Available test reports and standards used:
+For industrial batteries: capacity, power, internal resistance, efficiency and lifetime:
+Test conditions, method, standard edition and corresponding model or variant:
 EU declaration of conformity and instructions:
 Composition, safety and dismantling information:
 Document owner and date/revision:
@@ -48,6 +52,10 @@ Use the online intake or info@eubatterypassport.nl for a short initial enquiry. 
 
 A model dossier can supply information for multiple batteries. An individual battery is distinct from its model. Preparation, publication and registration remain separate steps.
 
+Assess passport obligations and industrial performance requirements separately. The passport deadline remains 18 February 2027. New performance minimums in the Commission proposal of 29 September 2026 are not yet applicable requirements. Article 10(2) ties their application to the later of 18 August 2027 or 18 months after the final delegated act enters into force. The exclusively external storage exception under performance minimums is not a general passport exemption. Existing documentation requirements need a separate assessment.
+
 Sources:
+https://eur-lex.europa.eu/eli/reg/2023/1542/oj
 https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en
 https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en
+https://op.europa.eu/en/publication-detail/-/publication/7da524b6-bc01-11f1-81de-01aa75ed71a1/language-en

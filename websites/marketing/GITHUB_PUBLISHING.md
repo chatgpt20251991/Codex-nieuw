@@ -21,11 +21,34 @@ website dependency audit/SBOM. It also checks the Sites output contract and
 retains the build for seven days. Existing platform/security checks still run.
 No production secrets are needed for these checks.
 
-The September 18 dependency refresh clears the audit's high and critical
-findings. Four moderate development-tool findings remain in drizzle-kit's
-legacy esbuild loader chain. They stay visible in the audit artifact; the
-high/critical failure threshold is not suppressed. Do not downgrade the
-migration tool to the incompatible version suggested by an automatic force fix.
+The 9 October dependency review patches `sharp` 0.35.4 to 0.35.5 and
+`source-map-js` 1.2.1 to 1.2.2. The exact `sharp` patch override is needed because
+the existing Miniflare release pins the vulnerable patch; the framework and
+provider-tool versions are unchanged. See the primary
+[sharp advisory](https://github.com/advisories/GHSA-wq5f-xc86-pv6w) and
+[source-map advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+
+The full lockfile audit still reports eight high affected dependency entries
+from one unresolved [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
+published 18 September and updated 2 October 2026. All published braces versions
+through 3.0.3 are affected; the primary advisory lists no patched version.
+Both development-tool chains reach it: `eslint-config-next` →
+`@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`, and
+`vinext` → `vite-plugin-commonjs` → `vite-plugin-dynamic-import` → `fast-glob` →
+`micromatch` → `braces`. These packages are marked development dependencies in
+the lockfile; that does not waive the existing security gate. The reviewed
+newest upstream micromatch, fast-glob and Vinext releases retain this chain.
+
+Four moderate affected entries remain from one
+[esbuild development-server advisory](https://github.com/advisories/GHSA-67mh-4wv8-2f99)
+in `drizzle-kit` → `@esbuild-kit/esm-loader` → `@esbuild-kit/core-utils` →
+`esbuild` 0.18.20. The compatible loader range has no fixed esbuild patch.
+Do not downgrade the migration tool to the incompatible version suggested by
+an automatic force fix. No advisory is ignored and the high/critical failure
+threshold is unchanged. Passing functional tests does not clear these findings;
+the unresolved high advisory remains a publication blocker.
+The separate production-only audit reports zero known findings on this date;
+the required full audit still includes the development/build dependencies.
 
 ## Publish the reviewed revision
 

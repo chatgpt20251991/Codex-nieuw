@@ -113,7 +113,7 @@ export function HomePage({ locale = "nl" }: { locale?: Locale }) {
               <div className="v12-faq-list">
                 {questions.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={19} aria-hidden="true" /></summary><p>{answer}</p></details>)}
               </div>
-              <details className="readiness-sources"><summary>{readiness.sourceLabel}</summary><p>{readiness.sourceNote}</p><ul><li><a href={readinessSources.faq}>European Commission Battery Passport FAQ</a></li><li><a href={readinessSources.guidance}>Battery Passport data points</a></li><li><a href={readinessSources.registry}>DPP Registry User Guide v1.03 (PDF)</a></li></ul></details>
+              <details className="readiness-sources"><summary>{readiness.sourceLabel}</summary><p>{readiness.sourceNote}</p><ul><li><a href={readinessSources.regulation}>{locale === "nl" ? "Batterijverordening (EU) 2023/1542" : "Battery Regulation (EU) 2023/1542"}</a></li><li><a href={readinessSources.faq}>European Commission Battery Passport FAQ</a></li><li><a href={readinessSources.guidance}>Battery Passport data points</a></li><li><a href={readinessSources.registry}>DPP Registry User Guide (PDF)</a></li><li><a href={readinessSources.draft}>{locale === "nl" ? "Ontwerp van 29 september 2026 (nog geen geldende wijziging)" : "Draft of 29 September 2026 (not an applicable amendment)"}</a></li></ul></details>
             </section>
             <section className="v12-closing" aria-labelledby="closing-title">
               <div className="v12-closing-copy">
