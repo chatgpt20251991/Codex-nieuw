@@ -13,17 +13,17 @@ import { ExtractionService } from './extraction/extraction.service';
 export class EvidenceController {
   constructor(private readonly tenantDb:TenantDbService,private readonly evidenceStorage:EvidenceStorageService,private readonly extraction:ExtractionService){}
 
-  @Post('upload-sessions')
+  @RequireAuthorisationScope('evidenceWrite') @Post('upload-sessions')
   createUpload(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     return this.evidenceStorage.createUpload(orgId,actor.subject,EvidenceUploadSchema.parse(body));
   }
 
-  @Post(':id/finalize')
+  @RequireAuthorisationScope('evidenceWrite') @Post(':id/finalize')
   finalize(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     return this.evidenceStorage.finalize(orgId,id,actor.subject);
   }
 
-  @Post(':id/verify')
+  @RequireAuthorisationScope('evidenceReview') @Post(':id/verify')
   @Roles('operator_admin','compliance_manager','service_provider_admin')
   verify(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     return this.evidenceStorage.verify(orgId,id,actor.subject);
@@ -36,7 +36,7 @@ export class EvidenceController {
     return this.evidenceStorage.reviewDownload(orgId,id,actor.subject);
   }
 
-  @Post('link')
+  @RequireAuthorisationScope('evidenceWrite') @Post('link')
   async link(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() b:any){
     return this.tenantDb.run(orgId,async tx=>{
       await tx.evidenceObject.findFirstOrThrow({where:{id:b.evidenceId,organisationId:orgId}});
@@ -54,9 +54,9 @@ export class EvidenceController {
     });
   }
 
-  @Post(':id/extract')
+  @RequireAuthorisationScope('evidenceExtract') @Post(':id/extract')
   extract(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){return this.extraction.extractNow(orgId,id,actor.subject);}
 
-  @Get(':id/extractions')
+  @RequireAuthorisationScope('evidenceRead') @Get(':id/extractions')
   listExtractions(@CurrentTenant() orgId:string,@Param('id') id:string){return this.tenantDb.run(orgId,tx=>tx.extractionJob.findMany({where:{organisationId:orgId,evidenceId:id},include:{claims:true},orderBy:{createdAt:'desc'}}));}
 }

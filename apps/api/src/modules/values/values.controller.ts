@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { Prisma } from '@prisma/client';
 import { usableEvidence } from '../../common/storage/evidence-storage.service';
 import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
@@ -17,7 +18,7 @@ const ValueSchema=z.object({
 export class ValuesController {
   constructor(private readonly tenantDb:TenantDbService){}
 
-  @Post()
+  @RequireAuthorisationScope('valueWrite') @Post()
   async create(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=ValueSchema.parse(body);
     const row=await this.tenantDb.run(orgId,async tx=>{
@@ -32,10 +33,10 @@ export class ValuesController {
     return row;
   }
 
-  @Get(':id')
+  @RequireAuthorisationScope('valueRead') @Get(':id')
   get(@CurrentTenant() orgId:string,@Param('id') id:string){return this.tenantDb.run(orgId,tx=>tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId},include:{evidenceLinks:{include:{evidence:true}}}}));}
 
-  @Post(':id/validate')
+  @RequireAuthorisationScope('valueReview') @Post(':id/validate')
   async validate(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string){
     const row=await this.tenantDb.run(orgId,async tx=>{
       const owner=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});
@@ -52,7 +53,7 @@ export class ValuesController {
     return {ok:true,value:row};
   }
 
-  @Post(':id/reject')
+  @RequireAuthorisationScope('valueReview') @Post(':id/reject')
   async reject(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Param('id') id:string,@Body() body:any){
     return this.tenantDb.run(orgId,async tx=>{
       const owner=await tx.passportValue.findFirstOrThrow({where:{id,organisationId:orgId}});

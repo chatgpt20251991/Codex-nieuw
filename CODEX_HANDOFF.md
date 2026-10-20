@@ -2,6 +2,19 @@
 
 ## Current engineering status
 
+Production-control follow-up (20 October 2026): named delegated action scopes
+fail closed across authenticated tenant routes and are rechecked under a grant
+row lock inside each customer transaction. Existing broad grants require explicit
+review/reissue. Private published-history export, independent offline source/hash
+verification and an opt-in read-only Auth0 configuration auditor are prepared.
+See `docs/29_PRODUCTION_CONTROLS_2026-10-20.md`,
+`docs/DELEGATED_ACTION_SCOPES.md`, `docs/28_OPERATOR_EXPORT_AND_OFFLINE_VERIFICATION.md`
+and `docs/ops/AUTH0_PROVIDER_AUDIT.md`. Live provider/hosting/recovery, full standard
+profiles and complete customer-exit acceptance remain open. No paid resources,
+real customer records or live Registry submissions are created by this release.
+New large local validation/output/cache files belong on E:, while this source
+checkout stays in place. Do not move existing projects or replace paths with links.
+
 Customer workflow follow-up (9 October 2026): see
 `docs/27_CUSTOMER_PASSPORT_WORKFLOW.md`. Model/item forms, persistent dossier
 review and validate/publish controls, truthful supplier delivery/review and a

@@ -10,7 +10,7 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 ## What V2 implements
 
 - Multi-tenant organisations and service-provider acting-on-behalf-of workflow
-- Written-authorisation gate for cross-tenant access
+- Named written-authorisation action scopes with transaction-level revocation checks for delegated access
 - PostgreSQL row-level-security policy pack
 - 71-point regulatory rule engine with EV / LMT / industrial applicability
 - Conditional applicability context instead of silently treating all conditional points as mandatory
@@ -34,10 +34,15 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Persistent model/item creation, dossier review and explicit version publication in the operator workspace
 - Anonymous public scan viewer and authenticated QR download
 - Explicit conditional applicability review and short-lived private source-document review downloads
+- Private published-history export and independent offline hash/source verification
+- Read-only audit of actual Auth0 provider configuration using existing authorised administrator credentials
 
 The [customer passport workflow](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md) describes
 the current console, scan routing and the external acceptance still required
 before admitting a customer. A software build does not complete those checks.
+The [20 October production-control record](docs/29_PRODUCTION_CONTROLS_2026-10-20.md)
+links the action-scope, private-export and provider-audit contracts, including
+rollout requirements and remaining real-environment acceptance.
 
 ## Truth status
 

@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { Prisma } from '@prisma/client';
 import { Body, ConflictException, Controller, Get, GoneException, Headers, Param, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -44,11 +45,11 @@ export class SuppliersController {
     return request;
   }
 
-  @Get('suppliers') list(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,tx=>tx.supplier.findMany({where:{organisationId:orgId},include:{contacts:true,_count:{select:{requests:true,evidence:true}}},orderBy:{createdAt:'desc'}}));}
+  @RequireAuthorisationScope('supplierRead') @Get('suppliers') list(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,tx=>tx.supplier.findMany({where:{organisationId:orgId},include:{contacts:true,_count:{select:{requests:true,evidence:true}}},orderBy:{createdAt:'desc'}}));}
 
-  @Post('suppliers') async create(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){const b=SupplierSchema.parse(body);const row=await this.tenantDb.run(orgId,async tx=>{const supplier=await tx.supplier.create({data:{organisationId:orgId,legalName:b.legalName,countryCode:b.countryCode?.toUpperCase(),externalReference:b.externalReference}});if(b.contact)await tx.supplierContact.create({data:{supplierId:supplier.id,...b.contact}});return supplier;});await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'supplier.create',resourceType:'supplier',resourceId:row.id});return row;}
+  @RequireAuthorisationScope('supplierWrite') @Post('suppliers') async create(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){const b=SupplierSchema.parse(body);const row=await this.tenantDb.run(orgId,async tx=>{const supplier=await tx.supplier.create({data:{organisationId:orgId,legalName:b.legalName,countryCode:b.countryCode?.toUpperCase(),externalReference:b.externalReference}});if(b.contact)await tx.supplierContact.create({data:{supplierId:supplier.id,...b.contact}});return supplier;});await this.audit.log({organisationId:orgId,actorSubject:actor.subject,action:'supplier.create',resourceType:'supplier',resourceId:row.id});return row;}
 
-  @Post('supplier-requests') async createRequest(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
+  @RequireAuthorisationScope('supplierWrite') @Post('supplier-requests') async createRequest(@CurrentTenant() orgId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=RequestSchema.parse(body);const raw=secureToken();const hash=sha256Hex(raw);const expiresAt=new Date(Date.now()+b.expiresInDays*86400000);
     // Generating a capability link is not evidence of email or manual delivery.
     // Keep the existing draft state until the supplier actually opens the link.
@@ -57,9 +58,9 @@ export class SuppliersController {
     const base=this.config.get<string>('SUPPLIER_PORTAL_BASE_URL')||'http://localhost:3000/supplier';return {request:this.requestResponse(row),inviteUrl:`${base}#token=${encodeURIComponent(raw)}`,delivery:{mode:'manual_link',status:'not_sent'},securityNotice:'This link has not been sent. The raw capability token is shown once. The portal should move it from the URL fragment into memory/session storage and send it only in X-Supplier-Token.'};
   }
 
-  @Get('supplier-requests') listRequests(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,async tx=>(await tx.supplierRequest.findMany({where:{organisationId:orgId},include:{supplier:true,model:true,fields:true,_count:{select:{submissions:true}}},orderBy:{createdAt:'desc'}})).map(request=>this.requestResponse(request)));}
+  @RequireAuthorisationScope('supplierRead') @Get('supplier-requests') listRequests(@CurrentTenant() orgId:string){return this.tenantDb.run(orgId,async tx=>(await tx.supplierRequest.findMany({where:{organisationId:orgId},include:{supplier:true,model:true,fields:true,_count:{select:{submissions:true}}},orderBy:{createdAt:'desc'}})).map(request=>this.requestResponse(request)));}
 
-  @Get('supplier-requests/:id')
+  @RequireAuthorisationScope('supplierRead') @Get('supplier-requests/:id')
   async requestDetail(@CurrentTenant() orgId: string, @Param('id') id: string) {
     return this.tenantDb.run(orgId, async tx => this.requestResponse(await tx.supplierRequest.findFirstOrThrow({
       where: { id, organisationId: orgId },
@@ -134,7 +135,7 @@ export class SuppliersController {
       notice: 'Supplier data remains unvalidated until the responsible operator/service provider reviews and accepts it.' };
   }
 
-  @Post('supplier-requests/:id/accept')
+  @RequireAuthorisationScope('supplierReview') @Post('supplier-requests/:id/accept')
   async accept(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('id') id: string) {
     return this.tenantDb.run(orgId, async tx => {
       const candidate = await tx.supplierRequest.findFirstOrThrow({ where: { id, organisationId: orgId }, select: { modelId: true } });

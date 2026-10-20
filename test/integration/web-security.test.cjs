@@ -234,12 +234,18 @@ test('Gate 7 web: the browser blocks injected inline scripts and inline event ha
 
 test('Customer workflow: browser review, immutable publication and QR download retain CSP and explicit approval', async () => {
   const { context, page, errors } = await instrumentPage();
-  const itemId = '12345678-1234-4123-8123-123456789012', modelId = '12345678-1234-4123-8123-123456789013';
-  const valueId = '12345678-1234-4123-8123-123456789014', evidenceId = '12345678-1234-4123-8123-123456789015';
+  const { envelope: exportEnvelope } = require('../fixtures/operator-export.cjs')();
+  const { hashJson, verifyManifest } = require('../../scripts/passport-export.cjs');
+  exportEnvelope.payload.versions = exportEnvelope.payload.versions.slice(0, 1);
+  exportEnvelope.payload.coverage.versionCount = 1; exportEnvelope.payload.coverage.lastVersionNo = 1;
+  exportEnvelope.integrity.payloadSha256 = hashJson(exportEnvelope.payload);
+  const itemId = exportEnvelope.payload.item.id, modelId = exportEnvelope.payload.model.id;
+  const valueId = '12345678-1234-4123-8123-123456789014', evidenceId = exportEnvelope.payload.evidence[0].id;
   const value = { id: valueId, fieldDefinitionId: 11, valueJson: 120, unit: 'Ah', validationStatus: 'submitted', evidenceLinks: [] };
   const model = { id: modelId, modelIdentifier: 'SYNTHETIC-UI-MODEL', category: 'EV', values: [] };
   const item = { id: itemId, modelId, model, serialOrItemIdentifier: 'SYNTHETIC-UI-SERIAL', passportState: 'draft', lifecycleStatus: 'original', values: [value], versions: [] };
   let evidenceVerified = false, validated = false, published = false;
+  let exportMode = 'valid', exportRequests = 0;
   try {
     // This fixture tests UI sequencing and CSP. Actual persistence, tenant
     // isolation and server publication gates have separate integration cases.
@@ -270,6 +276,11 @@ test('Customer workflow: browser review, immutable publication and QR download r
         item.upi = 'https://id.example.invalid/b/' + itemId;
         const version = { id: 'synthetic-version', versionNo: 1, publicationState: 'published', sha256: 'a'.repeat(64), publishedAt: '2026-10-09T00:00:00.000Z' };
         item.versions = [version]; data = { version };
+      } else if (path === `/passports/${itemId}/operator-export`) {
+        assert(published); assert.equal(request.method(), 'GET'); exportRequests++;
+        if (exportMode === 'denied') return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"Export permission is no longer active."}' });
+        data = structuredClone(exportEnvelope);
+        if (exportMode === 'wrong-item') data.payload.item.id = '12345678-1234-4123-8123-123456789012';
       } else if (path === `/passports/${itemId}/qr.svg`) {
         assert(published);
         return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10H0z"/></svg>' });
@@ -301,6 +312,30 @@ test('Customer workflow: browser review, immutable publication and QR download r
     const download = await pending;
     assert.equal(download.suggestedFilename(), 'battery-passport-qr.svg');
     assert.equal(await download.failure(), null);
+    const exportButton = page.getByRole('button', { name: 'Download private passport history', exact: true });
+    const exportConsent = page.getByLabel('I am authorised to download and protect this private passport history.');
+    assert.equal(await exportButton.isEnabled(), false); assert.equal(exportRequests, 0);
+    await exportConsent.check();
+    const pendingExport = page.waitForEvent('download');
+    await exportButton.click();
+    const privateFile = await pendingExport;
+    assert.equal(privateFile.suggestedFilename(), `private-battery-passport-${itemId}.json`);
+    assert.equal(await privateFile.failure(), null);
+    const downloaded = JSON.parse(await require('node:fs/promises').readFile(await privateFile.path(), 'utf8'));
+    assert.equal(verifyManifest(downloaded).versionCount, 1);
+    assert.deepEqual(downloaded, exportEnvelope);
+    await page.getByRole('status').filter({ hasText: 'Private published history downloaded' }).waitFor();
+    assert.equal(await exportConsent.isChecked(), false);
+    assert.equal(await exportButton.isEnabled(), false);
+    assert.equal((await page.locator('body').innerText()).includes('Synthetic authority-only confidential value'), false);
+    assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('Synthetic authority-only confidential value')), false);
+    const downloads = []; page.on('download', file => downloads.push(file));
+    exportMode = 'wrong-item'; await exportConsent.check(); await exportButton.click();
+    await page.getByRole('alert').filter({ hasText: 'does not match this battery' }).waitFor();
+    assert.equal(downloads.length, 0);
+    exportMode = 'denied'; await exportConsent.check(); await exportButton.click();
+    await page.getByRole('alert').filter({ hasText: 'Export permission is no longer active' }).waitFor();
+    assert.equal(downloads.length, 0); assert.equal(exportRequests, 3);
     assert.deepEqual(errors, []);
     assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
   } finally { await context.close(); }
