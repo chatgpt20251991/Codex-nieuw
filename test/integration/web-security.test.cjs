@@ -148,7 +148,10 @@ for (const width of [390, 1440]) test(`authorisation console reviews exact permi
     await revoke.getByLabel('I confirm revocation of this exact authorisation and service provider.', { exact: true }).check();
     await revoke.getByRole('button', { name: 'Confirm revocation', exact: true }).click();
     await page.getByText('Revoked', { exact: true }).waitFor(); assert.equal(revocations, 1);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    const layout = await page.evaluate(() => ({ viewport: window.innerWidth, width: document.documentElement.scrollWidth,
+      overflowing: [...document.querySelectorAll('body *')].filter(element => element.getBoundingClientRect().right > window.innerWidth + 1)
+        .slice(0, 12).map(element => ({ tag: element.tagName, class: element.className, right: element.getBoundingClientRect().right })) }));
+    assert.ok(layout.width <= layout.viewport, JSON.stringify(layout));
     assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('synthetic-mandate.pdf')), false);
     denied = true; await page.getByRole('button', { name: 'Refresh authorisations', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'operator administrator' }).waitFor();

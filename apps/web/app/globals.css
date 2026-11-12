@@ -20,3 +20,5 @@
 .authorisationFields{border:0;padding:0;margin:0;min-width:0}
 .authorisationDates{padding:0}
 .authorisationPermissions{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:14px 0;min-width:0}
+.authorisationFields label,.authorisationFields input,.authorisationFields select{min-width:0;max-width:100%}
+@media(max-width:760px){.pageHead{flex-direction:column;align-items:stretch;gap:18px}.pageHead>div{min-width:0}.pageHead .button{align-self:flex-start;max-width:100%;white-space:normal}}
