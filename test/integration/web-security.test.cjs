@@ -96,6 +96,144 @@ after(async () => {
   }
 });
 
+for (const width of [390, 1440]) test(`authorisation console reviews exact permissions and revokes safely at ${width}px`, async () => {
+  const { randomUUID } = require('node:crypto');
+  const { context, page, errors } = await instrumentPage();
+  const organisationId = randomUUID(), providerId = randomUUID(), evidenceId = randomUUID(), grantId = randomUUID();
+  let grants = [], creates = 0, revocations = 0, denied = false;
+  try {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.route(`${base}/api/backend/**`, async route => {
+      const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
+      assert.equal(request.headers().authorization, undefined);
+      let data;
+      if (path === '/organisations/current') data = { id: organisationId, legalName: 'Synthetic mandate operator' };
+      else if (path === '/evidence') data = [{ id: evidenceId, originalFilename: 'synthetic-mandate.pdf',
+        eligibleForAuthorisation: true }];
+      else if (path === '/authorisations' && request.method() === 'GET') {
+        if (denied) return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"HTTP 403"}' });
+        data = grants;
+      } else if (path === '/authorisations' && request.method() === 'POST') {
+        creates++; const body = request.postDataJSON();
+        assert.equal(body.serviceProviderId, providerId); assert.equal(body.evidenceId, evidenceId);
+        assert.deepEqual(body.scope, { modelRead: true });
+        assert.deepEqual(Object.keys(body).sort(), ['evidenceId', 'scope', 'serviceProviderId', 'validFrom', 'validUntil'].sort());
+        grants = [{ id: grantId, responsibleOperatorId: organisationId, serviceProviderId: providerId,
+          scopeJson: body.scope, scopeValid: true, validFrom: body.validFrom, validUntil: body.validUntil,
+          revokedAt: null, createdAt: new Date().toISOString() }]; data = grants[0];
+      } else if (path === `/authorisations/${grantId}/revoke`) {
+        revocations++; assert.equal(request.method(), 'POST');
+        grants[0].revokedAt = new Date().toISOString(); data = grants[0];
+      } else return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Unexpected fixture route"}' });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    });
+    await page.goto(`${base}/authorisations`);
+    await page.getByRole('heading', { name: 'Synthetic mandate operator', exact: true }).waitFor();
+    assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
+    await page.getByLabel('Service provider organisation ID', { exact: true }).fill(providerId);
+    await page.getByLabel('Reviewed authorisation document', { exact: true }).selectOption(evidenceId);
+    await page.getByLabel('Ends at', { exact: true }).fill('2099-12-31T23:59');
+    await page.getByLabel('Read models and model dossiers', { exact: true }).check();
+    assert.equal(await page.getByRole('button', { name: 'Review authorisation', exact: true }).isEnabled(), false);
+    await page.getByLabel('I have reviewed the written agreement, the provider identity, the document and these exact permissions and dates.', { exact: true }).check();
+    await page.getByRole('button', { name: 'Review authorisation', exact: true }).click();
+    const confirmation = page.getByRole('region', { name: 'Confirm new authorisation', exact: true });
+    await confirmation.waitFor(); assert.equal(creates, 0);
+    await confirmation.getByRole('button', { name: 'Confirm and grant selected actions', exact: true }).click();
+    await page.getByRole('button', { name: 'Review revocation', exact: true }).waitFor(); assert.equal(creates, 1);
+    await page.getByRole('button', { name: 'Review revocation', exact: true }).click();
+    const revoke = page.getByRole('region', { name: 'Confirm authorisation revocation', exact: true });
+    await revoke.waitFor(); assert.equal(revocations, 0);
+    assert.equal(await revoke.getByRole('button', { name: 'Confirm revocation', exact: true }).isEnabled(), false);
+    await revoke.getByLabel('I confirm revocation of this exact authorisation and service provider.', { exact: true }).check();
+    await revoke.getByRole('button', { name: 'Confirm revocation', exact: true }).click();
+    await page.getByText('Revoked', { exact: true }).waitFor(); assert.equal(revocations, 1);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('synthetic-mandate.pdf')), false);
+    denied = true; await page.getByRole('button', { name: 'Refresh authorisations', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'operator administrator' }).waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Synthetic mandate operator', exact: true }).count(), 0);
+    assert.equal((await page.locator('body').innerText()).includes(providerId), false);
+    assert.deepEqual(errors, []); assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
+  } finally { await context.close(); }
+});
+
+for (const width of [390, 1440]) test(`standalone evidence upload and human review remain separate at ${width}px`, async () => {
+  const { randomUUID, createHash } = require('node:crypto');
+  const { context, page, errors } = await instrumentPage();
+  const evidenceId = randomUUID(), content = Buffer.from('Synthetic written authorisation source.');
+  const hash = createHash('sha256').update(content).digest('hex'), checksum = Buffer.from(hash, 'hex').toString('base64');
+  const storageOrigin = 'https://evidence-browser-fixture.invalid';
+  let uploaded = false, finalized = false, verified = false, reviews = 0, denied = false;
+  const metadata = () => ({ id: evidenceId, originalFilename: 'synthetic-mandate.txt', mimeType: 'text/plain',
+    sizeBytes: String(content.length), verificationStatus: verified ? 'verified' : 'uploaded',
+    uploadedAt: new Date().toISOString(), verifiedAt: null, issuedAt: null, expiresAt: null,
+    eligibleForAuthorisation: verified });
+  try {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.route(`${storageOrigin}/**`, async route => {
+      const request = route.request();
+      const cors = { 'access-control-allow-origin': base, 'access-control-allow-methods': 'PUT, GET, OPTIONS',
+        'access-control-allow-headers': 'content-type, x-amz-meta-sha256, x-amz-checksum-sha256' };
+      if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+      if (request.method() === 'PUT') {
+        assert.deepEqual(request.postDataBuffer(), content); assert.equal(request.headers()['x-amz-meta-sha256'], hash);
+        assert.equal(request.headers()['x-amz-checksum-sha256'], checksum); assert.equal(request.headers().authorization, undefined);
+        uploaded = true; return route.fulfill({ status: 200, headers: cors, body: '' });
+      }
+      assert.equal(request.method(), 'GET'); assert.equal(finalized, true);
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-disposition': 'attachment; filename="synthetic-mandate.txt"' },
+        contentType: 'application/octet-stream', body: content });
+    });
+    await page.route(`${base}/api/backend/**`, async route => {
+      const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
+      assert.equal(request.headers().authorization, undefined); let data;
+      if (path === '/evidence') {
+        if (denied) return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"HTTP 403"}' });
+        data = finalized ? [metadata()] : [];
+      } else if (path === '/evidence/upload-sessions') {
+        const body = request.postDataJSON(); assert.equal(body.sha256, hash); assert.equal(body.sizeBytes, content.length);
+        data = { evidenceId, method: 'PUT', uploadUrl: `${storageOrigin}/upload/${evidenceId}?synthetic-upload`,
+          objectKey: 'SYNTHETIC_PRIVATE_STORAGE_KEY', requiredHeaders: { 'content-type': 'text/plain',
+            'x-amz-meta-sha256': hash, 'x-amz-checksum-sha256': checksum } };
+      } else if (path === `/evidence/${evidenceId}/finalize`) {
+        assert.equal(uploaded, true); finalized = true; data = {};
+      } else if (path === `/evidence/${evidenceId}/review-download`) {
+        reviews++; assert.equal(finalized, true);
+        data = { evidenceId, method: 'GET', downloadUrl: `${storageOrigin}/review/${evidenceId}?synthetic-review-secret`,
+          expiresInSeconds: 60, expiresAt: new Date(Date.now() + 60000).toISOString(), reviewStatus: 'not_recorded' };
+      } else if (path === `/evidence/${evidenceId}/verify`) {
+        assert.equal(reviews, 1); verified = true; data = {};
+      } else return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Unexpected fixture route"}' });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+    });
+    await page.goto(`${base}/evidence`);
+    await page.getByText('No source documents found. Upload a document to start the review process.', { exact: true }).waitFor();
+    await page.getByLabel('Source file', { exact: true }).setInputFiles({ name: 'synthetic-mandate.txt', mimeType: 'text/plain', buffer: content });
+    await page.getByRole('button', { name: 'Upload source document', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Source uploaded and integrity-checked' }).waitFor();
+    assert.equal(finalized, true); assert.equal(verified, false);
+    const verification = page.getByRole('button', { name: 'Record evidence verification', exact: true });
+    assert.equal(await verification.isEnabled(), false);
+    const consent = page.getByLabel('I have read this source document and reviewed its relevance, authenticity and validity.', { exact: true });
+    assert.equal(await consent.isEnabled(), false);
+    const pendingDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download source for review', exact: true }).click();
+    const document = await pendingDownload; assert.equal(await document.failure(), null);
+    await consent.check(); await verification.click();
+    await page.getByRole('status').filter({ hasText: 'Evidence verification recorded' }).waitFor();
+    await page.getByRole('link', { name: 'Manage written authorisations', exact: true }).waitFor();
+    assert.equal(verified, true); assert.equal(await consent.isChecked(), false); assert.equal(await verification.isEnabled(), false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    const visible = await page.locator('body').innerText();
+    assert.equal(visible.includes('SYNTHETIC_PRIVATE_STORAGE_KEY'), false); assert.equal(visible.includes('synthetic-review-secret'), false);
+    assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('synthetic-review-secret')), false);
+    denied = true; await page.getByRole('button', { name: 'Refresh documents', exact: true }).click();
+    await page.getByRole('alert').waitFor(); assert.equal((await page.locator('body').innerText()).includes(evidenceId), false);
+    assert.deepEqual(errors, []); assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
+  } finally { await context.close(); }
+});
+
 test('Gate 7 web: operator and capability documents enforce CSP and no-store headers', async () => {
   // Inspect the browser's parsed document without executing application code.
   // Hydration and navigation are tested independently below with JavaScript on.
@@ -189,9 +327,10 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
     await page.locator('.rows').getByText('Gate 7 CSP supplier', { exact: true }).waitFor();
     assert.equal(created, true);
     await page.getByRole('link', { name: 'Evidence', exact: true }).click();
-    await page.getByRole('heading', { name: 'Upload evidence', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Upload a source document', exact: true }).waitFor();
+    await page.getByText('No source documents found. Upload a document to start the review process.', { exact: true }).waitFor();
     await page.locator('input[type=file]').setInputFiles({ name: 'csp-fixture.txt', mimeType: 'text/plain', buffer: Buffer.from('synthetic browser fixture') });
-    assert.equal(await page.getByRole('button', { name: 'Upload securely', exact: true }).isEnabled(), true);
+    assert.equal(await page.getByRole('button', { name: 'Upload source document', exact: true }).isEnabled(), true);
     assert.deepEqual(errors, []);
     assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
   } finally { await context.close(); }

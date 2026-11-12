@@ -36,6 +36,7 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Explicit conditional applicability review and short-lived private source-document review downloads
 - Private published-history export and independent offline hash/source verification
 - Read-only audit of actual Auth0 provider configuration using existing authorised administrator credentials
+- Own-organisation written-authorisation administration and standalone human source review
 
 The [customer passport workflow](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md) describes
 the current console, scan routing and the external acceptance still required

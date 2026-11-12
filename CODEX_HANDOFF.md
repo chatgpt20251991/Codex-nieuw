@@ -2,6 +2,16 @@
 
 ## Current engineering status
 
+12 November 2026 follow-up: own-organisation administrators can manage explicit
+written-authorisation scopes in the console, supported by standalone private
+source upload/download/human review. New grants require a current complete
+immutable scan attestation and cannot outlive expiring evidence. See
+`docs/30_AUTHORISATION_MANAGEMENT_2026-11-12.md`. Platform runtime/build dependency
+patches are included; exact-revision CI remains mandatory. Real hosting/Auth0/MFA,
+provider customer selection and customer/Registry acceptance remain open. Paid
+hosting is still deferred. New official Registry interface sources are tracked
+separately; their publication does not enable live Registry flags.
+
 Production-control follow-up (20 October 2026): named delegated action scopes
 fail closed across authenticated tenant routes and are rechecked under a grant
 row lock inside each customer transaction. Existing broad grants require explicit

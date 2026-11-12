@@ -1,5 +1,30 @@
 # Verification record
 
+## Authorisation management and source review — 12 November 2026
+
+The existing checkout remains the source; dependency installation, all builds,
+caches and test outputs use E:. The full platform lockfile audit passes with
+zero findings after the November runtime patches and Nest CLI build-tool update.
+The API build, all-workspace typecheck and web production build pass locally.
+The final unit/security run passes 164 tests without failures or skips, alongside
+21 rule tests and 43 static checks. Exact-revision CI results are recorded in the
+pull request. Real database, malware scanner, browser, migration and recovery
+tests must pass before merge; local fixtures do not establish provider acceptance.
+
+New coverage exercises current source attestations, source-expiry interval
+bounds, row-lock rechecks, private management projections, role/tenant scopes,
+cursor ownership, idempotent revocation and stale-session document handling.
+Required real integration includes a concurrent PostgreSQL source rejection,
+malformed/expired sources and a browser upload/download/human-review plus grant
+creation/revocation sequence at 390 and 1440 pixels. The browser UI responses are
+explicit synthetic fixtures; actual API tenant/byte/scan checks remain separate.
+
+The Commission's new public interface resources are observed in
+`docs/31_OFFICIAL_REGISTRY_INTERFACE_2026-11-12.md`. Neither their download nor
+passing software checks enables live Registry flags or closes Gate 7. Actual
+Auth0/MFA, target hosting, independent security/recovery and first-customer
+acceptance remain open. See `docs/30_AUTHORISATION_MANAGEMENT_2026-11-12.md`.
+
 ## Production-control follow-up — 20 October 2026
 
 Local validation uses the existing source checkout with a separate snapshot,

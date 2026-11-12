@@ -41,6 +41,8 @@ jobs:
       AUTH_MODE: dev
       BATTERY_SEMANTIC_CATALOGUE_AVAILABLE: "false"
       REGISTRY_BATTERY_SUBMISSION_AVAILABLE: "false"
+      # Reserved synthetic origin intercepted by the browser fixtures only.
+      NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN: "https://evidence-browser-fixture.invalid"
     services:
       postgres:
         image: postgres:16-alpine
