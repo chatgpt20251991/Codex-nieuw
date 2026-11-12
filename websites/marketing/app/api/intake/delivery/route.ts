@@ -1,13 +1,8 @@
 import { env } from "cloudflare:workers";
-import { z } from "zod";
+import { deliveryCommandSchema } from "@/lib/intake-delivery-command";
 import { intakeDb } from "@/lib/intake-db";
 import { acknowledgeIntake, authorizedWorker, claimIntake, deliveryStatus } from "@/lib/intake-delivery";
 
-const command = z.discriminatedUnion("action", [
-  z.object({action: z.literal("claim")}).strict(),
-  z.object({action: z.literal("status")}).strict(),
-  z.object({action: z.literal("ack"), id: z.string().uuid(), lease: z.string().uuid(), outcome: z.enum(["accepted", "retry", "uncertain"])}).strict(),
-]);
 const reply = (body: unknown, status = 200) => Response.json(body, {status, headers: {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}});
 
 export async function POST(request: Request) {
@@ -33,7 +28,7 @@ export async function POST(request: Request) {
   } catch { return reply({error: "Invalid command"}, 400); }
   finally { reader.releaseLock(); }
   let input;
-  try { input = command.safeParse(JSON.parse(body)); }
+  try { input = deliveryCommandSchema.safeParse(JSON.parse(body)); }
   catch { return reply({error: "Invalid command"}, 400); }
   if (!input.success) return reply({error: "Invalid command"}, 400);
   try {
