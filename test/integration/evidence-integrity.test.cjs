@@ -239,6 +239,16 @@ test('Gate 4: supplier uploads use the same integrity gates and cannot cross own
 test('Gate 4: expired evidence cannot validate a value or count as verified readiness', async () => {
   const value = await admin.passportValue.findFirstOrThrow({ where: { batteryItemId: item.id, fieldDefinitionId: 11 } });
   await admin.evidenceObject.update({ where: { id: browserUpload.evidenceId }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  const stateBefore = await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } });
+  const auditBefore = await admin.auditEvent.count({ where: { organisationId: orgs.A } });
+  const itemReadiness = await success(`/compliance/item/${item.id}/readiness`);
+  const modelReadiness = await success(`/compliance/model/${model.id}/readiness`);
+  const publicationReadiness = await success(`/passports/${item.id}/validate`);
+  assert.equal(itemReadiness.verified, 0);
+  assert.equal(modelReadiness.verified, 0);
+  assert.deepEqual(itemReadiness.publicationBlockers, publicationReadiness.publicationBlockers);
+  assert.deepEqual(await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } }), stateBefore);
+  assert.equal(await admin.auditEvent.count({ where: { organisationId: orgs.A } }), auditBefore);
   assert.equal((await request(`/passport-values/${value.id}/validate`, { body: {} })).status, 409);
   assert.equal((await success(`/passports/${item.id}/validate`)).readiness.verified, 0);
   const upload = await uploaded();

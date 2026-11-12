@@ -1,6 +1,6 @@
 EUBatteryPassport.nl
 Startchecklist batterijpaspoort
-Bijgewerkt: 9 oktober 2026
+Bijgewerkt: 12 november 2026
 
 Begin met één batterijmodel. Noteer wat bekend is; laat onbekende gegevens als onbekend staan. Dit is een inventarisatie, geen verklaring van conformiteit.
 
@@ -52,10 +52,14 @@ Gebruik de online intake of info@eubatterypassport.nl voor een korte eerste vraa
 
 Een modeldossier kan gegevens voor meerdere batterijen leveren. Een individuele batterij en het model zijn niet hetzelfde. Opstellen, publiceren en registreren blijven afzonderlijke stappen.
 
-Beoordeel de paspoortplicht en industriële prestatie-eisen afzonderlijk. De paspoortdeadline blijft 18 februari 2027. Nieuwe minimumprestaties uit het Commissievoorstel van 29 september 2026 zijn nog geen geldende eisen. Artikel 10(2) koppelt hun toepassing aan de latere datum van 18 augustus 2027 of 18 maanden na inwerkingtreding van de definitieve gedelegeerde handeling. De uitzondering voor uitsluitend externe opslag bij minimumprestaties is geen algemene paspoortvrijstelling. Bestaande documentatieverplichtingen moeten afzonderlijk worden beoordeeld.
+De Europese Commissie heeft technische interfaces en semantische batterijschema's gepubliceerd. Publicatie van die documentatie bewijst geen geslaagde registratie. EUBatteryPassport.nl bevestigt EU-registratie uitsluitend na een aantoonbaar geslaagde, werkelijke registratie.
+
+Beoordeel de paspoortplicht en industriële prestatie-eisen afzonderlijk. De paspoortdeadline blijft 18 februari 2027. Het geraadpleegde Commissievoorstel van 29 september 2026 behandelt minimumprestaties. Welke eisen en ingangsdata van toepassing zijn, moet worden beoordeeld op basis van definitieve besluiten; een voorstel alleen stelt dat niet vast. De uitzondering voor uitsluitend externe opslag bij minimumprestaties is geen algemene paspoortvrijstelling. Bestaande documentatieverplichtingen moeten afzonderlijk worden beoordeeld.
 
 Bronnen:
 https://eur-lex.europa.eu/eli/reg/2023/1542/oj
 https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/eu-digital-product-passport-faq-batteries_en
-https://single-market-economy.ec.europa.eu/news/guidance-support-preparations-digital-batteries-passport-2026-08-21_en
+https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/resources-documentation_en
+https://single-market-economy.ec.europa.eu/document/download/cd1e5e6c-4a4a-4b99-995a-49eb6916187e_en?filename=Digital+Batteries+Passport+-+data+point+by+category.pdf
+https://single-market-economy.ec.europa.eu/document/download/a71b5d30-ed8b-4c27-809d-757cf5e6030f_en?filename=dpp_registry_user_guide_for_economic_operators.pdf
 https://op.europa.eu/en/publication-detail/-/publication/7da524b6-bc01-11f1-81de-01aa75ed71a1/language-en

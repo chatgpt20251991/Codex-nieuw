@@ -2,6 +2,38 @@
 
 ## Current engineering status
 
+12 November 2026 follow-up: own-organisation administrators can manage explicit
+written-authorisation scopes in the console, supported by standalone private
+source upload/download/human review. New grants require a current complete
+immutable scan attestation and cannot outlive expiring evidence. See
+`docs/30_AUTHORISATION_MANAGEMENT_2026-11-12.md`. Platform runtime/build dependency
+patches are included; exact-revision CI remains mandatory. Real hosting/Auth0/MFA,
+provider customer selection and customer/Registry acceptance remain open. Paid
+hosting is still deferred. New official Registry interface sources are tracked
+separately; their publication does not enable live Registry flags.
+
+Production-control follow-up (20 October 2026): named delegated action scopes
+fail closed across authenticated tenant routes and are rechecked under a grant
+row lock inside each customer transaction. Existing broad grants require explicit
+review/reissue. Private published-history export, independent offline source/hash
+verification and an opt-in read-only Auth0 configuration auditor are prepared.
+See `docs/29_PRODUCTION_CONTROLS_2026-10-20.md`,
+`docs/DELEGATED_ACTION_SCOPES.md`, `docs/28_OPERATOR_EXPORT_AND_OFFLINE_VERIFICATION.md`
+and `docs/ops/AUTH0_PROVIDER_AUDIT.md`. Live provider/hosting/recovery, full standard
+profiles and complete customer-exit acceptance remain open. No paid resources,
+real customer records or live Registry submissions are created by this release.
+New large local validation/output/cache files belong on E:, while this source
+checkout stays in place. Do not move existing projects or replace paths with links.
+
+Customer workflow follow-up (9 October 2026): see
+`docs/27_CUSTOMER_PASSPORT_WORKFLOW.md`. Model/item forms, persistent dossier
+review and validate/publish controls, truthful supplier delivery/review and a
+human-readable public scan viewer are prepared. Readiness now shares current
+publication assessment; QR downloads keep BFF authentication and origin gates.
+The change does not deploy the target environment or close Gate 7. New QR bases
+must point at the deployed public viewer; keep all existing issued UPI URLs
+stable. Both Registry flags remain false, and paid hosting remains deferred.
+
 Regulatory follow-up (9 October 2026): see
 `docs/25_REGULATORY_UPDATE_2026-10-09.md` for the verified draft/norm status,
 separate industrial Article 10 dossier check and staged engineering plan.

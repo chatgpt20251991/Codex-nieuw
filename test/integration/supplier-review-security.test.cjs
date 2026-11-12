@@ -30,13 +30,17 @@ const submit = (fixture, fieldDefinitionId = 26) => request('/supplier-portal/su
 const accept = (fixture, actor = 'A') => request(`/supplier-requests/${fixture.request.id}/accept`, { actor, body: {} });
 const session = fixture => request('/supplier-portal/session', { actor: null, supplierToken: fixture.token });
 
-async function fixture() {
+async function fixture({ submitFirst = true } = {}) {
   const model = await success('/battery-models', { body: { modelIdentifier: randomUUID(), category: 'EV' } });
   const invitation = await success('/supplier-requests', { body: { supplierId: supplier.id,
     modelId: model.id, fieldDefinitionIds: [11, 26] } });
+  assert.equal(invitation.request.status, 'draft');
+  assert.equal(invitation.request.sentAt, null);
+  assert.equal(Object.hasOwn(invitation.request, 'tokenHash'), false);
+  assert.deepEqual(invitation.delivery, { mode: 'manual_link', status: 'not_sent' });
   const output = { model, request: invitation.request,
     token: new URLSearchParams(new URL(invitation.inviteUrl).hash.slice(1)).get('token') };
-  assert.equal((await submit(output, 11)).status, 201);
+  if (submitFirst) assert.equal((await submit(output, 11)).status, 201);
   return output;
 }
 async function state(fixture) {
@@ -76,6 +80,61 @@ before(async () => {
 after(async () => {
   if (api && api.exitCode === null && api.signalCode === null) { const stopped = once(api, 'exit'); api.kill(); await stopped; }
   await admin.$disconnect();
+});
+
+test('supplier links are not marked sent and request responses never disclose capability hashes', async () => {
+  const current = await fixture({ submitFirst: false });
+  const stored = await state(current);
+  assert.equal(stored.request.status, 'draft');
+  assert.equal(stored.request.sentAt, null);
+  assert.match(stored.request.tokenHash, /^[a-f0-9]{64}$/);
+  const own = await success('/supplier-requests');
+  const listed = own.find(row => row.id === current.request.id);
+  assert.ok(listed);
+  assert.equal(listed.sentAt, null);
+  assert.ok(own.every(row => !Object.hasOwn(row, 'tokenHash')));
+  assert.equal(JSON.stringify(own).includes(current.token), false);
+  assert.equal(JSON.stringify(own).includes(stored.request.tokenHash), false);
+  const foreign = await success('/supplier-requests', { actor: 'B' });
+  assert.equal(foreign.some(row => row.id === current.request.id), false);
+  assert.equal((await session(current)).status, 200);
+  const opened = await state(current);
+  assert.equal(opened.request.status, 'opened');
+  assert.ok(opened.request.openedAt);
+  assert.equal(opened.request.sentAt, null);
+  assert.equal((await session(current)).status, 200);
+  assert.deepEqual(await state(current), opened);
+});
+
+test('legacy sent links open normally and expired draft links stay unchanged', async () => {
+  const legacy = await fixture({ submitFirst: false });
+  const sentAt = new Date(Date.now() - 1000);
+  await admin.supplierRequest.update({ where: { id: legacy.request.id }, data: { status: 'sent', sentAt } });
+  assert.equal((await session(legacy)).status, 200);
+  const opened = await state(legacy);
+  assert.equal(opened.request.status, 'opened');
+  assert.equal(opened.request.sentAt.getTime(), sentAt.getTime());
+  const expired = await fixture({ submitFirst: false });
+  await admin.supplierRequest.update({ where: { id: expired.request.id }, data: { expiresAt: new Date(Date.now() - 60000) } });
+  const before = await state(expired);
+  assert.equal((await session(expired)).status, 410);
+  assert.equal((await submit(expired)).status, 410);
+  assert.deepEqual(await state(expired), before);
+});
+
+test('supplier review detail shows submitted values only to the authorised tenant without capability hashes', async () => {
+  const current = await fixture();
+  const detail = await success(`/supplier-requests/${current.request.id}`);
+  assert.equal(detail.id, current.request.id);
+  assert.equal(detail.status, 'submitted');
+  assert.equal(Object.hasOwn(detail, 'tokenHash'), false);
+  assert.equal(detail.submissions.length, 1);
+  assert.equal(detail.submissions[0].fieldDefinitionId, 11);
+  assert.equal(detail.submissions[0].valueJson, 100);
+  assert.equal((await request(`/supplier-requests/${current.request.id}`, { actor: 'B' })).status, 404);
+  assert.equal((await request(`/supplier-requests/${current.request.id}`, { actor: null })).status, 401);
+  assert.equal((await request(`/supplier-requests/${randomUUID()}`)).status, 404);
+  assert.equal((await state(current)).values.length, 0);
 });
 
 test('Gate 7 supplier review: concurrent acceptance commits once and refuses another tenant or a repeat', async () => {

@@ -23,7 +23,16 @@ export class StorageService {
   checksumHex(base64:string){return Buffer.from(base64,'base64').toString('hex');}
   async createUploadUrl(input:{objectKey:string;mimeType:string;sizeBytes:number;sha256:string}){const checksum=this.checksumBase64(input.sha256);const command=new PutObjectCommand({Bucket:this.bucket,Key:input.objectKey,ContentType:input.mimeType,ContentLength:input.sizeBytes,ChecksumSHA256:checksum,Metadata:{sha256:input.sha256},ServerSideEncryption:this.config.get('S3_ENDPOINT')?undefined:'aws:kms'});const expiresIn=Number(this.config.get('S3_UPLOAD_URL_TTL_SECONDS')||900);return {url:await getSignedUrl(this.s3,command,{expiresIn,unhoistableHeaders:new Set(['x-amz-checksum-sha256','x-amz-meta-sha256']),signableHeaders:new Set(['content-type'])}),checksumBase64:checksum,expiresIn};}
   async createDownloadUrl(objectKey:string,expiresIn=300,versionId?:string|null){return getSignedUrl(this.s3,new GetObjectCommand({Bucket:this.bucket,Key:objectKey,VersionId:versionId||undefined}),{expiresIn});}
-  async head(objectKey:string,versionId?:string|null){return this.s3.send(new HeadObjectCommand({Bucket:this.bucket,Key:objectKey,VersionId:versionId||undefined}));}
+  async createReviewDownloadUrl(input: { objectKey: string; versionId: string; filename: string | null; expiresIn: number; issuedAt: Date }) {
+    if (!input.versionId?.trim() || input.versionId === 'null') throw new ConflictException({ code: 'EVIDENCE_STORAGE_VERSION_REQUIRED' });
+    if (!Number.isInteger(input.expiresIn) || input.expiresIn < 1 || input.expiresIn > 60) throw new ConflictException({ code: 'EVIDENCE_OUTSIDE_VALIDITY' });
+    const filename = (input.filename || 'evidence.bin').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-180) || 'evidence.bin';
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: input.objectKey, VersionId: input.versionId,
+      ResponseContentType: 'application/octet-stream', ResponseContentDisposition: `attachment; filename="${filename}"`,
+      ResponseCacheControl: 'private, no-store, max-age=0' });
+    return getSignedUrl(this.s3, command, { expiresIn: input.expiresIn, signingDate: input.issuedAt });
+  }
+  async head(objectKey:string,versionId?:string|null,abortSignal?:AbortSignal){return this.s3.send(new HeadObjectCommand({Bucket:this.bucket,Key:objectKey,VersionId:versionId||undefined}),{abortSignal});}
   async verifyObjectSha256(objectKey:string,expectedHex:string,expectedSize?:number,versionId?:string|null){
     try {
       const head=await this.head(objectKey,versionId);

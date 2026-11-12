@@ -44,6 +44,10 @@ before(async () => {
       .setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
       .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   }
+  tokens.User = await new SignJWT({ org_id: orgs.A, role: 'operator_user' })
+    .setProtectedHeader({ alg: 'HS256' }).setSubject('integration-ordinary-user')
+    .setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
+    .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
   const listener = createServer();
   listener.listen(0, '127.0.0.1');
   await once(listener, 'listening');
@@ -75,9 +79,16 @@ before(async () => {
     const item = await success('/battery-items', name, { modelId: model.id, serialOrItemIdentifier: `serial-${name}` });
     const value = await success('/passport-values', name, { modelId: model.id, fieldDefinitionId: 45, value: `restricted-${name}` });
     const supplier = await success('/suppliers', name, { legalName: `Supplier ${name}`, contact: { email: `private-${name}@example.invalid` } });
-    const evidence = await admin.evidenceObject.create({ data: { organisationId: orgs[name],
-      objectKey: `fixture/${name}/written-authorisation.pdf`, evidenceType: 'written_authorisation',
-      sha256: 'a'.repeat(64), verificationStatus: 'verified' } });
+    // Synthetic database fixture: complete scan/version attestation, without
+    // claiming an actual storage or scanner acceptance result for these bytes.
+    const evidenceId = randomUUID(), digest = 'a'.repeat(64);
+    const evidence = await admin.evidenceObject.create({ data: { id: evidenceId, organisationId: orgs[name],
+      objectKey: `orgs/${orgs[name]}/evidence/${evidenceId}/written-authorisation.pdf`, evidenceType: 'written_authorisation',
+      originalFilename: 'written-authorisation.pdf', mimeType: 'application/pdf', sizeBytes: 1n,
+      sha256: digest, storageChecksum: Buffer.from(digest, 'hex').toString('base64'),
+      storageVersionId: 'synthetic-mandate-version-1', malwareScanSha256: digest,
+      malwareScannedAt: new Date(Date.now() - 1000), uploadedAt: new Date(Date.now() - 1000),
+      malwareScannerVersion: 'ClamAV 1.4.6/12345/Thu Nov 12 08:00:00 2026', verificationStatus: 'verified' } });
     await admin.evidenceLink.create({ data: { evidenceId: evidence.id, passportValueId: value.id } });
     fixture[name] = { model, item, value, supplier, evidence };
   }
@@ -162,6 +173,14 @@ test('direct model, item and value routes hide another tenant and ignore tenant 
   assert.equal(untouched.validationStatus, 'unvalidated');
 });
 
+test('read-only model and item readiness hide another tenant', async () => {
+  for (const [kind, id] of [['model', fixture.B.model.id], ['item', fixture.B.item.id]]) {
+    const response = await request(`/compliance/${kind}/${id}/readiness`, 'A');
+    assert.equal(response.status, 404);
+    assert.equal(response.data.code, 'RESOURCE_NOT_FOUND');
+  }
+});
+
 test('concurrent API requests retain their own tenant', async () => {
   await Promise.all(Array.from({ length: 12 }, async (_, index) => {
     const actor = index % 2 ? 'A' : 'B';
@@ -175,9 +194,9 @@ test('delegation requires verified evidence; active grant enables only its custo
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   const pending = await admin.evidenceObject.create({ data: { organisationId: orgs.A,
     objectKey: 'fixture/pending-authorisation', evidenceType: 'written_authorisation', sha256: 'b'.repeat(64) } });
-  assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.S, evidenceId: pending.id, scope: {} })).status, 409);
+  assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.S, evidenceId: pending.id, scope: { modelRead: true } })).status, 409);
   fixture.authorisation = await success('/authorisations', 'A', { serviceProviderId: orgs.S,
-    evidenceId: fixture.A.evidence.id, scope: { passportManagement: true } });
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true, valueWrite: true } });
   const model = await success(`/battery-models/${fixture.A.model.id}`, 'S', undefined, 'A');
   assert.equal(model.organisationId, orgs.A);
   const value = await success('/passport-values', 'S', { modelId: fixture.A.model.id, fieldDefinitionId: 11, value: 74 }, 'A');
@@ -194,20 +213,160 @@ test('revocation takes effect on the next request with the same token and create
   await success(`/authorisations/${fixture.authorisation.id}/revoke`, 'A', {});
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   assert.equal((await request('/passport-values', 'S', { modelId: fixture.A.model.id, fieldDefinitionId: 12, value: 'NMC' }, 'A')).status, 403);
-  const events = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id }, orderBy: { createdAt: 'asc' } });
+  const events = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id,
+    action: { in: ['authorisation.create', 'authorisation.revoke'] } }, orderBy: { createdAt: 'asc' } });
   assert.deepEqual(events.map(e => e.action), ['authorisation.create', 'authorisation.revoke']);
   assert.ok(events.every(e => e.organisationId === orgs.A));
+  assert.deepEqual(events[0].metadata.scope, { modelRead: true, valueWrite: true });
+  assert.deepEqual(events[1].metadata.scope, { modelRead: true, valueWrite: true });
+  const uses = await admin.auditEvent.findMany({ where: { resourceId: fixture.authorisation.id,
+    action: 'authorisation.scoped_transaction' } });
+  assert.ok(uses.length >= 2);
+  assert.ok(uses.every(event => ['modelRead', 'valueWrite'].includes(event.metadata.scope)));
 });
 
 test('expired and not-yet-effective authorisations deny access immediately', async () => {
   const auth = await success('/authorisations', 'A', { serviceProviderId: orgs.S,
-    evidenceId: fixture.A.evidence.id, scope: {}, validFrom: new Date(Date.now() - 60000).toISOString(),
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true }, validFrom: new Date(Date.now() - 60000).toISOString(),
     validUntil: new Date(Date.now() + 60000).toISOString() });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 200);
   await admin.writtenAuthorisation.update({ where: { id: auth.id }, data: { validUntil: new Date(Date.now() - 1) } });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
   await admin.writtenAuthorisation.update({ where: { id: auth.id }, data: { validFrom: new Date(Date.now() + 60000), validUntil: null } });
   assert.equal((await request('/battery-models', 'S', undefined, 'A')).status, 403);
+});
+
+test('action-scoped delegated routes deny unrelated read, review, publication and administration capabilities', async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true } });
+  try {
+    assert.equal((await request(`/battery-models/${fixture.A.model.id}`, 'T', undefined, 'A')).status, 200);
+    for (const [path, body] of [
+      ['/organisations/current', undefined], ['/organisations/authorised-customers', undefined], ['/authorisations', undefined],
+      [`/passport-values/${fixture.A.value.id}`, undefined], ['/battery-models', {}],
+      [`/passports/${fixture.A.item.id}/publish`, {}], [`/evidence/${fixture.A.evidence.id}/verify`, {}],
+      ['/supplier-requests', {}], ['/registry/export-json', {}],
+      [`/lifecycle/${fixture.A.item.id}/events`, {}], ['/access-grants', {}],
+    ]) assert.equal((await request(path, 'T', body, 'A')).status, 403, path);
+    assert.equal((await request('/battery-models', 'T', undefined, 'B')).status, 403);
+    assert.equal((await request(`/battery-models/${fixture.B.model.id}`, 'T', undefined, 'A')).status, 404);
+    const discovery = await success('/organisations/authorised-customers', 'T');
+    const listed = discovery.find(row => row.id === grant.id);
+    assert.deepEqual(listed.availableActions, ['modelRead']);
+    for (const key of ['scopeJson', 'documentObjectKey', 'documentSha256']) assert.equal(Object.hasOwn(listed, key), false);
+    // Grant policy supplements, rather than replaces, normal own-tenant roles.
+    assert.equal((await request(`/evidence/${fixture.A.evidence.id}/verify`, 'User', {})).status, 403);
+    assert.equal((await request('/battery-models', 'A')).status, 200);
+    const audits = await admin.auditEvent.findMany({ where: { resourceId: grant.id, action: 'authorisation.scoped_transaction' } });
+    assert.ok(audits.length > 0); assert.ok(audits.every(event => event.metadata.scope === 'modelRead'));
+  } finally { await success(`/authorisations/${grant.id}/revoke`, 'A', {}); }
+});
+
+test('malformed historical and unrelated active grants cannot shadow a valid grant or create broad access', async () => {
+  const seeded = [];
+  for (const scope of [{}, { modelRead: 'true' }, { modelRead: true, '*': true },
+    { passportManagement: true }, { modelRead: false }, { modelRead: 1 }]) {
+    assert.equal((await request('/authorisations', 'A', { serviceProviderId: orgs.T,
+      evidenceId: fixture.A.evidence.id, scope })).status, 400);
+    seeded.push(await admin.writtenAuthorisation.create({ data: { responsibleOperatorId: orgs.A,
+      serviceProviderId: orgs.T, scopeJson: scope, documentObjectKey: fixture.A.evidence.objectKey,
+      documentSha256: fixture.A.evidence.sha256, validFrom: new Date() } }));
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 403);
+  }
+  const unrelated = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { valueWrite: true } });
+  const valid = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { modelRead: true } });
+  try {
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 200);
+    const value = await success('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 13, value: 'separate explicit write grant' }, 'A');
+    assert.equal(value.organisationId, orgs.A);
+    assert.equal((await request(`/passport-values/${value.id}/validate`, 'T', {}, 'A')).status, 403);
+    await success(`/authorisations/${valid.id}/revoke`, 'A', {});
+    assert.equal((await request('/battery-models', 'T', undefined, 'A')).status, 403);
+    const discovery = await success('/organisations/authorised-customers', 'T');
+    assert.equal(discovery.some(row => seeded.some(grant => row.id === grant.id)), false);
+  } finally {
+    await success(`/authorisations/${unrelated.id}/revoke`, 'A', {});
+    await admin.writtenAuthorisation.updateMany({ where: { id: { in: seeded.map(row => row.id) } }, data: { revokedAt: new Date() } });
+  }
+});
+
+test('revocation serializes against an authorised delegated transaction and denies subsequent work', { timeout: 20000 }, async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { valueWrite: true } });
+  const authorisedValue = `authorised-before-revocation-${randomUUID()}`;
+  const deniedValue = `denied-after-revocation-${randomUUID()}`;
+  const deniedFieldBefore = await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+    modelId: fixture.A.model.id, fieldDefinitionId: 15 }, orderBy: { id: 'asc' } });
+  const blocker = new Client({ connectionString: process.env.TEST_ADMIN_DATABASE_URL });
+  let write, revoke;
+  await blocker.connect();
+  async function waitForBlockedBy(pid, queryFragment) {
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      const rows = await admin.$queryRawUnsafe(`SELECT pid FROM pg_stat_activity
+        WHERE $1 = ANY(pg_blocking_pids(pid)) AND query LIKE $2`, pid, `%${queryFragment}%`);
+      if (rows.length) return rows[0].pid;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail(`No expected ${queryFragment} operation waited for database lock`);
+  }
+  try {
+    await blocker.query('BEGIN');
+    const { rows: [connection] } = await blocker.query('SELECT pg_backend_pid() AS pid');
+    await blocker.query('SELECT id FROM "BatteryModel" WHERE id = $1 FOR UPDATE', [fixture.A.model.id]);
+    write = request('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 14, value: authorisedValue }, 'A');
+    const delegatedPid = await waitForBlockedBy(connection.pid, 'BatteryModel');
+    revoke = request(`/authorisations/${grant.id}/revoke`, 'A', {});
+    await waitForBlockedBy(delegatedPid, 'WrittenAuthorisation');
+    await blocker.query('COMMIT');
+    const written = await write;
+    assert.equal(written.status, 201, JSON.stringify(written));
+    assert.equal((await revoke).status, 201);
+    const committed = await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+      modelId: fixture.A.model.id, fieldDefinitionId: 14, valueJson: { equals: authorisedValue } } });
+    assert.equal(committed.length, 1, 'The already-authorised write commits exactly once');
+    assert.equal(committed[0].id, written.data.id);
+    assert.equal(committed[0].validUntil, null);
+    assert.equal(committed[0].validationStatus, 'unvalidated');
+    const scopedAudits = await admin.auditEvent.findMany({ where: { resourceId: grant.id,
+      action: 'authorisation.scoped_transaction' } });
+    assert.equal(scopedAudits.length, 1);
+    const [scopedAudit] = scopedAudits;
+    assert.equal(scopedAudit.organisationId, orgs.A);
+    assert.equal(scopedAudit.actorSubject, 'integration-T');
+    assert.equal(scopedAudit.resourceType, 'written_authorisation');
+    assert.deepEqual(scopedAudit.metadata, { scope: 'valueWrite', serviceProviderId: orgs.T,
+      handler: 'ValuesController.create' });
+    assert.match(scopedAudit.requestId, /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
+    const businessAudits = await admin.auditEvent.findMany({ where: { resourceId: committed[0].id,
+      action: 'passport_value.create' } });
+    assert.equal(businessAudits.length, 1);
+    assert.equal(businessAudits[0].organisationId, orgs.A);
+    assert.equal(businessAudits[0].actorSubject, 'integration-T');
+    assert.deepEqual(businessAudits[0].metadata, { fieldDefinitionId: 14 });
+    // PostgreSQL records the inserting transaction in xmin. The value, its
+    // business audit and the scoped authorisation audit must commit atomically.
+    const transactions = await admin.$queryRaw`SELECT xmin::text AS "transactionId" FROM "PassportValue" WHERE id = ${committed[0].id}
+      UNION ALL SELECT xmin::text AS "transactionId" FROM "AuditEvent" WHERE id IN (${businessAudits[0].id}, ${scopedAudit.id})`;
+    assert.equal(transactions.length, 3);
+    assert.equal(new Set(transactions.map(row => row.transactionId)).size, 1);
+    const denied = await request('/passport-values', 'T', { modelId: fixture.A.model.id,
+      fieldDefinitionId: 15, value: deniedValue }, 'A');
+    assert.equal(denied.status, 403);
+    assert.equal(denied.data.code, 'NO_WRITTEN_AUTHORISATION');
+    assert.deepEqual(await admin.passportValue.findMany({ where: { organisationId: orgs.A,
+      modelId: fixture.A.model.id, fieldDefinitionId: 15 }, orderBy: { id: 'asc' } }), deniedFieldBefore);
+    assert.equal(await admin.auditEvent.count({ where: { resourceId: grant.id,
+      action: 'authorisation.scoped_transaction' } }), 1, 'The denied request creates no success audit');
+  } finally {
+    await blocker.query('ROLLBACK').catch(() => {}); await blocker.end();
+    await Promise.allSettled([write, revoke].filter(Boolean));
+    await admin.writtenAuthorisation.update({ where: { id: grant.id }, data: { revokedAt: new Date() } });
+  }
 });
 
 test('non-login public resolver works under FORCE RLS and exposes only the public projection', async () => {
@@ -266,4 +425,100 @@ test('runtime cannot alter another operator authorisation or rewrite audit histo
     (id,"responsibleOperatorId","serviceProviderId","scopeJson","documentObjectKey","documentSha256","validFrom")
     VALUES ($1,$2,$3,'{}','forged','forged',now())`, [randomUUID(), orgs.A, orgs.S]), { code: '42501' });
   await assert.rejects(tenantQuery('A', 'UPDATE "AuditEvent" SET action=\'forged\''), { code: '42501' });
+});
+
+test('authorisation inventory is admin-only, tenant-bound, bounded and excludes source locators', async () => {
+  // Use the existing ordinary-user token fixture without creating provider roles.
+  const ordinary = await request('/authorisations', 'User');
+  assert.equal(ordinary.status, 403);
+  const rows = await success('/authorisations?limit=1', 'A');
+  assert.equal(rows.length, 1); assert.equal(rows[0].responsibleOperatorId, orgs.A);
+  assert.equal(typeof rows[0].scopeValid, 'boolean');
+  for (const key of ['documentObjectKey', 'documentSha256', 'objectKey', 'sha256']) assert.equal(Object.hasOwn(rows[0], key), false);
+  const next = await success(`/authorisations?limit=1&cursor=${rows[0].id}`, 'A');
+  assert.equal(next.length, 1); assert.notEqual(next[0].id, rows[0].id);
+  assert.equal((await request('/authorisations?limit=101', 'A')).status, 400);
+  assert.equal((await request('/authorisations?limit=1&cursor=bad', 'A')).status, 400);
+  assert.equal((await request('/authorisations', 'S', undefined, orgs.A)).status, 403);
+  const other = await success('/authorisations', 'B');
+  assert.ok(other.every(row => row.responsibleOperatorId === orgs.B));
+  const foreignCursor = await admin.writtenAuthorisation.create({ data: {
+    responsibleOperatorId: orgs.B, serviceProviderId: orgs.A,
+    validFrom: new Date(),
+    scopeJson: { modelRead: true }, documentObjectKey: 'synthetic-foreign-grant', documentSha256: 'b'.repeat(64),
+  } });
+  assert.equal((await request(`/authorisations?cursor=${foreignCursor.id}`, 'A')).status, 404);
+});
+
+test('new authorisations reject expired, future, unscanned or unbound verified sources without creating grants or audits', async () => {
+  const source = await admin.evidenceObject.findUniqueOrThrow({ where: { id: fixture.A.evidence.id } });
+  const { id, createdAt, updatedAt, ...copy } = source;
+  for (const overrides of [
+    { expiresAt: new Date(Date.now() - 1000) }, { issuedAt: new Date(Date.now() + 60000) },
+    { malwareScanSha256: null }, { storageVersionId: null }, { storageVersionId: 'null' },
+    { storageChecksum: 'unbound' }, { malwareScannedAt: new Date(Date.now() + 60000) },
+  ]) {
+    const evidenceId = randomUUID();
+    await admin.evidenceObject.create({ data: { ...copy, id: evidenceId,
+      objectKey: `orgs/${orgs.A}/evidence/${evidenceId}/mandate.pdf`, ...overrides } });
+    const before = await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } });
+    const auditBefore = await admin.auditEvent.count({ where: { organisationId: orgs.A, action: 'authorisation.create' } });
+    const response = await request('/authorisations', 'A', { serviceProviderId: orgs.T, evidenceId, scope: { modelRead: true } });
+    assert.equal(response.status, 409); assert.equal(response.data.code, 'VERIFIED_AUTHORISATION_EVIDENCE_REQUIRED');
+    assert.equal(await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } }), before);
+    assert.equal(await admin.auditEvent.count({ where: { organisationId: orgs.A, action: 'authorisation.create' } }), auditBefore);
+  }
+});
+
+test('grant revocation preserves its first timestamp and audit while evidence inventory projects only tenant metadata', async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { evidenceRead: true } });
+  assert.equal(Object.hasOwn(grant, 'documentObjectKey'), false); assert.equal(Object.hasOwn(grant, 'documentSha256'), false);
+  const first = await success(`/authorisations/${grant.id}/revoke`, 'A', {});
+  const second = await success(`/authorisations/${grant.id}/revoke`, 'A', {});
+  assert.equal(first.revokedAt, second.revokedAt);
+  assert.equal(await admin.auditEvent.count({ where: { action: 'authorisation.revoke', resourceId: grant.id } }), 1);
+  const rows = await success('/evidence?limit=100', 'A');
+  const own = rows.find(row => row.id === fixture.A.evidence.id);
+  assert.ok(own); assert.equal(own.eligibleForAuthorisation, true); assert.equal(own.verifiedAt, null);
+  assert.equal(rows.some(row => row.id === fixture.B.evidence.id), false);
+  assert.equal((await request(`/evidence?cursor=${fixture.B.evidence.id}`, 'A')).status, 404);
+  assert.ok(rows.length <= 100); assert.equal((await request('/evidence?limit=101', 'A')).status, 400);
+  const encoded = JSON.stringify(rows);
+  for (const key of ['objectKey', 'storageChecksum', 'sha256', 'malwareScanSha256', 'storageVersionId', 'malwareScannerVersion']) assert.equal(encoded.includes(`"${key}"`), false);
+});
+
+test('grant issuance waits for a concurrent source change and rereads rejection before creating any permission', async () => {
+  const source = await admin.evidenceObject.findUniqueOrThrow({ where: { id: fixture.A.evidence.id } });
+  const { id, createdAt, updatedAt, ...copy } = source, evidenceId = randomUUID();
+  await admin.evidenceObject.create({ data: { ...copy, id: evidenceId,
+    objectKey: `orgs/${orgs.A}/evidence/${evidenceId}/race-mandate.pdf` } });
+  let locked, release;
+  const lockReady = new Promise(resolve => { locked = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const transaction = admin.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "EvidenceObject" WHERE "id" = ${evidenceId} FOR UPDATE`;
+    await tx.evidenceObject.update({ where: { id: evidenceId }, data: { verificationStatus: 'superseded' } });
+    locked(); await gate;
+  }, { timeout: 15000 });
+  await lockReady;
+  const before = await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } });
+  let settled = false;
+  const pending = request('/authorisations', 'A', { serviceProviderId: orgs.T, evidenceId,
+    scope: { modelRead: true } }).then(result => { settled = true; return result; });
+  try {
+    // Require an actual PostgreSQL lock waiter, rather than trusting a timer
+    // as proof that the API reached the locked source row.
+    let blocked = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const waiters = await admin.$queryRaw`SELECT pid FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND query LIKE '%EvidenceObject%' AND query LIKE '%FOR SHARE%'`;
+      if (waiters.length) { blocked = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.equal(blocked, true); assert.equal(settled, false);
+  } finally { release(); await transaction; }
+  const result = await pending;
+  assert.equal(result.status, 409); assert.equal(result.data.code, 'VERIFIED_AUTHORISATION_EVIDENCE_REQUIRED');
+  assert.equal(await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } }), before);
 });

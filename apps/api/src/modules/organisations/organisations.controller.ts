@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope, OwnTenantOnly, isAuthorisationScopeRecord } from '../../common/tenant/authorisation-scope.decorator';
 import { Body, ConflictException, Controller, Get, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
@@ -34,7 +35,7 @@ function identifierLimit(type:string){return type==='LEI'?20:type==='VAT'?15:typ
 export class OrganisationsController {
   constructor(private readonly tenantDb:TenantDbService, private readonly audit:AuditService){}
 
-  @Post('bootstrap')
+  @OwnTenantOnly() @Post('bootstrap')
   async bootstrap(@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=BootstrapSchema.parse(body);
     const exists=await this.tenantDb.run(actor.organisationId, tx=>tx.organisation.findUnique({where:{id:actor.organisationId}}));
@@ -45,21 +46,25 @@ export class OrganisationsController {
     return row;
   }
 
-  @Get('current')
+  @RequireAuthorisationScope('organisationRead') @Get('current')
   async current(@CurrentTenant() organisationId:string){ return this.tenantDb.run(organisationId,tx=>tx.organisation.findUniqueOrThrow({where:{id:organisationId}})); }
 
-  @Get('authorised-customers')
+  @OwnTenantOnly() @Get('authorised-customers')
   async authorisedCustomers(@CurrentActor() actor:Actor){
     const now=new Date();
-    return this.tenantDb.run(actor.organisationId,tx=>tx.writtenAuthorisation.findMany({where:{serviceProviderId:actor.organisationId,revokedAt:null,validFrom:{lte:now},OR:[{validUntil:null},{validUntil:{gt:now}}]},include:{responsibleOperator:true},orderBy:{createdAt:'desc'}}));
+    const grants = await this.tenantDb.run(actor.organisationId,tx=>tx.writtenAuthorisation.findMany({where:{serviceProviderId:actor.organisationId,revokedAt:null,validFrom:{lte:now},OR:[{validUntil:null},{validUntil:{gt:now}}]},select:{id:true,scopeJson:true,validFrom:true,validUntil:true,responsibleOperator:{select:{id:true,legalName:true,countryCode:true}}},orderBy:{createdAt:'desc'}}));
+    return grants.filter(grant=>isAuthorisationScopeRecord(grant.scopeJson)).map(grant=>({
+      id:grant.id,responsibleOperator:grant.responsibleOperator,validFrom:grant.validFrom,validUntil:grant.validUntil,
+      availableActions:Object.entries(grant.scopeJson as Record<string,boolean>).filter(([,allowed])=>allowed===true).map(([scope])=>scope),
+    }));
   }
 
-  @Get('registry-profile')
+  @RequireAuthorisationScope('registryRead') @Get('registry-profile')
   async registryProfile(@CurrentTenant() organisationId:string){
     return this.tenantDb.run(organisationId,tx=>tx.registryEnrolmentProfile.findUnique({where:{organisationId}}));
   }
 
-  @Post('registry-profile')
+  @RequireAuthorisationScope('organisationWrite') @Post('registry-profile')
   async upsertRegistryProfile(@CurrentTenant() organisationId:string,@CurrentActor() actor:Actor,@Body() body:unknown){
     const b=RegistryProfileSchema.parse(body);
     const max=identifierLimit(b.identifierType);
@@ -70,7 +75,7 @@ export class OrganisationsController {
     return row;
   }
 
-  @Get('registry-profile/readiness')
+  @RequireAuthorisationScope('registryRead') @Get('registry-profile/readiness')
   async registryProfileReadiness(@CurrentTenant() organisationId:string){
     const [org,profile,identities]=await Promise.all([
       this.tenantDb.run(organisationId,tx=>tx.organisation.findUniqueOrThrow({where:{id:organisationId}})),

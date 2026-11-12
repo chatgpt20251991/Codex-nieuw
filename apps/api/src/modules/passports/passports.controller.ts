@@ -1,3 +1,4 @@
+import { RequireAuthorisationScope } from '../../common/tenant/authorisation-scope.decorator';
 import { ConflictException, Controller, Get, Header, Param, Post } from '@nestjs/common';
 import { fields, transition } from '@eubp/rules';
 import { CurrentActor } from '../../common/auth/current-actor.decorator';
@@ -15,7 +16,7 @@ export class PassportsController {
   constructor(private readonly tenantDb: TenantDbService, private readonly data: PassportDataService,
     private readonly resolver: ResolverService) {}
 
-  @Post(':itemId/validate')
+  @RequireAuthorisationScope('passportValidate') @Post(':itemId/validate')
   async validate(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('itemId') itemId: string) {
     return this.tenantDb.run(orgId, async tx => {
       const item = await lockItem(tx, orgId, itemId);
@@ -36,12 +37,12 @@ export class PassportsController {
     });
   }
 
-  @Get(':itemId/validate')
+  @RequireAuthorisationScope('passportRead') @Get(':itemId/validate')
   validateReadOnly(@CurrentTenant() orgId: string, @Param('itemId') itemId: string) {
     return this.data.validate(orgId, itemId).then(result => ({ ...result, item: undefined, values: undefined }));
   }
 
-  @Post(':itemId/publish')
+  @RequireAuthorisationScope('passportPublish') @Post(':itemId/publish')
   async publish(@CurrentTenant() orgId: string, @CurrentActor() actor: Actor, @Param('itemId') itemId: string) {
     return this.tenantDb.run(orgId, async tx => {
       const locked = await lockItem(tx, orgId, itemId);
@@ -90,14 +91,14 @@ export class PassportsController {
     });
   }
 
-  @Get(':itemId/versions')
+  @RequireAuthorisationScope('passportRead') @Get(':itemId/versions')
   versions(@CurrentTenant() orgId: string, @Param('itemId') itemId: string) {
     return this.tenantDb.run(orgId, tx => tx.passportVersion.findMany({ where: { organisationId: orgId, batteryItemId: itemId },
       select: { id: true, versionNo: true, ruleSetVersion: true, sha256: true, previousVersionHash: true,
         publicationState: true, publishedAt: true, createdAt: true }, orderBy: { versionNo: 'desc' } }));
   }
 
-  @Get(':itemId/qr.svg') @Header('Content-Type', 'image/svg+xml; charset=utf-8')
+  @RequireAuthorisationScope('passportRead') @Get(':itemId/qr.svg') @Header('Content-Type', 'image/svg+xml; charset=utf-8')
   async qr(@CurrentTenant() orgId: string, @Param('itemId') itemId: string) {
     const item = await this.tenantDb.run(orgId, tx => tx.batteryItem.findFirstOrThrow({ where: { id: itemId, organisationId: orgId } }));
     return this.resolver.qrSvg(item.upi || this.resolver.upi(item.publicId));

@@ -6,6 +6,12 @@ const roots = new Set([
 const loopback = (hostname: string) => ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
 export const MAX_REQUEST_BYTES = 1024 * 1024;
 export const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+export const MAX_QR_RESPONSE_BYTES = 256 * 1024;
+
+export function isPassportQrPath(segments: string[]) {
+  return segments.length === 3 && segments[0] === 'passports' && segments[2] === 'qr.svg'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segments[1]);
+}
 
 export function appOrigin() {
   const url = new URL(process.env.APP_BASE_URL || '');
@@ -23,9 +29,11 @@ export function sameOriginRequest(request: Request, origin: string) {
   return ['GET', 'HEAD'].includes(request.method) || supplied === origin;
 }
 
-export function backendUrl(segments: string[], search: string, origin: string) {
+export function backendUrl(segments: string[], search: string, origin: string, method = 'GET') {
+  // Only the authenticated per-item QR download may contain a dot in its path.
+  const qrPath = isPassportQrPath(segments);
   if (!segments.length || segments.length > 8 || !roots.has(segments[0])
-    || segments.some(part => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(part))
+    || (qrPath ? !['GET', 'HEAD'].includes(method) : segments.some(part => !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(part)))
     || search.length > 4096 || (search !== '' && !search.startsWith('?'))) return null;
   const base = new URL(process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '');
   const app = new URL(origin);

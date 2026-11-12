@@ -8,6 +8,7 @@ const { resolve } = require('node:path');
 const { Client } = require('pg');
 const { PrismaClient } = require('@prisma/client');
 const { fields } = require('@eubp/rules');
+const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 const { hashJson } = require('../../apps/api/dist/common/crypto/canonical.js');
 const { S3Client, CreateBucketCommand, ListObjectsV2Command, DeleteObjectsCommand, DeleteBucketCommand } = require('@aws-sdk/client-s3');
 
@@ -23,11 +24,12 @@ const runtime = new Client({ connectionString: process.env.DATABASE_URL });
 const orgs = { A: randomUUID(), B: randomUUID() }, tokens = {}, models = {}, evidence = {};
 let api, base, logs = '', bucketCreated = false, runtimeConnected = false, v1, v2, mainItem, v1Stored;
 
-async function request(path, { actor = 'A', body } = {}) {
+async function request(path, { actor = 'A', body, actingOrganisationId } = {}) {
   const response = await fetch(base + path, { method: body === undefined ? 'GET' : 'POST',
-    headers: { 'content-type': 'application/json', ...(actor ? { authorization: `Bearer ${tokens[actor]}` } : {}) },
+    headers: { 'content-type': 'application/json', ...(actor ? { authorization: `Bearer ${tokens[actor]}` } : {}),
+      ...(actingOrganisationId ? { 'x-acting-organisation-id': actingOrganisationId } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20000) });
-  return { status: response.status, data: await response.json() };
+  return { status: response.status, data: await response.json(), headers: response.headers };
 }
 async function success(path, options) {
   const response = await request(path, options);
@@ -47,6 +49,7 @@ async function populateModel(actor, model) {
     const data = field.id === 67 ? 'original' : [10, 11, 26, 27, 28, 51].includes(field.id) ? 100 : `fixture-${field.id}`;
     await value({ modelId: model.id }, field.id, data, actor);
   }
+  await success(`/battery-models/${model.id}/applicability-review`, { actor, body: { decisions: syntheticConditionalDecisions(model.category) } });
 }
 async function makeItem(actor = 'A', model = models[actor]) {
   return success('/battery-items', { actor, body: { modelId: model.id, serialOrItemIdentifier: randomUUID() } });
@@ -137,6 +140,26 @@ test('Gate 5: real source evidence supports draft, ready and published v1 with r
   assert.ok(!JSON.stringify(publicView).includes('evidenceIds'));
   const snapshot = await admin.publicPassportSnapshot.findFirstOrThrow({ where: { passportVersionId: v1.version.id } });
   assert.equal(snapshot.sha256, hashJson(snapshot.publicJson));
+});
+
+test('readiness GET reports publication cross-field blockers without mutating state, versions or audit', async () => {
+  const item = await makeItem();
+  await value({ batteryItemId: item.id }, 26, 300);
+  const before = await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } });
+  const auditBefore = await admin.auditEvent.count({ where: { organisationId: orgs.A } });
+  const versionsBefore = await admin.passportVersion.count({ where: { batteryItemId: item.id } });
+  const summary = await success(`/compliance/item/${item.id}/readiness`);
+  const actual = await success(`/passports/${item.id}/validate`);
+  assert.equal(summary.score, 100);
+  assert.equal(summary.verified, summary.required);
+  assert.equal(summary.publishable, false);
+  assert.ok(summary.publicationBlockers.some(issue => issue.rule === 'BP-X001'));
+  assert.deepEqual(summary.publicationBlockers, actual.publicationBlockers);
+  assert.deepEqual(await admin.batteryItem.findUniqueOrThrow({ where: { id: item.id } }), before);
+  assert.equal(await admin.auditEvent.count({ where: { organisationId: orgs.A } }), auditBefore);
+  assert.equal(await admin.passportVersion.count({ where: { batteryItemId: item.id } }), versionsBefore);
+  assert.equal('item' in summary, false);
+  assert.equal('values' in summary, false);
 });
 
 test('Gate 5: changed value produces v2, links the prior hash and preserves every byte of v1', async () => {
@@ -274,4 +297,102 @@ test('Gate 5: revalidating an unchanged publication cannot create a duplicate ve
   assert.equal((await request(`/passports/${item.id}/publish`, { body: {} })).status, 409);
   assert.equal(await admin.passportVersion.count({ where: { batteryItemId: item.id } }), 1);
   assert.equal(await admin.registrySubmission.count({ where: { batteryItemId: item.id } }), 0);
+});
+
+test('conditional applicability changes invalidate inherited ready/publication state and retain immutable published versions', async () => {
+  const model = await success('/battery-models', { body: { modelIdentifier: randomUUID(), category: 'EV' } });
+  await populateModel('A', model);
+  const ready = await makeItem('A', model), published = await makeItem('A', model), recycled = await makeItem('A', model);
+  for (const item of [ready, published, recycled]) await success(`/passports/${item.id}/validate`, { body: {} });
+  const publication = await success(`/passports/${published.id}/publish`, { body: {} });
+  await event(recycled, 'recycle');
+  const immutable = await admin.passportVersion.findUniqueOrThrow({ where: { id: publication.version.id } });
+  const snapshot = await admin.publicPassportSnapshot.findFirstOrThrow({ where: { passportVersionId: publication.version.id } });
+  const decisions = syntheticConditionalDecisions('EV');
+  decisions[0] = { ...decisions[0], applicable: true, reason: 'Synthetic regression change: this previously excluded conditional requirement now applies.' };
+  await success(`/battery-models/${model.id}/applicability-review`, { body: { decisions } });
+  assert.equal((await success(`/battery-items/${ready.id}`)).passportState, 'data_collection');
+  assert.equal((await success(`/battery-items/${published.id}`)).passportState, 'updated');
+  assert.equal((await success(`/battery-items/${recycled.id}`)).passportState, 'recycled');
+  const assessment = await success(`/passports/${published.id}/validate`);
+  assert.equal(assessment.conditionalReview.complete, true);
+  assert.equal(assessment.publishable, false);
+  assert.ok(assessment.publicationBlockers.some(issue => issue.rule === 'BP-REQUIRED' && issue.fieldId === decisions[0].fieldId));
+  assert.equal((await request(`/passports/${published.id}/publish`, { body: {} })).status, 409);
+  assert.deepEqual(await admin.passportVersion.findUniqueOrThrow({ where: { id: publication.version.id } }), immutable);
+  assert.deepEqual(await admin.publicPassportSnapshot.findUniqueOrThrow({ where: { id: snapshot.id } }), snapshot);
+});
+
+test('private operator export preserves the real publication chain, stays private and records issuance without Registry or version mutations', async () => {
+  const { verifyManifest } = require('../../scripts/passport-export.cjs');
+  await value({ batteryItemId: mainItem.id }, 50, 'Synthetic authority-only export source value');
+  await success(`/passports/${mainItem.id}/validate`, { body: {} });
+  await success(`/passports/${mainItem.id}/publish`, { body: {} });
+  const beforeItem = await admin.batteryItem.findUniqueOrThrow({ where: { id: mainItem.id } });
+  const beforeVersions = await admin.passportVersion.findMany({ where: { batteryItemId: mainItem.id }, orderBy: { versionNo: 'asc' } });
+  const response = await request(`/passports/${mainItem.id}/operator-export`);
+  assert.equal(response.status, 200); assert.match(response.headers.get('cache-control'), /private, no-store/);
+  assert.match(response.headers.get('content-disposition'), /attachment/);
+  const report = verifyManifest(response.data);
+  assert.equal(report.versionCount, 3); assert.equal(report.sourceBytesVerified, false);
+  assert.equal(report.completeCustomerExitArchive, false);
+  assert.deepEqual(response.data.payload.versions.map(row => row.sha256), beforeVersions.map(row => row.sha256));
+  assert.deepEqual(response.data.payload.versions[2].canonicalJson, beforeVersions[2].canonicalJson);
+  assert.ok(response.data.payload.versions[2].canonicalJson.values.some(row => row.fieldId === 50));
+  const serialized = JSON.stringify(response.data);
+  for (const field of ['objectKey', 'tokenHash', 'downloadUrl', 'documentObjectKey', 'legalRepresentativeEmail']) {
+    assert.equal(serialized.includes('"' + field + '"'), false);
+  }
+  assert.equal(serialized.includes(orgs.B), false);
+  const issued = await admin.auditEvent.findFirstOrThrow({ where: { organisationId: orgs.A,
+    action: 'passport.operator_export_issued', resourceId: mainItem.id,
+    metadata: { path: ['exportId'], equals: response.data.payload.exportId } } });
+  assert.equal(issued.metadata.payloadSha256, response.data.integrity.payloadSha256);
+  assert.deepEqual(await admin.batteryItem.findUniqueOrThrow({ where: { id: mainItem.id } }), beforeItem);
+  assert.deepEqual(await admin.passportVersion.findMany({ where: { batteryItemId: mainItem.id }, orderBy: { versionNo: 'asc' } }), beforeVersions);
+  assert.equal(await admin.registrySubmission.count({ where: { batteryItemId: mainItem.id } }), 0);
+  const publicView = await success(`/public/b/${mainItem.publicId}`, { actor: null });
+  assert.equal(JSON.stringify(publicView).includes('Synthetic authority-only export source value'), false);
+  assert.equal((await request(`/public/b/${mainItem.publicId}/operator-export`, { actor: null })).status, 404);
+});
+
+test('operator export rejects anonymous, foreign tenant, non-reviewer, malformed ID and unpublished batteries', async () => {
+  const { SignJWT } = await import('jose');
+  tokens.exportReader = await new SignJWT({ org_id: orgs.A, role: 'operator_user' }).setProtectedHeader({ alg: 'HS256' })
+    .setSubject('export-non-reviewer').setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
+    .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
+  const path = `/passports/${mainItem.id}/operator-export`;
+  const before = await admin.auditEvent.count({ where: { resourceId: mainItem.id, action: 'passport.operator_export_issued' } });
+  assert.equal((await request(path, { actor: null })).status, 401);
+  assert.equal((await request(path, { actor: 'B' })).status, 404);
+  assert.equal((await request(path, { actor: 'exportReader' })).status, 403);
+  assert.equal((await request('/passports/not-a-uuid/operator-export')).status, 400);
+  const unpublished = await makeItem();
+  const draft = await request(`/passports/${unpublished.id}/operator-export`);
+  assert.equal(draft.status, 409); assert.equal(draft.data.code, 'EXPORT_PUBLICATION_REQUIRED');
+  assert.equal(await admin.auditEvent.count({ where: { resourceId: mainItem.id, action: 'passport.operator_export_issued' } }), before);
+});
+
+test('delegated private export requires its exact live Boolean scope and revocation stops the next export', async () => {
+  const { SignJWT } = await import('jose'); const providerId = randomUUID();
+  tokens.exportProvider = await new SignJWT({ org_id: providerId, role: 'service_provider_admin' }).setProtectedHeader({ alg: 'HS256' })
+    .setSubject('export-provider').setIssuer('eubatterypassport-dev').setAudience('eubatterypassport-api')
+    .setIssuedAt().setExpirationTime('10m').sign(new TextEncoder().encode(process.env.DEV_JWT_SECRET));
+  await success('/organisations/bootstrap', { actor: 'exportProvider', body: { legalName: 'Synthetic export provider', countryCode: 'NL', role: 'service_provider' } });
+  const grant = await admin.writtenAuthorisation.create({ data: { responsibleOperatorId: orgs.A, serviceProviderId: providerId,
+    documentObjectKey: 'synthetic/authorisation-not-customer-data', documentSha256: 'a'.repeat(64),
+    validFrom: new Date(Date.now() - 1000), validUntil: new Date(Date.now() + 60000), scopeJson: { evidenceReview: true } } });
+  const options = { actor: 'exportProvider', actingOrganisationId: orgs.A }, route = `/passports/${mainItem.id}/operator-export`;
+  for (const scopeJson of [{ evidenceReview: true }, { passportExport: false }, { passportExport: 'true' }, { passportExport: 1 }]) {
+    await admin.writtenAuthorisation.update({ where: { id: grant.id }, data: { scopeJson } });
+    assert.equal((await request(route, options)).status, 403);
+  }
+  await admin.writtenAuthorisation.update({ where: { id: grant.id }, data: { scopeJson: { passportExport: true } } });
+  const exported = await success(route, options); assert.equal(exported.payload.organisation.id, orgs.A);
+  assert.equal(JSON.stringify(exported).includes(providerId), false);
+  const audit = await admin.auditEvent.findFirstOrThrow({ where: { resourceId: mainItem.id, action: 'passport.operator_export_issued',
+    metadata: { path: ['exportId'], equals: exported.payload.exportId } } });
+  assert.equal(audit.actorSubject, 'export-provider');
+  await admin.writtenAuthorisation.update({ where: { id: grant.id }, data: { revokedAt: new Date() } });
+  assert.equal((await request(route, options)).status, 403);
 });

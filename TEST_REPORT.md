@@ -1,4 +1,99 @@
-# Verification record — 5 September 2026
+# Verification record
+
+## Authorisation management and source review — 12 November 2026
+
+The existing checkout remains the source; dependency installation, all builds,
+caches and test outputs use E:. The full platform lockfile audit passes with
+zero findings after the November runtime patches and Nest CLI build-tool update.
+The API build, all-workspace typecheck and web production build pass locally.
+The final unit/security run passes 164 tests without failures or skips, alongside
+21 rule tests and 43 static checks. Exact-revision CI results are recorded in the
+pull request. Real database, malware scanner, browser, migration and recovery
+tests must pass before merge; local fixtures do not establish provider acceptance.
+
+New coverage exercises current source attestations, source-expiry interval
+bounds, row-lock rechecks, private management projections, role/tenant scopes,
+cursor ownership, idempotent revocation and stale-session document handling.
+Required real integration includes a concurrent PostgreSQL source rejection,
+malformed/expired sources and a browser upload/download/human-review plus grant
+creation/revocation sequence at 390 and 1440 pixels. The browser UI responses are
+explicit synthetic fixtures; actual API tenant/byte/scan checks remain separate.
+
+The Commission's new public interface resources are observed in
+`docs/31_OFFICIAL_REGISTRY_INTERFACE_2026-11-12.md`. Neither their download nor
+passing software checks enables live Registry flags or closes Gate 7. Actual
+Auth0/MFA, target hosting, independent security/recovery and first-customer
+acceptance remain open. See `docs/30_AUTHORISATION_MANAGEMENT_2026-11-12.md`.
+
+## Production-control follow-up — 20 October 2026
+
+Local validation uses the existing source checkout with a separate snapshot,
+locked dependency installation, generated files, caches and logs on E:. No
+existing project was moved or replaced by links. Node 24.15/npm 11.12.1 remain
+the local toolchain; required CI uses Node 22.
+
+The complete initial local run passes 21 rule tests, 43 static checks and 143
+unit/security tests. After independent review fixed strict MFA response typing
+and the exact export-byte limit, the unit/security run passed 145 tests. After
+the export reader's open-first descriptor checks and deterministic pathname-swap
+and special-file regressions, the final run passes 147 tests without failures
+or skips. POSIX symlink/FIFO branches require Linux CI. The API production build and web production build
+(including web type validation) pass. The complete platform dependency audit
+reports zero known vulnerabilities, including development dependencies.
+
+New regressions cover all authenticated route scope policies, malformed/legacy
+grants, exact action separation, request-context isolation and grant rechecks;
+private export hash/chain/source tampering, missing records, independent portable
+verification, filesystem confidentiality and redacted CLI errors; exact browser
+item/byte boundaries; and real-provider configuration false-positive rejection.
+All provider acceptance/launch/Registry flags remain false in the auditor.
+
+The required integration runner additionally includes real PostgreSQL grant-lock
+revocation serialization and atomic audit checks, private export access and
+unchanged publications, plus a browser download with acknowledgement, exact
+independent content verification, wrong-item rejection and denied-permission
+handling. Real database/storage/scanner/browser/recovery CI must pass on the
+final PR revision before merge. These local results do not establish actual
+Auth0/MFA, hosting, customer migration, standard conformity or Registry acceptance.
+
+See [the production-control record](docs/29_PRODUCTION_CONTROLS_2026-10-20.md)
+and the exact-revision PR checks for remote results.
+
+## Customer passport workflow — local checks, 9 October 2026
+
+The customer-workflow branch passes the locked installation, Prisma generation,
+all workspace typechecks and API/web production builds with Node 24.15 on Windows.
+The final local run passes 21 rule tests, 43 static checks and 119 API/security/web
+unit tests with no skips. The platform lockfile audit reports zero known
+vulnerabilities. This does not describe the separately maintained marketing site.
+
+Independent local Chromium 1223 checks at 390 and 1440 pixels pass the synthetic
+save/link/review/validate/publish/QR sequence without page overflow, JavaScript
+errors or CSP violations. A failed item change removes the previous dossier.
+The local browser differs from CI's Playwright-installed browser; this evidence
+does not establish actual provider, database, storage or customer acceptance.
+The model conditional-review form also passes independent checks at both widths:
+unknown/short-reason decisions block submission, explicit approval is required,
+and recorded decisions persist after reload.
+
+New integration cases cover real tenant-bound model/item creation and persistence,
+incomplete-publication rejection, current evidence readiness, supplier review,
+review/publication/QR browser sequencing and mobile/desktop public scan rendering.
+Additional cases require explicit conditional applicability reviews, reject
+forged review metadata and preserve immutable versions when conditions change.
+Review downloads bind the exact finalized scanned storage version, constrain
+reviewer roles and tenants, audit issuance without the signed URL and preserve
+the separate human verification gate.
+The BFF regressions include HTTP-adapter empty POST streams while retaining
+origin/session checks and non-empty JSON, UTF-8 and streamed-size limits. The
+real browser fixture asserts the validation response before its blocked notice;
+audit-link exclusion checks serialize database BigInt IDs without omitting fields.
+They remain in the required central runner. Local Docker/database integration
+was not available; GitHub Actions must pass on the final commit before merge.
+Real Auth0/MFA, target hosting/storage and recovery acceptance remain open.
+See [the workflow record](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md).
+
+The records below are historical verification of their specified revisions.
 
 ## Gate 6 — internal Registry preparation verified
 
