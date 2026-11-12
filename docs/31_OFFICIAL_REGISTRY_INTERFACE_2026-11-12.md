@@ -158,3 +158,43 @@ unreviewed; these public guides do not replace that work.
   integration may a later reviewed release consider changing live flags. Software
   tests and publicly downloadable assets do not close Gate 7 or establish an EU
   registration result.
+
+## Local request preparation module
+
+`apps/api/src/modules/registry/official-registry-contract.ts` provides an isolated
+pure converter, without a controller, live adapter, credentials or network access.
+`prepareOfficialRegistryRequest` accepts one prevalidated internal draft batch of
+1–100 records, explicit catalogue observations, a category mapping and review
+metadata. Hashes bind the exact supplied catalogue and mapping to that review.
+The review is caller-recorded metadata, not authenticated Registry evidence.
+Synthetic observations must identify their environment as synthetic; no industrial
+code is inferred. Ambiguous mappings, missing observed subgroup codes, duplicate
+items/UPIs/publications or mixed category/schema/rules batches fail completely.
+
+The converter preserves each UPI exactly, uses item granularity and leaves out
+optional model/batch identifiers that the internal draft does not contain. It
+never substitutes the serial number for either identifier. Required retry keys
+are supplied by the caller; an optional previous-preparation fingerprint binds
+the request body, source publication IDs/hashes and environment. This rejects
+key reuse after a publication changes while keeping the same UPI, as well as
+replacement keys for an unchanged retry. This
+local comparison does not replace durable idempotency tracking in a future adapter.
+Resource bounds on reference data and local metadata, and visible-ASCII header
+values, are conservative local preparation policy rather than extra EU requirements.
+
+The returned request and source bindings are frozen copies. They do not recheck
+tenant authorization, current database state, canonical bytes or source evidence;
+the caller must obtain records through the existing authenticated preparation
+service and repeat the necessary checks before any future submission. Every
+result remains preparation-only with `liveActivationApproved:false` and no
+`registered` field. Request/schema preparation is not validation of the hosted
+passport against the new official semantic profiles.
+
+`inspectOfficialRegistryAcknowledgement` inspects only the published required
+acknowledgement fields from HTTP 202 and optionally checks the correlation ID.
+It never classifies final task/item outcomes positively. Dashboard message codes
+are open strings, and many result fields are optional in the public schema;
+complete task, organization, request, item and atomic-batch matching belongs in a
+separately reviewed response adapter. A `COMPLETED` label, success-looking message,
+URI or mixed-item counters cannot establish a positive final result through this
+module. Its regression fixtures are synthetic and send no external request.

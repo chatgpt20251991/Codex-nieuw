@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
-import { apiFetch } from '../../lib/api';
+import { useWorkspaceApi } from '../../components/WorkspaceProvider';
 import { AUTHORISATION_GROUPS, authorisationStatus, createAuthorisationRequests, parseAuthorisation,
   parseAuthorisationEvidence, parseAuthorisations, prepareAuthorisation,
   type Authorisation, type AuthorisationAction, type AuthorisationEvidence, type AuthorisationInput } from '../../lib/authorisations';
@@ -26,6 +26,7 @@ function message(error: unknown, mutation = false) {
 }
 
 export default function Authorisations() {
+  const apiFetch = useWorkspaceApi();
   const [organisation, setOrganisation] = useState<Organisation>();
   const [rows, setRows] = useState<Authorisation[]>([]);
   const [evidence, setEvidence] = useState<AuthorisationEvidence[]>([]);

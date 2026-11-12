@@ -1,5 +1,31 @@
 # Verification record
 
+## Bound customer workspaces and offline official request contract — 12 November 2026
+
+A fresh locked install and generated Prisma client run in
+`E:/Data/Han23/Codex/EUBatteryPassport/validation/customer-workspaces-2026-11-12`.
+The all-workspace typecheck, API/web production builds and full local suite pass:
+21 rule tests, 43 static checks and a final 199 unit/security tests, without
+failures or skips. The complete platform lockfile audit reports zero findings. This
+includes immutable customer epochs, aborted/stale requests, no mutation replay,
+opaque identity binding and missing/mismatched/legacy session rejection before
+upstream work. Exact-revision CI remains required before merge; the pull request
+records its measured results independently of local validation.
+
+Browser fixtures cover 390/1440-pixel customer selection, modelRead-only access,
+discarded previous-customer data and URL context, own-organisation mandate
+management and revocation. The separate real OIDC suite adds a service-provider
+account with exact modelRead grants backed by real versioned CI uploads and
+ClamAV scans, then checks A-to-B switching and live revocation. These are
+isolated test identities and synthetic documents, not production acceptance.
+
+The new official request/ACK helper has ten unit cases for exact field mapping,
+reviewed catalogue bindings, UPI/batch boundaries, source-bound retry identity
+and acknowledgement-only interpretation. It contains no network adapter and
+never returns a successful Registry registration. Both live flags remain false.
+Target Auth0/MFA, EU storage, hosting, recovery, independent security review,
+licensed standard review and first-customer acceptance remain open.
+
 ## Authorisation management and source review — 12 November 2026
 
 The existing checkout remains the source; dependency installation, all builds,

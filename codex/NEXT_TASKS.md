@@ -2,6 +2,13 @@
 
 Work top-to-bottom. Commit after each green gate.
 
+Customer workspaces are prepared in the 12 November follow-up; see
+`docs/32_CUSTOMER_WORKSPACES_2026-11-12.md` for the memory-only selector,
+whole-page/request context boundary and opaque cookie identity migration.
+Require current-revision browser/API/security checks and actual provider
+role/grant, expiry, sign-out and recovery acceptance before customer admission.
+This does not close Gate 7 or enable live Registry submission.
+
 Gates 1 and 2 are verified locally and in GitHub Actions; see their gate reports.
 Gate 3 disclosure fixes and regression evidence are recorded in GATE_3_REPORT.md;
 PR #11 is merged. Gate 4 evidence integrity and its 12 additional real

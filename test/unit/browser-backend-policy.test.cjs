@@ -47,16 +47,20 @@ test('BFF allows only the exact UUID passport QR download for GET and HEAD', () 
 
 // Execute the real route against controlled auth and upstream responses. Tokens
 // stay server-side; no provider account, network or customer data is needed.
-function qrRouteFixture({ upstream, session = {}, access, clientConfigured = true } = {}) {
+const identityContextHeader = 'x-eubp-identity-context';
+const syntheticIdentityContext = 'a'.repeat(64);
+function qrRouteFixture({ upstream, session, access, clientConfigured = true } = {}) {
   const next = require('next/server');
   const authSource = fs.readFileSync(path.join(__dirname, '../../apps/web/lib/auth-config.ts'), 'utf8');
   const authCompiled = ts.transpileModule(authSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const authExports = {};
   new Function('exports', authCompiled)(authExports);
   const calls = [];
+  const authCalls = { sessions: 0, accessTokens: 0 };
+  const currentSession = session === undefined ? { user: { [authExports.AUTH_CONTEXT_CLAIM]: syntheticIdentityContext } } : session;
   const client = {
-    getSession: async () => session,
-    getAccessToken: async () => access || { token: 'synthetic-session-access-token', expiresAt: Math.floor(Date.now() / 1000) + 60 },
+    getSession: async () => { authCalls.sessions++; return currentSession; },
+    getAccessToken: async () => { authCalls.accessTokens++; return access || { token: 'synthetic-session-access-token', expiresAt: Math.floor(Date.now() / 1000) + 60 }; },
   };
   const modules = {
     'next/server': next,
@@ -74,12 +78,50 @@ function qrRouteFixture({ upstream, session = {}, access, clientConfigured = tru
     calls.push({ target, options });
     return typeof upstream === 'function' ? upstream() : upstream;
   });
-  const invoke = (method = 'GET', headers = {}, segments = qrPath, init = {}) => route[method](
-    new next.NextRequest(`https://passport.example/api/backend/${segments.join('/')}`, {
-      ...init, method, headers: { host: 'passport.example', ...headers },
+  const invoke = (method = 'GET', headers = {}, segments = qrPath, init = {}) => {
+    const requestHeaders = new Headers({ host: 'passport.example', [identityContextHeader]: syntheticIdentityContext });
+    for (const [name, value] of Object.entries(headers)) {
+      if (value === null || value === undefined) requestHeaders.delete(name); else requestHeaders.set(name, value);
+    }
+    return route[method](new next.NextRequest(`https://passport.example/api/backend/${segments.join('/')}`, {
+      ...init, method, headers: requestHeaders,
     }), { params: Promise.resolve({ path: segments }) });
-  return { invoke, calls };
+  };
+  return { invoke, calls, authCalls, currentSession, identityContextClaim: authExports.AUTH_CONTEXT_CLAIM };
 }
+
+test('BFF identity binding rejects missing, stale, malformed and duplicated contexts before tokens or upstream work', async () => {
+  for (const value of [null, 'b'.repeat(64), 'invalid', syntheticIdentityContext + ', ' + syntheticIdentityContext]) {
+    for (const method of ['GET', 'POST']) {
+      const fixture = qrRouteFixture();
+      const response = await fixture.invoke(method, { [identityContextHeader]: value,
+        ...(method === 'POST' ? { origin: 'https://passport.example' } : {}) }, method === 'POST' ? ['suppliers'] : qrPath);
+      assert.equal(response.status, 409); assert.equal((await response.json()).code, 'AUTH_CONTEXT_CHANGED');
+      assert.equal(fixture.authCalls.accessTokens, 0); assert.equal(fixture.calls.length, 0);
+    }
+  }
+});
+
+test('BFF rejects legacy or malformed encrypted-session profiles and never accepts a marker supplied only by the browser', async () => {
+  for (const session of [{}, { user: {} }, { user: { sub: 'synthetic-legacy-user' } },
+    { user: { 'https://eubatterypassport.nl/authorization_context': 'not-a-valid-context' } }]) {
+    const fixture = qrRouteFixture({ session });
+    assert.equal((await fixture.invoke()).status, 401);
+    assert.equal(fixture.authCalls.accessTokens, 0); assert.equal(fixture.calls.length, 0);
+  }
+});
+
+test('changing the current session marker invalidates an older client context and the marker never reaches the API', async () => {
+  const fixture = qrRouteFixture({ upstream: () => Response.json({ ok: true }) });
+  assert.equal((await fixture.invoke('GET', {}, ['organisations', 'current'])).status, 200);
+  assert.equal(fixture.calls[0].options.headers.get(identityContextHeader), null);
+  fixture.currentSession.user[fixture.identityContextClaim] = 'b'.repeat(64);
+  const stale = await fixture.invoke('GET', {}, ['organisations', 'current']);
+  assert.equal(stale.status, 409); assert.equal((await stale.json()).code, 'AUTH_CONTEXT_CHANGED');
+  assert.equal(fixture.authCalls.accessTokens, 1); assert.equal(fixture.calls.length, 1);
+  assert.equal((await fixture.invoke('GET', { [identityContextHeader]: 'b'.repeat(64) }, ['organisations', 'current'])).status, 200);
+  assert.equal(fixture.calls.length, 2); assert.equal(fixture.calls[1].options.headers.get(identityContextHeader), null);
+});
 
 test('QR GET returns a private bounded SVG attachment with restrictive CSP and trusted credentials only', async () => {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0z"/></svg>';
@@ -109,6 +151,7 @@ test('QR GET returns a private bounded SVG attachment with restrictive CSP and t
   assert.equal(options.headers.get('x-acting-organisation-id'), qrItemId);
   assert.equal(options.headers.get('cookie'), null);
   assert.equal(options.headers.get('x-forwarded-host'), null);
+  assert.equal(options.headers.get(identityContextHeader), null);
   assert.equal(options.redirect, 'error');
   assert.equal(options.cache, 'no-store');
 });

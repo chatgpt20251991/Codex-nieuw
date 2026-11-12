@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
-import { apiFetch } from '../../lib/api';
+import { useWorkspace, useWorkspaceApi } from '../../components/WorkspaceProvider';
 import { downloadEvidence } from '../../lib/evidence-review';
 import { evidenceFile, evidenceUpload, parseEvidenceInventory, type EvidenceMetadata } from '../../lib/evidence-workspace';
 
@@ -21,6 +21,9 @@ function failure(cause: unknown, mutation = false) {
 }
 
 export default function Evidence() {
+  const apiFetch = useWorkspaceApi();
+  const { view, customer } = useWorkspace();
+  const permitted = (action: 'evidenceWrite' | 'evidenceReview') => view.actingId === null || Boolean(customer?.availableActions.includes(action));
   const [rows, setRows] = useState<EvidenceMetadata[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [file, setFile] = useState<File>();
@@ -41,7 +44,8 @@ export default function Evidence() {
   function invalidate() { epoch.current++; controller.current?.abort(); controller.current = undefined; }
   function start() {
     invalidate(); const current = epoch.current, abort = new AbortController(); controller.current = abort;
-    return { signal: abort.signal, current: () => current === epoch.current && !abort.signal.aborted };
+    const signal = AbortSignal.any([abort.signal, apiFetch.signal]);
+    return { signal, current: () => current === epoch.current && !signal.aborted && apiFetch.isCurrent() };
   }
   async function refresh(keepId = '', successNotice = '') {
     const request = start(); pending.current = true; setBusy(true); clearData(); setError(''); setNotice('');
@@ -67,7 +71,7 @@ export default function Evidence() {
   }, []);
 
   async function upload(event: FormEvent) {
-    event.preventDefault(); if (pending.current || !ready || !file) return;
+    event.preventDefault(); if (!permitted('evidenceWrite') || pending.current || !ready || !file) return;
     const source = file, request = start(); pending.current = true; setBusy(true); setError(''); resetReview();
     setSelectedId(''); setFile(undefined); setFileInputKey(value => value + 1); setNotice('Checking the file and calculating its integrity hash…');
     try {
@@ -101,17 +105,17 @@ export default function Evidence() {
     invalidate(); resetReview(); setError(''); setNotice(''); setSelectedId(rows.some(row => row.id === id) ? id : '');
   }
   async function reviewDownload() {
-    if (pending.current || !selected || !ready) return;
+    if (!permitted('evidenceReview') || pending.current || !selected || !ready) return;
     const id = selected.id, request = start(); pending.current = true; setBusy(true); resetReview(); setError(''); setNotice('');
     try {
-      await downloadEvidence(id, { signal: request.signal, isCurrent: request.current });
+      await downloadEvidence(id, { request: apiFetch, signal: request.signal, isCurrent: request.current });
       if (!request.current()) return;
       setDownloadedFor(id); setNotice('Source download initiated. Read the document before recording verification. Issuing the download does not prove it was received or reviewed.');
     } catch (cause) { if (request.current()) { clearData(); setError(failure(cause)); } }
     finally { if (request.current()) { pending.current = false; setBusy(false); } }
   }
   async function verify() {
-    if (pending.current || !selected || !ready || !reviewed || downloadedFor !== selected.id) return;
+    if (!permitted('evidenceReview') || pending.current || !selected || !ready || !reviewed || downloadedFor !== selected.id) return;
     const id = selected.id, request = start(); pending.current = true; setBusy(true); resetReview(); setError(''); setNotice('');
     try {
       await apiFetch(`/evidence/${id}/verify`, { method: 'POST', signal: request.signal });
@@ -133,11 +137,12 @@ export default function Evidence() {
     {busy && !notice && <div className="notice" role="status">Checking source documents…</div>}
     <div className="twoCol">
       <section className="panel"><h2>Upload a source document</h2><form onSubmit={upload}>
-        <label>Source file<input key={fileInputKey} type="file" disabled={busy || !ready} onChange={event => {
+        <label>Source file<input key={fileInputKey} type="file" disabled={busy || !ready || !permitted('evidenceWrite')} onChange={event => {
           resetReview(); setError(''); setNotice(''); setFile(event.target.files?.[0]);
         }} /></label>
         <p>Files up to 100 MiB. Documents are stored privately and checked before they become available for review.</p>
-        <button type="submit" className="button" disabled={busy || !ready || !file}>Upload source document</button>
+        <button type="submit" className="button" disabled={busy || !ready || !file || !permitted('evidenceWrite')}>Upload source document</button>
+        {!permitted('evidenceWrite') && <p>Uploading is not included in this authorisation.</p>}
       </form></section>
       <section className="panel"><h2>Review policy</h2><div className="proofList">
         <div><b>1</b><span>Check that the source covers the correct organisation, model or agreement.</span></div>
@@ -155,10 +160,11 @@ export default function Evidence() {
         <div className="panelHead"><div><h3>{selected.originalFilename}</h3><div className="tiny hashText">Evidence ID: {selected.id}</div></div><span className="badge neutral">{selected.verificationStatus}</span></div>
         <dl className="passportMetadata"><dt>Content type</dt><dd>{selected.mimeType || 'Not recorded'}</dd><dt>File size</dt><dd>{selected.sizeBytes === null ? 'Not recorded' : `${Number(selected.sizeBytes).toLocaleString()} bytes`}</dd>
           <dt>Uploaded</dt><dd>{time(selected.uploadedAt)}</dd><dt>Issued</dt><dd>{time(selected.issuedAt)}</dd><dt>Expires</dt><dd>{time(selected.expiresAt)}</dd></dl>
-        <div className="workflowActions"><button type="button" className="button secondary" disabled={busy || !current} onClick={reviewDownload}>Download source for review</button></div>
+        <div className="workflowActions"><button type="button" className="button secondary" disabled={busy || !current || !permitted('evidenceReview')} onClick={reviewDownload}>Download source for review</button></div>
         <p>The download is limited to the exact stored version accepted by the security checks. Reviewer permissions and current document validity are checked by the server.</p>
-        <label className="checkLabel"><input type="checkbox" checked={reviewed} disabled={busy || !current || downloadedFor !== selected.id} onChange={event => setReviewed(event.target.checked)} /><span>I have read this source document and reviewed its relevance, authenticity and validity.</span></label>
-        <button type="button" className="button" disabled={busy || !current || !reviewed || downloadedFor !== selected.id} onClick={verify}>Record evidence verification</button>
+        <label className="checkLabel"><input type="checkbox" checked={reviewed} disabled={busy || !current || downloadedFor !== selected.id || !permitted('evidenceReview')} onChange={event => setReviewed(event.target.checked)} /><span>I have read this source document and reviewed its relevance, authenticity and validity.</span></label>
+        <button type="button" className="button" disabled={busy || !current || !reviewed || downloadedFor !== selected.id || !permitted('evidenceReview')} onClick={verify}>Record evidence verification</button>
+        {!permitted('evidenceReview') && <p>Private source review and verification are not included in this authorisation.</p>}
         {selected.eligibleForAuthorisation && <div className="notice single"><strong>Eligible authorisation evidence</strong><p>The current document checks permit it to support an authorisation. Confirm that the written agreement covers the intended provider and actions.</p><Link className="button secondary" href="/authorisations">Manage written authorisations</Link></div>}
       </div>}
     </section>

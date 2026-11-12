@@ -1,6 +1,6 @@
 import { Auth0Client } from '@auth0/nextjs-auth0/server';
 import { NextResponse } from 'next/server';
-import { AUTH_SCOPE, AUTH_SESSION_SECONDS, AUTH_TRANSACTION_SECONDS, MFA_ACR, assertMfaIdentity, assertProvisionedIdentity, readAuth0Config } from './auth-config';
+import { AUTH_SCOPE, AUTH_SESSION_SECONDS, AUTH_TRANSACTION_SECONDS, MFA_ACR, AUTH_CONTEXT_CLAIM, authorizationContext, assertMfaIdentity, assertProvisionedIdentity, readAuth0Config } from './auth-config';
 
 let client: Auth0Client | undefined;
 
@@ -41,10 +41,11 @@ export function getAuth0Client(): Auth0Client | null {
     async beforeSessionSaved(session) {
       assertMfaIdentity(session.user);
       assertProvisionedIdentity(session.user);
+      const identityContext = await authorizationContext(config.secret, session.user);
       // API access tokens remain encrypted inside the HttpOnly cookie. Browser
       // profile responses never need provider/custom authorization claims.
       const { sub, name, email, email_verified } = session.user;
-      session.user = { sub,
+      session.user = { sub, [AUTH_CONTEXT_CLAIM]: identityContext,
         ...(typeof name === 'string' ? { name: name.slice(0, 255) } : {}),
         ...(typeof email === 'string' && email_verified === true ? { email: email.slice(0, 320), email_verified: true } : {}) };
       delete session.tokenSet.refreshToken;

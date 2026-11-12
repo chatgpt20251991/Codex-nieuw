@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
-import { apiFetch } from '../../lib/api';
+import { useWorkspace, useWorkspaceApi } from '../../components/WorkspaceProvider';
 import { downloadEvidence } from '../../lib/evidence-review';
 
 const labels: Record<string, string> = {
@@ -15,6 +15,9 @@ function displayValue(value: unknown) {
 }
 
 export default function Suppliers() {
+  const apiFetch = useWorkspaceApi();
+  const { view, customer } = useWorkspace();
+  const permitted = (action: 'supplierWrite' | 'supplierReview' | 'evidenceReview') => view.actingId === null || Boolean(customer?.availableActions.includes(action));
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
@@ -42,7 +45,7 @@ export default function Suppliers() {
   useEffect(() => { load().catch(e => setError(e.message)); }, []);
 
   async function create(event: FormEvent) {
-    event.preventDefault(); setBusy('supplier'); setError(''); setNotice('');
+    event.preventDefault(); if (!permitted('supplierWrite')) return; setBusy('supplier'); setError(''); setNotice('');
     try {
       await apiFetch('/suppliers', { method: 'POST', body: JSON.stringify({
         legalName: name.trim(), countryCode: country.trim().toUpperCase() || undefined,
@@ -53,7 +56,7 @@ export default function Suppliers() {
   }
 
   async function createRequest(event: FormEvent) {
-    event.preventDefault(); setError(''); setNotice('');
+    event.preventDefault(); if (!permitted('supplierWrite')) return; setError(''); setNotice('');
     const fields = fieldIds.trim().split(/[\s,]+/);
     const days = Number(expiry);
     if (!fieldIds.trim() || fields.some(value => !/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 71)) {
@@ -86,7 +89,7 @@ export default function Suppliers() {
   }
 
   async function acceptReview() {
-    if (!reviewed || !review || !['submitted', 'partially_submitted'].includes(review.status)) return;
+    if (!permitted('supplierReview') || !reviewed || !review || !['submitted', 'partially_submitted'].includes(review.status)) return;
     setBusy('accept'); setError(''); setNotice('');
     try {
       const result = await apiFetch('/supplier-requests/' + review.id + '/accept', { method: 'POST', body: '{}' });
@@ -95,8 +98,9 @@ export default function Suppliers() {
     } catch (e: any) { setError(e.message); } finally { setBusy(''); }
   }
   async function reviewDocument(id: string) {
+    if (!permitted('evidenceReview')) return;
     setBusy('document'); setError(''); setNotice(''); setReviewed(false);
-    try { await downloadEvidence(id); setNotice('Source download initiated. Read the document before reviewing the declarations.'); }
+    try { await downloadEvidence(id, { request: apiFetch, isCurrent: apiFetch.isCurrent, signal: apiFetch.signal }); setNotice('Source download initiated. Read the document before reviewing the declarations.'); }
     catch (e: any) { setError(e.message); } finally { setBusy(''); }
   }
 
@@ -104,12 +108,13 @@ export default function Suppliers() {
     <section className="pageHead"><div><div className="kicker">SUPPLIER DATA ROOM</div><h1>Chase evidence at the source.</h1><p>Request specific model data, inspect supplier submissions and import them for review. Supplier declarations do not become validated facts automatically.</p></div><button className="button secondary" disabled={Boolean(busy)} onClick={() => load().catch(e => setError(e.message))}>Refresh</button></section>
     {error && <div className="alert" role="alert">{error}</div>}
     {notice && <div className="notice" role="status">{notice}</div>}
+    {(!permitted('supplierWrite') || !permitted('supplierReview')) && <div className="notice" role="status">Creating requests and importing declarations require their separate written-authorisation permissions. Unavailable actions are disabled.</div>}
     <div className="twoCol">
       <section className="panel"><h2>Add supplier</h2><form onSubmit={create}>
         <label>Legal name<input value={name} onChange={e => setName(e.target.value)} placeholder="Cell / pack supplier" required /></label>
         <label>Contact email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="compliance@supplier.com" /></label>
         <label>Country code, if known<input value={country} onChange={e => setCountry(e.target.value.toUpperCase())} maxLength={2} pattern="[A-Za-z]{2}" placeholder="For example: CN" /></label>
-        <button className="button" disabled={!name.trim() || Boolean(busy)} type="submit">Add supplier</button>
+        <button className="button" disabled={!name.trim() || Boolean(busy) || !permitted('supplierWrite')} type="submit">Add supplier</button>
       </form></section>
       <section className="panel"><h2>Request model data</h2><form onSubmit={createRequest}>
         <label>Supplier<select value={supplierId} onChange={e => setSupplierId(e.target.value)} required><option value="">Select supplier</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.legalName}</option>)}</select></label>
@@ -117,7 +122,7 @@ export default function Suppliers() {
         <label>Requested field numbers<input value={fieldIds} onChange={e => setFieldIds(e.target.value)} placeholder="For example: 11, 12, 26" required /><small>Choose fields 1–71 from the <Link href="/models">data checklist</Link>.</small></label>
         <label>Supplier instructions<textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={4000} /></label>
         <label>Link expiry in days<input type="number" min="1" max="90" value={expiry} onChange={e => setExpiry(e.target.value)} required /></label>
-        <button className="button" disabled={Boolean(busy) || !supplierId || !modelId || !fieldIds.trim()} type="submit">{busy === 'request' ? 'Creating link…' : 'Create private invitation'}</button>
+        <button className="button" disabled={Boolean(busy) || !supplierId || !modelId || !fieldIds.trim() || !permitted('supplierWrite')} type="submit">{busy === 'request' ? 'Creating link…' : 'Create private invitation'}</button>
         <p>The link is generated once. No email is sent automatically.</p>
       </form></section>
     </div>
@@ -129,10 +134,10 @@ export default function Suppliers() {
     <section className="panel"><h2>Recent data requests</h2><div className="rows">{requests.map(r => <div className="row" key={r.id}><div><strong>{r.supplier?.legalName}</strong><span>{r.model?.modelIdentifier} · {r.fields?.length} requested points · {r._count?.submissions || 0} submissions</span></div><div className="rowMeta"><span className="badge neutral">{labels[r.status] || r.status}</span><button className="button secondary" disabled={Boolean(busy)} onClick={() => openReview(r.id)}>Review request</button></div></div>)}{!requests.length && <div className="empty">No supplier requests yet.</div>}</div></section>
     {review && <section className="panel"><div className="panelHead"><div><h2>Review supplier declarations</h2><p>{review.supplier?.legalName} · {review.model?.modelIdentifier} · {labels[review.status] || review.status}</p></div><button className="button secondary" disabled={Boolean(busy)} onClick={() => { setReview(undefined); setReviewed(false); }}>Close review</button></div>
       <p>These are supplier declarations. Check the model, values, units and supporting documents before importing them. Importing does not verify evidence or validate any passport value.</p>
-      <div className="rows">{review.submissions.map((submission: any) => <article className="row" key={submission.id}><div><strong>Field {submission.fieldDefinitionId}{submission.unit ? ' · ' + submission.unit : ''}</strong><pre className="log">{displayValue(submission.valueJson)}</pre>{submission.attestationText && <p>{submission.attestationText}</p>}<span>{submission.evidence.length ? 'Evidence references:' : 'No evidence attached.'}</span>{submission.evidence.map((link: any) => <div className="evidenceReview" key={link.evidenceId}><span>{link.evidence?.originalFilename || link.evidenceId} · {link.evidence?.verificationStatus || 'Unknown status'}</span><button className="button secondary" disabled={Boolean(busy)} onClick={() => reviewDocument(link.evidenceId)}>Download source document</button></div>)}</div></article>)}{!review.submissions.length && <div className="empty">No supplier declarations have been submitted.</div>}</div>
+      <div className="rows">{review.submissions.map((submission: any) => <article className="row" key={submission.id}><div><strong>Field {submission.fieldDefinitionId}{submission.unit ? ' · ' + submission.unit : ''}</strong><pre className="log">{displayValue(submission.valueJson)}</pre>{submission.attestationText && <p>{submission.attestationText}</p>}<span>{submission.evidence.length ? 'Evidence references:' : 'No evidence attached.'}</span>{submission.evidence.map((link: any) => <div className="evidenceReview" key={link.evidenceId}><span>{link.evidence?.originalFilename || link.evidenceId} · {link.evidence?.verificationStatus || 'Unknown status'}</span><button className="button secondary" disabled={Boolean(busy)||!permitted('evidenceReview')} onClick={() => reviewDocument(link.evidenceId)}>Download source document</button></div>)}</div></article>)}{!review.submissions.length && <div className="empty">No supplier declarations have been submitted.</div>}</div>
       {['submitted', 'partially_submitted'].includes(review.status) && review.submissions.length > 0 && <div>
         <label className="checkLabel"><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} /> I reviewed these declarations and want to import them as unvalidated supplier values.</label>
-        <button className="button" disabled={Boolean(busy) || !reviewed} onClick={acceptReview}>{busy === 'accept' ? 'Importing…' : 'Import declarations for review'}</button>
+        <button className="button" disabled={Boolean(busy) || !reviewed || !permitted('supplierReview')} onClick={acceptReview}>{busy === 'accept' ? 'Importing…' : 'Import declarations for review'}</button>
       </div>}
     </section>}
   </AppShell>;
