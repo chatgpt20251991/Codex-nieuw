@@ -3,9 +3,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
 import DevAuthPanel from '../../components/DevAuthPanel';
-import { apiFetch } from '../../lib/api';
+import { useWorkspaceApi } from '../../components/WorkspaceProvider';
 
 export default function Onboarding() {
+  const apiFetch = useWorkspaceApi();
   const [organisation, setOrganisation] = useState<any>();
   const [checked, setChecked] = useState(false);
   const [orgName, setOrgName] = useState('');

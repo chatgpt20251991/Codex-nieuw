@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import WorkspaceProvider from '../components/WorkspaceProvider';
 
 export const metadata: Metadata = {
   title: 'EU Battery Passport — Compliance OS',
@@ -16,5 +17,5 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (!nonce || !/^[A-Za-z0-9+/]{43}=$/.test(nonce)) {
     throw new Error('A fresh middleware nonce is required to render the application');
   }
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><WorkspaceProvider>{children}</WorkspaceProvider></body></html>;
 }

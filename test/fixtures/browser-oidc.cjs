@@ -164,7 +164,7 @@ async function createHttpsProxy(target) {
   return { origin: await listen(server), requests, responses, close: () => close(server) };
 }
 
-async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
+async function createOidcIssuer({ clientId, clientSecret, audience, tenants, actorRoles = {} }) {
   const jose = await import('jose');
   const key = await jose.generateKeyPair('RS256');
   const jwk = { ...await jose.exportJWK(key.publicKey), kid: 'browser-fixture', alg: 'RS256', use: 'sig' };
@@ -177,7 +177,7 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
   async function accessToken(actor, overrides = {}) {
     const now = Math.floor(Date.now() / 1000);
     return sign({ iss: issuer, aud: audience, sub: `browser-${actor}`,
-      'https://eubatterypassport.nl/organisation_id': tenants[actor], 'https://eubatterypassport.nl/role': 'operator_admin',
+      'https://eubatterypassport.nl/organisation_id': tenants[actor], 'https://eubatterypassport.nl/role': actorRoles[actor] || 'operator_admin',
       iat: now, exp: now + 600, ...overrides });
   }
   const json = (res, status, data) => res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(data));
@@ -216,7 +216,11 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
         const id = randomBytes(24).toString('hex');
         events.authorization.push(params); pending.set(id, { params, fault: nextFault }); nextFault = undefined;
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(`<html><head><title>Isolated OIDC protocol fixture</title></head><body><h1>Choose synthetic account</h1><form method="post" action="/fixture/choose"><input type="hidden" name="request" value="${id}"><button name="actor" value="A">Choose tenant A</button><button name="actor" value="B">Choose tenant B</button></form></body></html>`);
+        const buttons = Object.keys(tenants).map(actor => {
+          assert.match(actor, /^[A-Z][A-Z0-9_]{0,15}$/);
+          return `<button name="actor" value="${actor}">Choose tenant ${actor}</button>`;
+        }).join('');
+        return res.end(`<html><head><title>Isolated OIDC protocol fixture</title></head><body><h1>Choose synthetic account</h1><form method="post" action="/fixture/choose"><input type="hidden" name="request" value="${id}">${buttons}</form></body></html>`);
       }
       if (url.pathname === '/fixture/choose' && req.method === 'POST') {
         const fields = await body(req), selected = pending.get(fields.get('request'));
@@ -257,7 +261,7 @@ async function createOidcIssuer({ clientId, clientSecret, audience, tenants }) {
           email: `browser-${entry.actor.toLowerCase()}@example.invalid`, email_verified: true,
           // Synthetic signed assertion for protocol tests, not a real MFA enrolment.
           amr: ['pwd', 'mfa'],
-          'https://eubatterypassport.nl/organisation_id': tenants[entry.actor], 'https://eubatterypassport.nl/role': 'operator_admin',
+          'https://eubatterypassport.nl/organisation_id': tenants[entry.actor], 'https://eubatterypassport.nl/role': actorRoles[entry.actor] || 'operator_admin',
           ...entry.fault?.idClaims });
         entry.issued = { token, idToken };
         return json(res, 200, { access_token: token, id_token: idToken, token_type: 'Bearer',

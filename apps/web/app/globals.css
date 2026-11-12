@@ -17,6 +17,13 @@
 .passportMetadata dt{color:var(--muted)}
 .passportMetadata dd{margin:0;overflow-wrap:anywhere}
 .row>div{min-width:0}.row strong,.row span,.portalIntro h1,.portalIntro p,.portalBrand strong{overflow-wrap:anywhere}
+.workspaceBar{margin:0 38px 18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:#0d1c19;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1fr);gap:12px 24px}
+.workspaceCurrent{min-width:0;display:grid;align-content:center;gap:7px;overflow-wrap:anywhere}.workspaceCurrent strong{font-size:19px}.workspaceCurrent>span:last-child{font-size:12px;color:var(--muted);line-height:1.5}
+.workspaceControls{min-width:0}.workspaceControls label{margin:0}.workspaceControls .workflowActions{margin:10px 0 0}.workspaceHint{grid-column:1/-1;color:var(--muted);font-size:12px;line-height:1.5;margin:0}
+.workspaceGate{max-width:1100px;margin:0 auto;padding:40px 24px;overflow-wrap:anywhere}.workspaceGate>.workspaceBar{margin:24px 0}.workspaceGate>p{color:var(--muted);line-height:1.6}.workspaceGate>h1{font-size:34px}
+.main>.workspaceBar{position:sticky;top:68px;z-index:9}
+.appbar>div{min-width:0}.appbar .eyebrow{overflow-wrap:anywhere}
+@media(max-width:760px){.workspaceBar{margin:0 18px 14px;grid-template-columns:minmax(0,1fr);padding:15px}.main>.workspaceBar{top:0}.workspaceGate{padding:24px 18px}.workspaceGate>.workspaceBar{margin:20px 0}}
 .authorisationFields{border:0;padding:0;margin:0;min-width:0}
 .authorisationDates{padding:0}
 .authorisationPermissions{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:14px 0;min-width:0}

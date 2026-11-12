@@ -3,6 +3,21 @@ import { useEffect, useState } from 'react';
 
 type Session = { configured: boolean; authenticated: boolean; name?: string };
 
+export async function requestSignOut() {
+  window.dispatchEvent(new CustomEvent('eubp-signout-state', { detail: 'pending' }));
+  try {
+    const response = await fetch('/auth/logout', { method: 'POST', mode: 'cors', headers: { accept: 'application/json' },
+      credentials: 'same-origin', referrerPolicy: 'no-referrer', cache: 'no-store', redirect: 'error' });
+    if (!response.ok) throw new Error('Logout unavailable');
+    const data = await response.json(), destination = new URL(data.redirectTo);
+    if (destination.protocol !== 'https:' || destination.username || destination.password || destination.hash) throw new Error('Invalid logout destination');
+    window.location.assign(destination.href);
+  } catch {
+    window.dispatchEvent(new CustomEvent('eubp-signout-state', { detail: 'failed' }));
+    throw new Error('Sign-out could not be completed.');
+  }
+}
+
 export default function SessionPanel() {
   const [session, setSession] = useState<Session | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -22,17 +37,9 @@ export default function SessionPanel() {
   async function logout() {
     setSigningOut(true); setLogoutError('');
     try {
-      // A navigation form under no-referrer sends Origin:null. An explicit
-      // CORS-mode fetch preserves Origin for the CSRF check without a Referer.
-      const response = await fetch('/auth/logout', { method: 'POST', mode: 'cors',
-        headers: { accept: 'application/json' }, credentials: 'same-origin',
-        referrerPolicy: 'no-referrer', cache: 'no-store', redirect: 'error' });
-      if (!response.ok) throw new Error('Logout unavailable');
-      const data = await response.json();
-      const destination = new URL(data.redirectTo);
-      if (destination.protocol !== 'https:' || destination.username || destination.password || destination.hash) throw new Error('Invalid logout destination');
-      // The server restricts this URL to the configured provider and registered return URL.
-      window.location.assign(destination.href);
+      // The provider clears its entire private tree before this request; any
+      // failure is also reported to its still-mounted sign-in fallback.
+      await requestSignOut();
     } catch {
       setLogoutError('Sign-out could not be completed. Please try again.');
       setSigningOut(false);

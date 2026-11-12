@@ -11,6 +11,13 @@ const { chromium } = require('playwright');
 let web, browser, base, logs = '';
 const root = resolve(__dirname, '../..');
 const api = new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1');
+const syntheticIdentity = 'a'.repeat(64);
+const syntheticOwnOrganisation = { id: '70000000-0000-4000-8000-000000000007', legalName: 'Synthetic browser operator', countryCode: 'NL' };
+
+function assertPrivateBrowserRequest(request) {
+  assert.equal(request.headers().authorization, undefined, 'Production browser requests must not carry bearer credentials');
+  assert.equal(request.headers()['x-eubp-identity-context'], syntheticIdentity);
+}
 
 function assertEnforcedPolicy(response) {
   const policy = response.headers.get('content-security-policy');
@@ -52,6 +59,10 @@ async function instrumentPage() {
     });
   });
   const page = await context.newPage();
+  // Only these CSP/UI cases use a synthetic profile. The separate OIDC suite
+  // exercises real encrypted cookies and the BFF's context-header enforcement.
+  await page.route(`${base}/api/session`, route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ configured: true, authenticated: true, name: 'Synthetic browser user', identityContext: syntheticIdentity }) }));
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   return { context, page, errors };
@@ -96,6 +107,92 @@ after(async () => {
   }
 });
 
+for (const width of [390, 1440]) test(`customer workspace switching clears data and URLs and rechecks revoked access at ${width}px`, async () => {
+  const { context, page, errors } = await instrumentPage();
+  const customerA = '70000000-0000-4000-8000-00000000000a', customerB = '70000000-0000-4000-8000-00000000000b';
+  const grantA = '70000000-0000-4000-8000-00000000001a', grantB = '70000000-0000-4000-8000-00000000001b';
+  const requests = []; let revokedB = false, holdA = false, releaseA;
+  const heldA = new Promise(resolve => { releaseA = resolve; });
+  const discovery = () => [{ id: grantA, responsibleOperator: { id: customerA, legalName: 'Customer Alpha', countryCode: 'NL' },
+    validFrom: '2020-01-01T00:00:00.000Z', validUntil: '2099-12-31T00:00:00.000Z', availableActions: ['modelRead'] },
+    ...(!revokedB ? [{ id: grantB, responsibleOperator: { id: customerB, legalName: 'Customer Beta', countryCode: 'DE' },
+      validFrom: '2020-01-01T00:00:00.000Z', validUntil: null, availableActions: ['modelRead'] }] : [])];
+  try {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.route(`${base}/api/backend/**`, async route => {
+      const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
+      assertPrivateBrowserRequest(request);
+      const acting = request.headers()['x-acting-organisation-id']; requests.push({ path, acting, method: request.method() });
+      let data;
+      if (path === '/organisations/current' || path === '/organisations/authorised-customers' || path === '/authorisations') {
+        assert.equal(acting, undefined, 'Discovery and written mandate management always use the signed-in organisation');
+        data = path === '/organisations/current' ? syntheticOwnOrganisation : path === '/authorisations' ? [] : discovery();
+      } else if (path === '/battery-models') {
+        if (acting === customerB && revokedB) return route.fulfill({ status: 403, contentType: 'application/json',
+          body: JSON.stringify({ code: 'NO_WRITTEN_AUTHORISATION', message: 'This customer authorisation has been revoked.' }) });
+        if (acting === customerA && holdA) await heldA;
+        data = acting ? [{ id: acting, modelIdentifier: acting === customerA ? 'ALPHA-PRIVATE-MODEL' : 'BETA-PRIVATE-MODEL',
+          category: 'IND', lifecycleStatus: 'original', _count: { items: 2 } }] : [];
+      } else if (path === `/battery-models/${customerA}`) {
+        assert.equal(acting, customerA); data = { id: customerA, modelIdentifier: 'ALPHA-PRIVATE-MODEL', category: 'IND', items: [] };
+      } else if (path === `/compliance/model/${customerA}/readiness`) {
+        assert.equal(acting, customerA); data = { conditionalReview: { complete: false, fields: [] } };
+      } else if (path === '/suppliers' || path === '/evidence') {
+        assert.equal(acting, undefined, 'modelRead alone must not trigger unrelated customer queries'); data = [];
+      } else return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"Unexpected workspace fixture route"}' });
+      try { await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }); }
+      catch (cause) { if (!(holdA && acting === customerA)) throw cause; }
+    });
+    await page.goto(`${base}/dashboard`);
+    const workspace = page.getByLabel('Workspace', { exact: true });
+    await page.getByText('Synthetic browser operator', { exact: true }).waitFor();
+    assert.equal(await workspace.locator('option').count(), 3);
+    await workspace.selectOption(customerA);
+    await page.getByRole('button', { name: 'Switch workspace', exact: true }).click();
+    await page.getByText('ALPHA-PRIVATE-MODEL', { exact: true }).waitFor();
+    await page.getByText('Acting for Customer Alpha', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'EU Registry', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('link', { name: 'Suppliers', exact: true }).count(), 0);
+    assert.equal(await page.getByText('Not granted', { exact: true }).count(), 1);
+    await page.getByRole('link', { name: 'Open battery models', exact: true }).click();
+    await page.getByRole('button', { name: 'View batteries', exact: true }).click();
+    await page.getByRole('heading', { name: 'Batteries for ALPHA-PRIVATE-MODEL', exact: true }).waitFor();
+    await page.getByText('Reading the regulatory definitions is not included in this authorisation.', { exact: true }).waitFor();
+    await page.getByLabel('Model identifier', { exact: true }).fill('UNSAVED-ALPHA-DRAFT');
+    assert.equal(await page.getByRole('button', { name: 'Create model', exact: true }).isEnabled(), false);
+    await page.getByRole('link', { name: 'Overview', exact: true }).click();
+    await page.getByText('ALPHA-PRIVATE-MODEL', { exact: true }).waitFor();
+    // Leave a pending response and an old customer identifier in the address.
+    // Both must be discarded when the next immutable workspace epoch starts.
+    holdA = true; await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('select[aria-label="Workspace"]') !== null);
+    await page.evaluate(id => history.replaceState(null, '', `/dashboard?model=${id}#previous-customer`), customerA);
+    await workspace.selectOption(customerB);
+    await page.getByRole('button', { name: 'Switch workspace', exact: true }).click();
+    await page.getByText('BETA-PRIVATE-MODEL', { exact: true }).waitFor();
+    releaseA();
+    await page.getByText('Acting for Customer Beta', { exact: true }).waitFor();
+    assert.equal(new URL(page.url()).search, ''); assert.equal(new URL(page.url()).hash, '');
+    assert.equal((await page.locator('body').innerText()).includes('ALPHA-PRIVATE-MODEL'), false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }).includes('PRIVATE-MODEL')), false);
+    // An operator-only route resets to the provider's own organisation before
+    // that route mounts; it never sends the previous acting header.
+    await page.getByRole('link', { name: 'Authorisations', exact: true }).click();
+    await page.getByRole('heading', { name: 'Synthetic browser operator', exact: true }).waitFor();
+    assert.equal(await workspace.inputValue(), ''); assert.equal(await workspace.isDisabled(), true);
+    await page.getByRole('link', { name: 'Overview', exact: true }).click();
+    await workspace.selectOption(customerB); await page.getByRole('button', { name: 'Switch workspace', exact: true }).click();
+    await page.getByText('BETA-PRIVATE-MODEL', { exact: true }).waitFor();
+    revokedB = true; await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.getByRole('heading', { name: 'Workspace access is paused.', exact: true }).waitFor();
+    assert.equal((await page.locator('body').innerText()).includes('BETA-PRIVATE-MODEL'), false);
+    assert.equal(await workspace.locator(`option[value="${customerB}"]`).count(), 0);
+    assert.equal(requests.some(row => row.method !== 'GET'), false, 'No mutation is replayed while selecting or refreshing a customer');
+    assert.deepEqual(errors, []); assert.deepEqual(await page.evaluate(() => window.__gate7Violations), []);
+  } finally { releaseA(); await context.close(); }
+});
+
 for (const width of [390, 1440]) test(`authorisation console reviews exact permissions and revokes safely at ${width}px`, async () => {
   const { randomUUID } = require('node:crypto');
   const { context, page, errors } = await instrumentPage();
@@ -105,9 +202,10 @@ for (const width of [390, 1440]) test(`authorisation console reviews exact permi
     await page.setViewportSize({ width, height: 1000 });
     await page.route(`${base}/api/backend/**`, async route => {
       const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
-      assert.equal(request.headers().authorization, undefined);
+      assertPrivateBrowserRequest(request);
       let data;
-      if (path === '/organisations/current') data = { id: organisationId, legalName: 'Synthetic mandate operator' };
+      if (path === '/organisations/current') data = { id: organisationId, legalName: 'Synthetic mandate operator', countryCode: 'NL' };
+      else if (path === '/organisations/authorised-customers') data = [];
       else if (path === '/evidence') data = [{ id: evidenceId, originalFilename: 'synthetic-mandate.pdf',
         eligibleForAuthorisation: true }];
       else if (path === '/authorisations' && request.method() === 'GET') {
@@ -190,8 +288,10 @@ for (const width of [390, 1440]) test(`standalone evidence upload and human revi
     });
     await page.route(`${base}/api/backend/**`, async route => {
       const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
-      assert.equal(request.headers().authorization, undefined); let data;
-      if (path === '/evidence') {
+      assertPrivateBrowserRequest(request); let data;
+      if (path === '/organisations/current') data = syntheticOwnOrganisation;
+      else if (path === '/organisations/authorised-customers') data = [];
+      else if (path === '/evidence') {
         if (denied) return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"HTTP 403"}' });
         data = finalized ? [metadata()] : [];
       } else if (path === '/evidence/upload-sessions') {
@@ -311,8 +411,9 @@ test('Gate 7 web: production hydration, API calls and client navigation work wit
       const request = route.request();
       const url = new URL(request.url());
       let body = [];
-      assert.equal(request.headers().authorization, undefined, 'Production browser requests must not carry bearer credentials');
-      if (url.pathname === '/api/backend/suppliers') {
+      assertPrivateBrowserRequest(request);
+      if (url.pathname === '/api/backend/organisations/current') body = syntheticOwnOrganisation;
+      else if (url.pathname === '/api/backend/suppliers') {
         if (request.method() === 'POST') {
           const input = request.postDataJSON();
           assert.equal(input.legalName, 'Gate 7 CSP supplier');
@@ -393,9 +494,11 @@ test('Customer workflow: browser review, immutable publication and QR download r
     // isolation and server publication gates have separate integration cases.
     await page.route(`${base}/api/backend/**`, async route => {
       const request = route.request(), path = new URL(request.url()).pathname.replace('/api/backend', '');
-      assert.equal(request.headers().authorization, undefined);
+      assertPrivateBrowserRequest(request);
       let data;
-      if (path === `/battery-items/${itemId}`) data = item;
+      if (path === '/organisations/current') data = syntheticOwnOrganisation;
+      else if (path === '/organisations/authorised-customers') data = [];
+      else if (path === `/battery-items/${itemId}`) data = item;
       else if (path === `/battery-models/${modelId}`) data = model;
       else if (path === '/compliance/fields') data = [
         { id: 1, name: 'Manufacturer', currentRequirement: 'mandatory', access_tier: 'public', legal_source: 'Synthetic fixture' },

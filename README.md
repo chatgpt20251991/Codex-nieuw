@@ -37,6 +37,7 @@ Production-minded pre-release codebase for a managed EU Battery Digital Product 
 - Private published-history export and independent offline hash/source verification
 - Read-only audit of actual Auth0 provider configuration using existing authorised administrator credentials
 - Own-organisation written-authorisation administration and standalone human source review
+- API-discovered customer workspace selection with memory-only context, immutable request binding and cookie identity pinning
 
 The [customer passport workflow](docs/27_CUSTOMER_PASSPORT_WORKFLOW.md) describes
 the current console, scan routing and the external acceptance still required
@@ -44,6 +45,10 @@ before admitting a customer. A software build does not complete those checks.
 The [20 October production-control record](docs/29_PRODUCTION_CONTROLS_2026-10-20.md)
 links the action-scope, private-export and provider-audit contracts, including
 rollout requirements and remaining real-environment acceptance.
+The [customer-workspace contract](docs/32_CUSTOMER_WORKSPACES_2026-11-12.md)
+describes delegated selection, state clearing and the required opaque session
+context header. Existing browser sessions require fresh sign-in after this
+change. This does not complete real-provider or customer-environment acceptance.
 
 ## Truth status
 

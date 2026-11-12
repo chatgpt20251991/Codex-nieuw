@@ -2,13 +2,21 @@
 
 ## Current engineering status
 
+Customer-workspace follow-up (12 November 2026): provider selection is prepared
+with API-discovered grants, memory-only context, whole-page remounts and immutable
+request bindings. Cookie identity is pinned through an opaque HMAC marker and
+the required `x-eubp-identity-context` private BFF header; existing cookies need
+fresh sign-in. Own-only management remains separate. See
+`docs/32_CUSTOMER_WORKSPACES_2026-11-12.md`. Exact-revision CI and real provider,
+hosting, recovery and customer acceptance remain required; Gate 7 stays open.
+
 12 November 2026 follow-up: own-organisation administrators can manage explicit
 written-authorisation scopes in the console, supported by standalone private
 source upload/download/human review. New grants require a current complete
 immutable scan attestation and cannot outlive expiring evidence. See
 `docs/30_AUTHORISATION_MANAGEMENT_2026-11-12.md`. Platform runtime/build dependency
 patches are included; exact-revision CI remains mandatory. Real hosting/Auth0/MFA,
-provider customer selection and customer/Registry acceptance remain open. Paid
+target provider/customer operation and Registry acceptance remain open. Paid
 hosting is still deferred. New official Registry interface sources are tracked
 separately; their publication does not enable live Registry flags.
 

@@ -3,9 +3,13 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
 import ComplianceMatrix from '../../components/ComplianceMatrix';
-import { apiFetch } from '../../lib/api';
+import { useWorkspace, useWorkspaceApi } from '../../components/WorkspaceProvider';
+import type { AuthorisationAction } from '../../lib/authorisations';
 
 export default function Models() {
+  const apiFetch = useWorkspaceApi();
+  const { view, customer } = useWorkspace();
+  const permitted = (action: AuthorisationAction) => view.actingId === null || Boolean(customer?.availableActions.includes(action));
   const [models, setModels] = useState<any[]>([]);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<any>();
@@ -31,9 +35,14 @@ export default function Models() {
   useEffect(() => {
     let active = true;
     setDetail(undefined); setConditionalReview(undefined); setDecisions({}); setReviewApproved(false);
-    if (selected) Promise.all([apiFetch(`/battery-models/${selected}`), apiFetch(`/compliance/model/${selected}/readiness`)]).then(([row, result]) => {
+    if (selected) apiFetch(`/battery-models/${selected}`).then(async row => {
       if (!active) return;
-      setDetail(row); setConditionalReview(result.conditionalReview);
+      setDetail(row);
+      // This summary has the same modelRead scope as the model. Keep a valid
+      // model visible if the separate summary request is temporarily unavailable.
+      const result = await apiFetch(`/compliance/model/${selected}/readiness`);
+      if (!active || !apiFetch.isCurrent()) return;
+      setConditionalReview(result.conditionalReview);
       setDecisions(Object.fromEntries((result.conditionalReview?.fields || []).map((field: any) => [field.fieldId, {
         applicable: typeof field.decision?.applicable === 'boolean' ? String(field.decision.applicable) : '', reason: field.decision?.reason || '',
       }])));
@@ -92,7 +101,7 @@ export default function Models() {
           <option value="LMT">Light means of transport</option><option value="EV">Electric vehicle</option>
           <option value="INDUSTRIAL_GT_2KWH">Industrial above 2 kWh</option></select></label>
         <label>Chemistry, if known<input value={chemistry} onChange={e => setChemistry(e.target.value)} /></label>
-        <button className="button" disabled={busy || !identifier.trim()}>Create model</button>
+        <button className="button" disabled={busy || !identifier.trim() || !permitted('modelWrite')}>Create model</button>
       </form></section>
       <section className="panel"><h2>Create individual battery</h2><form onSubmit={createItem}>
         <label>Battery model<select aria-label="Battery model" required value={selected} disabled={busy} onChange={e => setSelected(e.target.value)}>
@@ -100,7 +109,7 @@ export default function Models() {
         <label>Serial or individual item identifier<input required value={serial} onChange={e => setSerial(e.target.value)} /></label>
         <label>Batch, if known<input value={batch} onChange={e => setBatch(e.target.value)} /></label>
         <label>Manufacture date, if known<input type="date" value={manufactured} onChange={e => setManufactured(e.target.value)} /></label>
-        <button className="button" disabled={busy || !selected || !serial.trim()}>Create battery</button>
+        <button className="button" disabled={busy || !selected || !serial.trim() || !permitted('itemWrite')}>Create battery</button>
       </form></section>
     </div>
     <section className="panel"><h2>Your battery models</h2><div className="rows">
@@ -113,7 +122,9 @@ export default function Models() {
     {detail && <section className="panel"><h2>Batteries for {detail.modelIdentifier}</h2><div className="rows">
       {detail.items.map((item: any) => <div className="row" key={item.id}><div><strong>{item.serialOrItemIdentifier}</strong>
         <span>{item.passportState} · {item.lifecycleStatus}</span></div>
-        <Link className="button secondary" href={`/passports?item=${encodeURIComponent(item.id)}`}>Open dossier</Link></div>)}
+        {['itemRead', 'modelRead', 'passportRead', 'complianceRead'].every(action => permitted(action as AuthorisationAction))
+          ? <Link className="button secondary" href={`/passports?item=${encodeURIComponent(item.id)}`}>Open dossier</Link>
+          : <span className="mutedText">Full dossier access is not included.</span>}</div>)}
       {!detail.items.length && <div className="empty">This model has no batteries yet.</div>}
       {detail.items.length === 100 && <p className="mutedText">Showing the latest 100 batteries. Existing dossiers remain accessible through their saved links.</p>}
     </div></section>}
@@ -134,7 +145,7 @@ export default function Models() {
         </fieldset>)}
         <label className="checkLabel"><input type="checkbox" disabled={busy || !decisionsComplete} checked={reviewApproved} onChange={e => setReviewApproved(e.target.checked)} />
           I have assessed each condition against this model and approve the recorded decisions.</label>
-        <button className="button" disabled={busy || !decisionsComplete || !reviewApproved}>Record applicability review</button>
+          <button className="button" disabled={busy || !decisionsComplete || !reviewApproved || !permitted('applicabilityReview')}>Record applicability review</button>
       </form>
     </section>}
     <ComplianceMatrix />

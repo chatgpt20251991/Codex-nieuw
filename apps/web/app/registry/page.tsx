@@ -3,9 +3,11 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
 import DevAuthPanel from '../../components/DevAuthPanel';
-import {API_URL,apiFetch} from '../../lib/api';
+import {API_URL} from '../../lib/api';
+import {useWorkspaceApi} from '../../components/WorkspaceProvider';
 
 export default function Registry(){
+ const apiFetch=useWorkspaceApi();
  const[health,setHealth]=useState<any>();const[orgReadiness,setOrgReadiness]=useState<any>();
  useEffect(()=>{fetch(`${API_URL}/health`).then(r=>r.json()).then(setHealth);apiFetch('/organisations/registry-profile/readiness').then(setOrgReadiness).catch(()=>{})},[]);
  return <AppShell><section className="pageHead"><div><div className="kicker">EU DPP REGISTRY</div><h1>Registration requires three independent gates.</h1><p>A compliant passport, a currently verified responsible economic operator and — when we act for the customer — our own currently verified value-chain-actor identity plus written authorisation.</p></div></section><DevAuthPanel/>

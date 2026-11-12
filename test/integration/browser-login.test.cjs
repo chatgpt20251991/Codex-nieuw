@@ -9,6 +9,8 @@ const { createServer } = require('node:net');
 const { resolve, dirname, join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
+const { S3Client, CreateBucketCommand, PutBucketVersioningCommand,
+  ListObjectVersionsCommand, DeleteObjectsCommand, DeleteBucketCommand } = require('@aws-sdk/client-s3');
 const { createHttpsProxy, createOidcIssuer } = require('../fixtures/browser-oidc.cjs');
 const { syntheticConditionalDecisions } = require('../fixtures/conditional-applicability.cjs');
 
@@ -16,11 +18,20 @@ const { syntheticConditionalDecisions } = require('../fixtures/conditional-appli
 // synthetic issuer. They do not attest to a provisioned or live Auth0 tenant.
 
 const root = resolve(__dirname, '../..');
-const tenants = { A: randomUUID(), B: randomUUID() }, models = {}, sessions = {}, children = [], contexts = [];
+const tenants = { A: randomUUID(), B: randomUUID(), S: randomUUID() }, models = {}, sessions = {}, children = [], contexts = [];
 const clientId = 'eubp-browser-protocol-fixture';
 const clientSecret = randomBytes(32).toString('hex'), sessionSecret = randomBytes(32).toString('hex');
 const audience = 'eubp-browser-api';
+const identityContextHeader = 'x-eubp-identity-context';
+const identityContextClaim = 'https://eubatterypassport.nl/authorization_context';
 let issuer, apiProxy, webProxy, browser, cookieCodec;
+const storageEndpoint = new URL(process.env.TEST_S3_ENDPOINT || 'http://127.0.0.1:59000');
+assert(['localhost', '127.0.0.1', '[::1]'].includes(storageEndpoint.hostname) && storageEndpoint.pathname === '/',
+  'Browser source documents require disposable loopback MinIO, never customer storage');
+const storageBucket = `eubp-browser-workspaces-${randomBytes(10).toString('hex')}`;
+const storageCredentials = { accessKeyId: 'eubp-integration', secretAccessKey: 'eubp-integration-secret' };
+const storage = new S3Client({ endpoint: storageEndpoint.href, region: 'eu-central-1', forcePathStyle: true, credentials: storageCredentials });
+let storageCreated = false;
 
 async function unusedPort() {
   const server = createServer(); server.listen(0, '127.0.0.1'); await once(server, 'listening');
@@ -65,8 +76,8 @@ async function start(args, env, readiness) {
   throw new Error(`Browser fixture service unavailable: ${JSON.stringify(lastReadiness)}; logs=${child.logs}`);
 }
 
-async function context() {
-  const value = await browser.newContext();
+async function context(options) {
+  const value = await browser.newContext(options);
   contexts.push(value);
   return value;
 }
@@ -76,8 +87,22 @@ async function cookieHeader(ctx) {
 }
 
 async function request(ctx, path, { method = 'GET', body, headers = {}, redirect = 'manual' } = {}) {
+  const requestHeaders = new Headers({ ...(ctx ? { cookie: await cookieHeader(ctx) } : {}),
+    ...(body === undefined ? {} : { 'content-type': 'application/json' }) });
+  const explicitContext = Object.keys(headers).some(name => name.toLowerCase() === identityContextHeader);
+  for (const [name, value] of Object.entries(headers)) {
+    if (value !== null && value !== undefined) requestHeaders.set(name, value);
+  }
+  // Obtain the opaque marker through the real cookie-authenticated profile. An
+  // explicit override (including null for deliberate omission) must stay intact.
+  if (ctx && path.startsWith('/api/backend/') && !explicitContext) {
+    const profile = await request(ctx, '/api/session');
+    if (profile.status === 200 && profile.data.authenticated && /^[a-f0-9]{64}$/.test(profile.data.identityContext)) {
+      requestHeaders.set(identityContextHeader, profile.data.identityContext);
+    }
+  }
   const response = await fetch(webProxy.origin + path, { method, redirect,
-    headers: { ...(ctx ? { cookie: await cookieHeader(ctx) } : {}), ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...headers },
+    headers: requestHeaders,
     body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(20000) });
   const text = await response.text();
   let data; try { data = JSON.parse(text); } catch { data = text; }
@@ -87,7 +112,7 @@ async function request(ctx, path, { method = 'GET', body, headers = {}, redirect
 async function api(actor, path, body) {
   const response = await fetch(apiProxy.origin + '/v1' + path, { method: body === undefined ? 'GET' : 'POST',
     headers: { authorization: `Bearer ${await issuer.accessToken(actor)}`, 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body) });
+    body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(45000) });
   const data = await response.json();
   assert([200, 201].includes(response.status), `Fixture API ${path}: ${JSON.stringify(data)}`);
   return data;
@@ -152,7 +177,7 @@ before(async () => {
   assert(process.env.NODE_EXTRA_CA_CERTS && process.env.TEST_BROWSER_TLS_DIRECTORY, 'CI must prepare actual certificate trust');
   assert.notEqual(process.env.NODE_TLS_REJECT_UNAUTHORIZED, '0');
   const [apiPort, webPort] = await Promise.all([unusedPort(), unusedPort()]);
-  issuer = await createOidcIssuer({ clientId, clientSecret, audience, tenants });
+  issuer = await createOidcIssuer({ clientId, clientSecret, audience, tenants, actorRoles: { S: 'service_provider_admin' } });
   apiProxy = await createHttpsProxy(`http://127.0.0.1:${apiPort}`);
   webProxy = await createHttpsProxy(`http://127.0.0.1:${webPort}`);
   issuer.setAppOrigin(webProxy.origin);
@@ -164,6 +189,8 @@ before(async () => {
     RESOLVER_BASE_URL: 'https://id.example.invalid/b', WEB_ORIGIN: webProxy.origin,
     SUPPLIER_PORTAL_BASE_URL: webProxy.origin + '/supplier', RESTRICTED_ACCESS_BASE_URL: webProxy.origin + '/access',
     MALWARE_SCANNER: 'clamav', CLAMAV_HOST: '127.0.0.1', CLAMAV_PORT: '53310',
+    S3_ENDPOINT: storageEndpoint.href, S3_BUCKET: storageBucket, S3_REGION: 'eu-central-1',
+    S3_ACCESS_KEY: storageCredentials.accessKeyId, S3_SECRET_KEY: storageCredentials.secretAccessKey, S3_FORCE_PATH_STYLE: 'true',
     BATTERY_SEMANTIC_CATALOGUE_AVAILABLE: 'false', REGISTRY_BATTERY_SUBMISSION_AVAILABLE: 'false',
   }, apiProxy.origin + '/v1/health');
   for (const actor of ['A', 'B']) {
@@ -192,6 +219,15 @@ after(async () => {
     }
   }
   await webProxy?.close(); await apiProxy?.close(); await issuer?.close();
+  if (storageCreated) {
+    assert.match(storageBucket, /^eubp-browser-workspaces-[a-f0-9]{20}$/);
+    const versions = await storage.send(new ListObjectVersionsCommand({ Bucket: storageBucket }));
+    const objects = [...(versions.Versions || []), ...(versions.DeleteMarkers || [])]
+      .map(object => ({ Key: object.Key, VersionId: object.VersionId }));
+    if (objects.length) await storage.send(new DeleteObjectsCommand({ Bucket: storageBucket, Delete: { Objects: objects } }));
+    await storage.send(new DeleteBucketCommand({ Bucket: storageBucket }));
+  }
+  storage.destroy();
 });
 
 test('Browser login: genuine HTTPS authorization-code flows enforce state, nonce, PKCE S256 and confidential client authentication', async () => {
@@ -228,7 +264,12 @@ test('Browser login: the browser receives only Secure HttpOnly host-only session
     assert.equal(cookies.some(cookie => cookie.name.startsWith('__Host-eubp_txn_')), false);
     const response = await request(ctx, '/api/session');
     assert.equal(response.status, 200);
-    assert.deepEqual(response.data, { configured: true, authenticated: true, name: `Synthetic tenant ${actor}` });
+    assert.match(response.data.identityContext, /^[a-f0-9]{64}$/);
+    assert.deepEqual(response.data, { configured: true, authenticated: true, name: `Synthetic tenant ${actor}`,
+      identityContext: response.data.identityContext });
+    for (const key of ['sub', 'organisationId', 'role', 'accessToken', 'tokenSet', 'idToken', 'email']) {
+      assert.equal(Object.hasOwn(response.data, key), false);
+    }
     assert.match(response.response.headers.get('cache-control'), /no-store/);
     const visible = await page.evaluate(() => ({ cookie: document.cookie, local: { ...localStorage }, session: { ...sessionStorage }, html: document.documentElement.outerHTML }));
     assert(!visible.cookie.includes('__Host-eubp_'));
@@ -264,6 +305,27 @@ test('Browser login: the BFF injects the session token and drops browser credent
   assert.notEqual(upstream.headers.authorization, `Bearer ${forged}`);
   assert.equal(upstream.headers.cookie, undefined); assert.equal(upstream.headers['x-supplier-token'], undefined);
   assert.equal(upstream.headers['x-forwarded-for'], undefined);
+  assert.equal(upstream.headers[identityContextHeader], undefined);
+});
+
+test('Browser login: missing or stale identity contexts cannot send requests under another valid cookie session', async () => {
+  const profileA = (await request(sessions.A.context, '/api/session')).data;
+  const profileB = (await request(sessions.B.context, '/api/session')).data;
+  assert.match(profileA.identityContext, /^[a-f0-9]{64}$/); assert.match(profileB.identityContext, /^[a-f0-9]{64}$/);
+  assert.notEqual(profileA.identityContext, profileB.identityContext);
+  for (const marker of [null, profileA.identityContext, 'malformed']) {
+    const beforeCount = apiProxy.requests.length;
+    const result = await request(sessions.B.context, '/api/backend/organisations/current', {
+      headers: { [identityContextHeader]: marker },
+    });
+    assert.equal(result.status, 409); assert.equal(result.data.code, 'AUTH_CONTEXT_CHANGED');
+    assert.equal(result.text.includes(tenants.A), false); assert.equal(result.text.includes(tenants.B), false);
+    assert.equal(apiProxy.requests.length, beforeCount);
+  }
+  const valid = await request(sessions.B.context, '/api/backend/organisations/current', {
+    headers: { [identityContextHeader]: profileB.identityContext },
+  });
+  assert.equal(valid.status, 200); assert.equal(valid.data.id, tenants.B);
 });
 
 test('Browser login: independent browser sessions retain real API tenant isolation and written-authorisation gates', async () => {
@@ -480,6 +542,24 @@ test('Browser login: expired access tokens require a fresh login and never trigg
   assert.equal(issuer.events.exchanges.length, beforeCount);
 });
 
+test('Browser login: a valid encrypted legacy cookie without an identity marker cannot authenticate the profile or BFF', async () => {
+  const original = sessionCookies(await sessions.A.context.cookies(webProxy.origin));
+  const decrypted = await cookieCodec.decrypt(original.map(cookie => cookie.value).join(''), sessionSecret);
+  assert(decrypted); assert.match(decrypted.payload.user[identityContextClaim], /^[a-f0-9]{64}$/);
+  const legacyPayload = structuredClone(decrypted.payload);
+  delete legacyPayload.user[identityContextClaim];
+  const legacy = await cookieCodec.encrypt(legacyPayload, sessionSecret, Math.floor(Date.now() / 1000) + 600);
+  assert(await cookieCodec.decrypt(legacy, sessionSecret), 'This must be a correctly encrypted, unexpired legacy cookie');
+  const ctx = await context(); await setSessionCookie(ctx, legacy);
+  const profile = await request(ctx, '/api/session');
+  assert.equal(profile.status, 200); assert.deepEqual(profile.data, { configured: true, authenticated: false });
+  const beforeCount = apiProxy.requests.length;
+  assert.equal((await request(ctx, '/api/backend/organisations/current', {
+    headers: { [identityContextHeader]: 'a'.repeat(64) },
+  })).status, 401);
+  assert.equal(apiProxy.requests.length, beforeCount);
+});
+
 test('Browser login: same-origin POST logout clears the browser session and performs OIDC logout without token URLs', async () => {
   const ctx = await context(), flow = await successfulLogin(ctx, 'A');
   const responseIndex = webProxy.responses.length;
@@ -508,4 +588,72 @@ test('Browser login: same-origin POST logout clears the browser session and perf
   assert.equal((await request(ctx, '/api/backend/organisations/current')).status, 401);
   assert.deepEqual(issuer.events.unexpected, []);
   assert.deepEqual(issuer.events.applicationCookieLeaks, []);
+});
+
+test('Customer workspaces: real OIDC provider switches only scoped customers, clears mobile drafts and pauses after live revocation', { timeout: 180000 }, async () => {
+  // This account is logged in lazily: the initial protocol test must continue
+  // to observe exactly its two original A/B authorization-code exchanges.
+  await api('S', '/organisations/bootstrap', { legalName: 'Synthetic browser service provider', countryCode: 'NL', role: 'service_provider' });
+  await storage.send(new CreateBucketCommand({ Bucket: storageBucket })); storageCreated = true;
+  await storage.send(new PutBucketVersioningCommand({ Bucket: storageBucket, VersioningConfiguration: { Status: 'Enabled' } }));
+  const grants = {};
+  async function createScopedMandate(actor) {
+    const bytes = Buffer.from(`Synthetic written mandate ${actor} to browser provider S. Test data only; not a real agreement.\n`);
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    const upload = await api(actor, '/evidence/upload-sessions', { originalFilename: `synthetic-mandate-${actor}.txt`,
+      mimeType: 'text/plain', sizeBytes: bytes.length, sha256: digest, evidenceType: 'written_authorisation' });
+    assert.equal((await fetch(upload.uploadUrl, { method: 'PUT', headers: upload.requiredHeaders,
+      body: bytes, signal: AbortSignal.timeout(20000) })).status, 200);
+    const finalized = await api(actor, `/evidence/${upload.evidenceId}/finalize`, {});
+    assert.equal(finalized.verificationStatus, 'uploaded'); assert.equal(finalized.malwareScanSha256, digest);
+    assert.ok(finalized.storageVersionId && finalized.storageVersionId !== 'null');
+    const verified = await api(actor, `/evidence/${upload.evidenceId}/verify`, {});
+    assert.equal(verified.verificationStatus, 'verified'); assert.equal(verified.malwareScanSha256, digest);
+    assert.match(verified.malwareScannerVersion, /^ClamAV \d+\.\d+\.\d+\/\d+\//);
+    return api(actor, '/authorisations', { serviceProviderId: tenants.S, evidenceId: upload.evidenceId,
+      scope: { modelRead: true }, validUntil: new Date(Date.now() + 15 * 60000).toISOString() });
+  }
+  const ctx = await context({ viewport: { width: 390, height: 844 } });
+  let page;
+  try {
+    grants.A = await createScopedMandate('A'); grants.B = await createScopedMandate('B');
+    page = (await successfulLogin(ctx, 'S')).page;
+    const workspace = () => page.getByLabel('Workspace', { exact: true });
+    const active = () => page.getByRole('region', { name: 'Active workspace', exact: true });
+    await workspace().selectOption(tenants.A);
+    await page.getByRole('button', { name: 'Switch workspace', exact: true }).click();
+    await active().getByText('Acting for Browser login A', { exact: true }).waitFor();
+    await page.getByText(models.A.modelIdentifier, { exact: true }).waitFor();
+    await page.getByRole('link', { name: 'Open battery models', exact: true }).click();
+    await page.getByLabel('Model identifier', { exact: true }).fill('UNSAVED-SYNTHETIC-A-DRAFT');
+    assert.equal(await page.getByRole('button', { name: 'Create model', exact: true }).isEnabled(), false);
+    await page.evaluate(id => history.replaceState(null, '', `?modelId=${id}#old-customer-draft`), models.A.id);
+    await workspace().selectOption(tenants.B);
+    await page.getByRole('button', { name: 'Switch workspace', exact: true }).click();
+    await page.waitForURL(webProxy.origin + '/dashboard');
+    await active().getByText('Acting for Browser login B', { exact: true }).waitFor();
+    await page.getByText(models.B.modelIdentifier, { exact: true }).waitFor();
+    assert.equal(new URL(page.url()).search, ''); assert.equal(new URL(page.url()).hash, '');
+    assert.equal(await page.getByText(models.A.modelIdentifier, { exact: true }).count(), 0);
+    assert.equal(await page.getByLabel('Model identifier', { exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+
+    const deniedResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/backend/battery-models'
+      && response.request().headers()['x-acting-organisation-id'] === tenants.B && response.status() === 403);
+    const requestIndex = apiProxy.requests.length;
+    await api('B', `/authorisations/${grants.B.id}/revoke`, {});
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    const denied = await deniedResponse;
+    assert.equal((await denied.json()).code, 'NO_WRITTEN_AUTHORISATION');
+    await page.getByRole('heading', { name: 'Workspace access is paused.', exact: true }).waitFor();
+    await active().getByText('Customer access unavailable', { exact: true }).waitFor();
+    assert.equal(await page.getByText(models.B.modelIdentifier, { exact: true }).count(), 0);
+    assert.equal(await page.getByText(models.A.modelIdentifier, { exact: true }).count(), 0);
+    assert.equal(apiProxy.requests.slice(requestIndex).some(entry => entry.url === '/v1/battery-models'
+      && !entry.headers['x-acting-organisation-id']), false, 'Revocation must not reload the provider own-model view automatically');
+    assert.deepEqual(issuer.events.unexpected, []); assert.deepEqual(issuer.events.applicationCookieLeaks, []);
+  } finally {
+    for (const actor of ['A', 'B']) if (grants[actor]) await api(actor, `/authorisations/${grants[actor].id}/revoke`, {});
+    await ctx.close();
+  }
 });

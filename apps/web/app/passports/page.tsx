@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '../../components/AppShell';
-import { apiFetch } from '../../lib/api';
+import { useWorkspaceApi } from '../../components/WorkspaceProvider';
 import { parsePassportInput, publicPassportLink, ValueKind } from '../../lib/passport-input';
 import { downloadEvidence } from '../../lib/evidence-review';
 import { prepareOperatorExport } from '../../lib/operator-export';
@@ -15,6 +15,7 @@ function download(content: string, filename: string, type: string) {
 }
 
 export default function Passports() {
+  const apiFetch = useWorkspaceApi();
   const [itemId, setItemId] = useState('');
   const [itemInput, setItemInput] = useState('');
   const [item, setItem] = useState<any>();
@@ -116,7 +117,7 @@ export default function Passports() {
   }
   async function reviewDocument(id: string) {
     await run(async () => {
-      await downloadEvidence(id);
+      await downloadEvidence(id, { request: apiFetch, isCurrent: apiFetch.isCurrent, signal: apiFetch.signal });
       setNotice('Source download initiated. Read the document before recording verification. Downloading does not verify evidence.');
     });
   }

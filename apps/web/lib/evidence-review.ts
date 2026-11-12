@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import type { ApiRequest } from './workspace';
 
 // Signed document URLs are capabilities. Use them once for an attachment;
 // never put them in component state, local storage, page text or a log.
@@ -18,8 +19,9 @@ export function evidenceReviewUrl(result: any, evidenceId: string, storageOrigin
   return url.href;
 }
 
-export async function downloadEvidence(evidenceId: string, options: { signal?: AbortSignal; isCurrent?: () => boolean } = {}) {
-  const result = await apiFetch(`/evidence/${encodeURIComponent(evidenceId)}/review-download`, { method: 'POST', signal: options.signal });
+export async function downloadEvidence(evidenceId: string, options: { signal?: AbortSignal; isCurrent?: () => boolean; request?: ApiRequest } = {}) {
+  if (options.signal?.aborted || (options.isCurrent && !options.isCurrent())) throw new Error('The document review request is no longer current.');
+  const result = await (options.request || apiFetch)(`/evidence/${encodeURIComponent(evidenceId)}/review-download`, { method: 'POST', signal: options.signal });
   if (options.signal?.aborted || (options.isCurrent && !options.isCurrent())) throw new Error('The document review request is no longer current.');
   const url = evidenceReviewUrl(result, evidenceId, process.env.NEXT_PUBLIC_EVIDENCE_UPLOAD_ORIGIN || '');
   const anchor = document.createElement('a');

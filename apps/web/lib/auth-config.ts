@@ -14,6 +14,24 @@ export const AUTH_TRANSACTION_SECONDS = 600;
 export const MFA_ACR = 'http://schemas.openid.net/pape/policies/2007/06/multi-factor';
 export const ORGANISATION_CLAIM = 'https://eubatterypassport.nl/organisation_id';
 export const ROLE_CLAIM = 'https://eubatterypassport.nl/role';
+export const AUTH_CONTEXT_CLAIM = 'https://eubatterypassport.nl/authorization_context';
+export const AUTH_CONTEXT_HEADER = 'x-eubp-identity-context';
+export function hasAuthorizationContext(user: unknown): user is Record<string, unknown> {
+  return Boolean(user && typeof user === 'object' && !Array.isArray(user)
+    && Object.hasOwn(user, AUTH_CONTEXT_CLAIM)
+    && typeof (user as Record<string, unknown>)[AUTH_CONTEXT_CLAIM] === 'string'
+    && /^[a-f0-9]{64}$/.test((user as Record<string, unknown>)[AUTH_CONTEXT_CLAIM] as string));
+}
+
+/** Call only after the SDK identity, MFA and provisioned application claims pass. */
+export async function authorizationContext(secret: string, user: Record<string, unknown>) {
+  assertMfaIdentity(user); assertProvisionedIdentity(user);
+  if (!Object.hasOwn(user, 'sub') || typeof user.sub !== 'string' || !user.sub || user.sub.length > 255) throw new Error('A verified subject is required.');
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const message = JSON.stringify(['eubp.browser-auth-context.v1', user.sub, user[ORGANISATION_CLAIM], user[ROLE_CLAIM]]);
+  return [...new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(message)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
 const applicationRoles = new Set(['operator_user', 'operator_admin', 'compliance_manager', 'service_provider', 'service_provider_admin']);
 
 /** Only call on claims from the SDK-validated ID token, never a request body. */

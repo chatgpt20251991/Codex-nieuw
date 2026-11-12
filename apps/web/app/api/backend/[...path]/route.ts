@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth0Client } from '../../../../lib/auth0';
-import { hasTrustedRequestHost } from '../../../../lib/auth-config';
+import { AUTH_CONTEXT_CLAIM, AUTH_CONTEXT_HEADER, hasAuthorizationContext, hasTrustedRequestHost } from '../../../../lib/auth-config';
 import { appOrigin, backendUrl, isPassportQrPath, MAX_QR_RESPONSE_BYTES, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, readBoundedBody, sameOriginRequest } from '../../../../lib/backend-policy';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,11 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
 
   let token: string;
   try {
-    if (!await client.getSession()) return failure(401, 'Sign in to continue.');
+    const session = await client.getSession();
+    if (!session || !hasAuthorizationContext(session.user)) return failure(401, 'Sign in to continue.');
+    const expectedContext = request.headers.get(AUTH_CONTEXT_HEADER);
+    if (!expectedContext || expectedContext !== session.user[AUTH_CONTEXT_CLAIM]) return NextResponse.json({ code: 'AUTH_CONTEXT_CHANGED',
+      message: 'Your session context changed. Refresh your workspace before continuing.' }, { status: 409, headers: responseHeaders });
     const access = await client.getAccessToken();
     if (!access.token || access.expiresAt <= Math.floor(Date.now() / 1000)) return failure(401, 'Your session has expired. Sign in again.');
     token = access.token;
