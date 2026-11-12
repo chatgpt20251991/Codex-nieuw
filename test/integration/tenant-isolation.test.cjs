@@ -79,9 +79,16 @@ before(async () => {
     const item = await success('/battery-items', name, { modelId: model.id, serialOrItemIdentifier: `serial-${name}` });
     const value = await success('/passport-values', name, { modelId: model.id, fieldDefinitionId: 45, value: `restricted-${name}` });
     const supplier = await success('/suppliers', name, { legalName: `Supplier ${name}`, contact: { email: `private-${name}@example.invalid` } });
-    const evidence = await admin.evidenceObject.create({ data: { organisationId: orgs[name],
-      objectKey: `fixture/${name}/written-authorisation.pdf`, evidenceType: 'written_authorisation',
-      sha256: 'a'.repeat(64), verificationStatus: 'verified' } });
+    // Synthetic database fixture: complete scan/version attestation, without
+    // claiming an actual storage or scanner acceptance result for these bytes.
+    const evidenceId = randomUUID(), digest = 'a'.repeat(64);
+    const evidence = await admin.evidenceObject.create({ data: { id: evidenceId, organisationId: orgs[name],
+      objectKey: `orgs/${orgs[name]}/evidence/${evidenceId}/written-authorisation.pdf`, evidenceType: 'written_authorisation',
+      originalFilename: 'written-authorisation.pdf', mimeType: 'application/pdf', sizeBytes: 1n,
+      sha256: digest, storageChecksum: Buffer.from(digest, 'hex').toString('base64'),
+      storageVersionId: 'synthetic-mandate-version-1', malwareScanSha256: digest,
+      malwareScannedAt: new Date(Date.now() - 1000), uploadedAt: new Date(Date.now() - 1000),
+      malwareScannerVersion: 'ClamAV 1.4.6/12345/Thu Nov 12 08:00:00 2026', verificationStatus: 'verified' } });
     await admin.evidenceLink.create({ data: { evidenceId: evidence.id, passportValueId: value.id } });
     fixture[name] = { model, item, value, supplier, evidence };
   }
@@ -418,4 +425,100 @@ test('runtime cannot alter another operator authorisation or rewrite audit histo
     (id,"responsibleOperatorId","serviceProviderId","scopeJson","documentObjectKey","documentSha256","validFrom")
     VALUES ($1,$2,$3,'{}','forged','forged',now())`, [randomUUID(), orgs.A, orgs.S]), { code: '42501' });
   await assert.rejects(tenantQuery('A', 'UPDATE "AuditEvent" SET action=\'forged\''), { code: '42501' });
+});
+
+test('authorisation inventory is admin-only, tenant-bound, bounded and excludes source locators', async () => {
+  // Use the existing ordinary-user token fixture without creating provider roles.
+  const ordinary = await request('/authorisations', 'User');
+  assert.equal(ordinary.status, 403);
+  const rows = await success('/authorisations?limit=1', 'A');
+  assert.equal(rows.length, 1); assert.equal(rows[0].responsibleOperatorId, orgs.A);
+  assert.equal(typeof rows[0].scopeValid, 'boolean');
+  for (const key of ['documentObjectKey', 'documentSha256', 'objectKey', 'sha256']) assert.equal(Object.hasOwn(rows[0], key), false);
+  const next = await success(`/authorisations?limit=1&cursor=${rows[0].id}`, 'A');
+  assert.equal(next.length, 1); assert.notEqual(next[0].id, rows[0].id);
+  assert.equal((await request('/authorisations?limit=101', 'A')).status, 400);
+  assert.equal((await request('/authorisations?limit=1&cursor=bad', 'A')).status, 400);
+  assert.equal((await request('/authorisations', 'S', undefined, orgs.A)).status, 403);
+  const other = await success('/authorisations', 'B');
+  assert.ok(other.every(row => row.responsibleOperatorId === orgs.B));
+  const foreignCursor = await admin.writtenAuthorisation.create({ data: {
+    responsibleOperatorId: orgs.B, serviceProviderId: orgs.A,
+    validFrom: new Date(),
+    scopeJson: { modelRead: true }, documentObjectKey: 'synthetic-foreign-grant', documentSha256: 'b'.repeat(64),
+  } });
+  assert.equal((await request(`/authorisations?cursor=${foreignCursor.id}`, 'A')).status, 404);
+});
+
+test('new authorisations reject expired, future, unscanned or unbound verified sources without creating grants or audits', async () => {
+  const source = await admin.evidenceObject.findUniqueOrThrow({ where: { id: fixture.A.evidence.id } });
+  const { id, createdAt, updatedAt, ...copy } = source;
+  for (const overrides of [
+    { expiresAt: new Date(Date.now() - 1000) }, { issuedAt: new Date(Date.now() + 60000) },
+    { malwareScanSha256: null }, { storageVersionId: null }, { storageVersionId: 'null' },
+    { storageChecksum: 'unbound' }, { malwareScannedAt: new Date(Date.now() + 60000) },
+  ]) {
+    const evidenceId = randomUUID();
+    await admin.evidenceObject.create({ data: { ...copy, id: evidenceId,
+      objectKey: `orgs/${orgs.A}/evidence/${evidenceId}/mandate.pdf`, ...overrides } });
+    const before = await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } });
+    const auditBefore = await admin.auditEvent.count({ where: { organisationId: orgs.A, action: 'authorisation.create' } });
+    const response = await request('/authorisations', 'A', { serviceProviderId: orgs.T, evidenceId, scope: { modelRead: true } });
+    assert.equal(response.status, 409); assert.equal(response.data.code, 'VERIFIED_AUTHORISATION_EVIDENCE_REQUIRED');
+    assert.equal(await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } }), before);
+    assert.equal(await admin.auditEvent.count({ where: { organisationId: orgs.A, action: 'authorisation.create' } }), auditBefore);
+  }
+});
+
+test('grant revocation preserves its first timestamp and audit while evidence inventory projects only tenant metadata', async () => {
+  const grant = await success('/authorisations', 'A', { serviceProviderId: orgs.T,
+    evidenceId: fixture.A.evidence.id, scope: { evidenceRead: true } });
+  assert.equal(Object.hasOwn(grant, 'documentObjectKey'), false); assert.equal(Object.hasOwn(grant, 'documentSha256'), false);
+  const first = await success(`/authorisations/${grant.id}/revoke`, 'A', {});
+  const second = await success(`/authorisations/${grant.id}/revoke`, 'A', {});
+  assert.equal(first.revokedAt, second.revokedAt);
+  assert.equal(await admin.auditEvent.count({ where: { action: 'authorisation.revoke', resourceId: grant.id } }), 1);
+  const rows = await success('/evidence?limit=100', 'A');
+  const own = rows.find(row => row.id === fixture.A.evidence.id);
+  assert.ok(own); assert.equal(own.eligibleForAuthorisation, true); assert.equal(own.verifiedAt, null);
+  assert.equal(rows.some(row => row.id === fixture.B.evidence.id), false);
+  assert.equal((await request(`/evidence?cursor=${fixture.B.evidence.id}`, 'A')).status, 404);
+  assert.ok(rows.length <= 100); assert.equal((await request('/evidence?limit=101', 'A')).status, 400);
+  const encoded = JSON.stringify(rows);
+  for (const key of ['objectKey', 'storageChecksum', 'sha256', 'malwareScanSha256', 'storageVersionId', 'malwareScannerVersion']) assert.equal(encoded.includes(`"${key}"`), false);
+});
+
+test('grant issuance waits for a concurrent source change and rereads rejection before creating any permission', async () => {
+  const source = await admin.evidenceObject.findUniqueOrThrow({ where: { id: fixture.A.evidence.id } });
+  const { id, createdAt, updatedAt, ...copy } = source, evidenceId = randomUUID();
+  await admin.evidenceObject.create({ data: { ...copy, id: evidenceId,
+    objectKey: `orgs/${orgs.A}/evidence/${evidenceId}/race-mandate.pdf` } });
+  let locked, release;
+  const lockReady = new Promise(resolve => { locked = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const transaction = admin.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "EvidenceObject" WHERE "id" = ${evidenceId} FOR UPDATE`;
+    await tx.evidenceObject.update({ where: { id: evidenceId }, data: { verificationStatus: 'superseded' } });
+    locked(); await gate;
+  }, { timeout: 15000 });
+  await lockReady;
+  const before = await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } });
+  let settled = false;
+  const pending = request('/authorisations', 'A', { serviceProviderId: orgs.T, evidenceId,
+    scope: { modelRead: true } }).then(result => { settled = true; return result; });
+  try {
+    // Require an actual PostgreSQL lock waiter, rather than trusting a timer
+    // as proof that the API reached the locked source row.
+    let blocked = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const waiters = await admin.$queryRaw`SELECT pid FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND query LIKE '%EvidenceObject%' AND query LIKE '%FOR SHARE%'`;
+      if (waiters.length) { blocked = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.equal(blocked, true); assert.equal(settled, false);
+  } finally { release(); await transaction; }
+  const result = await pending;
+  assert.equal(result.status, 409); assert.equal(result.data.code, 'VERIFIED_AUTHORISATION_EVIDENCE_REQUIRED');
+  assert.equal(await admin.writtenAuthorisation.count({ where: { responsibleOperatorId: orgs.A } }), before);
 });
