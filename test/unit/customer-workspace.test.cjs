@@ -228,8 +228,8 @@ test('response payloads wait for the return identity check and are discarded whe
 
 test('all private pages bind their API calls while public and capability views have no workspace hook', () => {
   const privatePages = ['dashboard', 'models', 'passports', 'suppliers', 'evidence', 'authorisations', 'onboarding', 'registry', 'registry-onboarding'];
-  for (const name of privatePages) {
-    const filename = `apps/web/app/${name}/page.tsx`, source = fs.readFileSync(path.join(root, filename), 'utf8');
+  for (const filename of [...privatePages.map(name => `apps/web/app/${name}/page.tsx`), 'apps/web/components/ComplianceMatrix.tsx']) {
+    const source = fs.readFileSync(path.join(root, filename), 'utf8');
     const tree = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     let hookImports = 0, bindings = 0;
     const visit = node => {
@@ -251,4 +251,30 @@ test('all private pages bind their API calls while public and capability views h
     const source = fs.readFileSync(path.join(root, filename), 'utf8');
     assert.equal(/useWorkspaceApi|WorkspaceProvider|WorkspaceSelector/.test(source), false, filename);
   }
+});
+
+test('a bound production request pins its expected cookie identity and discards a forged caller identity header', async () => {
+  const fixture = apiFixture(), context = workspace.createWorkspaceContext(() => now);
+  const bound = fixture.api.createApiFetch(context.activate(customerA, choices()), undefined, undefined, 'a'.repeat(64));
+  await bound('/battery-models', { headers: { 'x-eubp-identity-context': 'b'.repeat(64), authorization: 'Bearer browser-forgery' } });
+  assert.equal(fixture.calls.length, 1);
+  assert.equal(fixture.calls[0].init.headers.get('x-eubp-identity-context'), 'a'.repeat(64));
+  assert.equal(fixture.calls[0].init.headers.get('authorization'), null);
+  assert.equal(fixture.calls[0].init.headers.get('x-acting-organisation-id'), customerA);
+});
+
+test('an identity-context mismatch reports once and does not replay even an own-organisation mutation', async () => {
+  const fixture = apiFixture(() => new Response('{"code":"AUTH_CONTEXT_CHANGED","message":"Context changed"}', { status: 409 }));
+  const context = workspace.createWorkspaceContext(() => now), denials = [];
+  const bound = fixture.api.createApiFetch(context.activate(null), error => denials.push(error.code), undefined, 'a'.repeat(64));
+  await assert.rejects(bound('/battery-models', { method: 'POST', body: '{"modelIdentifier":"must-not-replay"}' }),
+    error => error.status === 409 && error.code === 'AUTH_CONTEXT_CHANGED');
+  assert.equal(fixture.calls.length, 1); assert.deepEqual(denials, ['AUTH_CONTEXT_CHANGED']);
+});
+
+test('modelRead-only navigation offers models without inventing supplier, publication or Registry permissions', () => {
+  const permitted = ['modelRead'];
+  for (const path of ['/dashboard', '/models', '/authorisations', '/onboarding']) assert.equal(workspace.workspaceNavigation(path, true, permitted), true, path);
+  for (const path of ['/suppliers', '/passports', '/evidence', '/registry', '/registry-onboarding', '/not-a-workspace']) assert.equal(workspace.workspaceNavigation(path, true, permitted), false, path);
+  for (const path of workspace.OPERATOR_PATHS) assert.equal(workspace.workspaceNavigation(path, false, []), true, path);
 });

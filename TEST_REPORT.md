@@ -4,12 +4,13 @@
 
 A fresh locked install and generated Prisma client run in
 `E:/Data/Han23/Codex/EUBatteryPassport/validation/customer-workspaces-2026-11-12`.
-The all-workspace typecheck and initial full local suite pass: 21 rule tests,
-43 static checks and 196 unit/security tests, without failures or skips. This
+The all-workspace typecheck, API/web production builds and full local suite pass:
+21 rule tests, 43 static checks and a final 199 unit/security tests, without
+failures or skips. The complete platform lockfile audit reports zero findings. This
 includes immutable customer epochs, aborted/stale requests, no mutation replay,
 opaque identity binding and missing/mismatched/legacy session rejection before
-upstream work. Updated source must pass the final build and exact-revision CI
-before merge; the pull request records those results.
+upstream work. Exact-revision CI remains required before merge; the pull request
+records its measured results independently of local validation.
 
 Browser fixtures cover 390/1440-pixel customer selection, modelRead-only access,
 discarded previous-customer data and URL context, own-organisation mandate
