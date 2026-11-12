@@ -147,7 +147,7 @@ export default function Evidence() {
       </div></section>
     </div>
     <section className="panel"><h2>Source documents</h2><p>This list shows the latest 100 records for the active organisation. Older documents are not included in this view.</p>
-      <label>Document to review<select value={selectedId} disabled={busy || !ready} onChange={event => select(event.target.value)}>
+      <label>Document to review<select aria-label="Document to review" value={selectedId} disabled={busy || !ready} onChange={event => select(event.target.value)}>
         <option value="">Select a source document</option>{rows.map(row => <option key={row.id} value={row.id}>{row.originalFilename} · {row.verificationStatus} · {row.id}</option>)}</select></label>
       {ready && !rows.length && <p>No source documents found. Upload a document to start the review process.</p>}
       {!ready && !busy && <p>Sign in and refresh to load the document list.</p>}

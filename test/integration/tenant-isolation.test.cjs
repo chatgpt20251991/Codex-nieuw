@@ -444,6 +444,7 @@ test('authorisation inventory is admin-only, tenant-bound, bounded and excludes 
   assert.ok(other.every(row => row.responsibleOperatorId === orgs.B));
   const foreignCursor = await admin.writtenAuthorisation.create({ data: {
     responsibleOperatorId: orgs.B, serviceProviderId: orgs.A,
+    validFrom: new Date(),
     scopeJson: { modelRead: true }, documentObjectKey: 'synthetic-foreign-grant', documentSha256: 'b'.repeat(64),
   } });
   assert.equal((await request(`/authorisations?cursor=${foreignCursor.id}`, 'A')).status, 404);

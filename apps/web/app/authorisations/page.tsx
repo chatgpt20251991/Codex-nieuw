@@ -150,7 +150,7 @@ export default function Authorisations() {
       <form onSubmit={reviewCreate}>
         <fieldset disabled={!ready || busy || Boolean(review)} className="authorisationFields">
           <label>Service provider organisation ID<input required value={providerId} onChange={event => setProviderId(event.target.value)} autoComplete="off" spellCheck={false} maxLength={36} placeholder="Provider organisation UUID" /></label>
-          <label>Reviewed authorisation document<select value={evidence.some(row => row.id === evidenceId && row.eligibleForAuthorisation) ? evidenceId : ''} onChange={event => setEvidenceId(event.target.value)}>
+          <label>Reviewed authorisation document<select aria-label="Reviewed authorisation document" value={evidence.some(row => row.id === evidenceId && row.eligibleForAuthorisation) ? evidenceId : ''} onChange={event => setEvidenceId(event.target.value)}>
             <option value="">Choose an eligible document</option>{eligible.map(row => <option key={row.id} value={row.id}>{row.originalFilename} · {row.id}</option>)}</select></label>
           <p className="tiny">The latest 100 documents are checked. No document is selected automatically. Upload and review evidence before granting access; the server checks its current eligibility again.</p>
           <label>Authorisation evidence ID<input required value={evidenceId} onChange={event => setEvidenceId(event.target.value)} autoComplete="off" spellCheck={false} maxLength={36} placeholder="Verified evidence UUID" /></label>
