@@ -15,6 +15,12 @@ scenarios, 54 unit tests, 43 source checks and all security scans in PR #15;
 see GATE_7_REPORT.md. Complete its real-provider/deployment evidence before
 declaring Gate 7 closed or advancing to Gate 8.
 
+12 November 2026: the Commission has now published API, authentication and
+battery semantic artifacts. See [the official-interface source record](../docs/31_OFFICIAL_REGISTRY_INTERFACE_2026-11-12.md)
+for offline mapping/contract-test work that can proceed while external Gate 7
+acceptance remains open. This does not enable live submission or replace the
+active 71-point rules; v3.2 guidance requires a separate reviewed comparison.
+
 ## Gate 1 — Reproducible install/build
 - `npm install`
 - commit generated `package-lock.json`

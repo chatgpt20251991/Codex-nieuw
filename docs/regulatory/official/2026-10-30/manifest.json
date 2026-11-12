@@ -1,0 +1,83 @@
+{
+  "schema": "eubp.official-registry-source-observations.v1",
+  "checkedOn": "2026-11-12",
+  "authority": "European Commission, DG GROW",
+  "landingPage": "https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/resources-documentation_en",
+  "originalArchiveDirectory": "E:/Data/Han23/Codex/EUBatteryPassport/outputs/regulatory-2026-11-12",
+  "artifacts": [
+    {
+      "name": "OpenAPI Specifications",
+      "publishedOn": "2026-10-30",
+      "specificationVersion": "1.0.0",
+      "openApiVersion": "3.1.0",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/74214725-69b6-490b-aa23-4e0f64329149_en?filename=DPP+Registry+%E2%80%93+OpenAPI+Specifications.zip",
+      "filename": "openapi-specifications.zip",
+      "bytes": 9880,
+      "sha256": "1620c30babe94ae5848f843a41e3fb90d4f970c4f00a2b0511b6c50bb89e9e43",
+      "files": ["openapi-dpp-registry-public.yml", "openapi-dpp-dashboard-public.yml", "openapi-dpp-common-public.yml"],
+      "expandedFileCount": 3,
+      "expandedBytes": 42900
+    },
+    {
+      "name": "Semantic Data Artifacts",
+      "publishedOn": "2026-10-30",
+      "artifactReleaseVersion": "1.0.0",
+      "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/5fad8a3a-9c18-486d-be02-01eb540e91e8_en?filename=DPP+Registry+%E2%80%93+Semantic+Data+Artifacts.zip",
+      "filename": "semantic-data-artifacts.zip",
+      "bytes": 101789,
+      "sha256": "46b753cdcdf11d3dba9d045c2c8410eabe41125c741e5240499c0ca0fccd2ddd",
+      "includes": ["core", "batteries", "evb", "ind", "lmt", "public-and-res1-res2-res3-views", "schemas", "shapes", "contexts", "vocabularies", "examples"],
+      "expandedFileCount": 78,
+      "expandedBytes": 478596
+    }
+  ],
+  "guides": [
+    {
+      "name": "API Integration Guide for Economic Operators",
+      "edition": "1.0",
+      "publishedOn": "2026-10-30",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/9bce584d-fd9c-453f-862c-55670d2757b7_en?filename=DPP+Registry+%E2%80%93+API+Integration+Guide+for+Economic+Operators.pdf"
+    },
+    {
+      "name": "Semantic Data Guide",
+      "edition": "1.0",
+      "publishedOn": "2026-10-30",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/fb9dd217-74ae-4d31-b25a-38a68df87c2d_en?filename=DPP+Registry+%E2%80%93+Semantic+Data+Guide.pdf"
+    },
+    {
+      "name": "Service Account Technical Integration Guide",
+      "edition": "1.0",
+      "publishedOn": "2026-10-30",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/b42673d1-90db-4c0c-b54e-37fa9e0ac6c6_en?filename=DPP+Registry+%E2%80%93+Service+Account+Technical+Integration+Guide.pdf"
+    },
+    {
+      "name": "Self-Hosted Authentication Guide for Economic Operators",
+      "edition": "1.0",
+      "publishedOn": "2026-10-30",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/56a7f4ca-5e75-4f9e-adac-fd86f88f2b16_en?filename=DPP+Registry+%E2%80%93+Self-Hosted+Authentication+Guide+for+Economic+Operators.pdf"
+    },
+    {
+      "name": "Registry User Guide for Economic Operators",
+      "edition": "1.03",
+      "coverPublishedOn": "2026-09-16",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/a71b5d30-ed8b-4c27-809d-757cf5e6030f_en?filename=dpp_registry_user_guide_for_economic_operators.pdf",
+      "observation": "Pages 48 and 54 still describe battery registration as unavailable; this older statement does not prove the operational status after the newer artifact publication."
+    },
+    {
+      "name": "Digital Batteries Passport - data points by category",
+      "edition": "3.2",
+      "publishedOn": "2026-10-19",
+      "sourceUrl": "https://single-market-economy.ec.europa.eu/document/download/cd1e5e6c-4a4a-4b99-995a-49eb6916187e_en?filename=Digital+Batteries+Passport+-+data+point+by+category.pdf",
+      "activeRulesUpdated": false
+    }
+  ],
+  "pdfObservationMethod": "Official published PDF text read through web tool; separate raw download was rate-limited. No PDF byte hash recorded.",
+  "registrationApiIndustrialSubgroupCodeVerified": false,
+  "semanticRepositoryReachabilityVerified": false,
+  "authenticatedRegistryIntegrationTested": false,
+  "realRegistrationSucceeded": false,
+  "normativeStandardTextsReviewed": false,
+  "liveFlagsChanged": false,
+  "gate7Closed": false
+}
